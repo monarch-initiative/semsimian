@@ -13,28 +13,14 @@ fn main() {
     let mut reader = ReaderBuilder::new().has_headers(false)
                                          .from_path("test_set.tsv")
                                          .unwrap();
-
-    // let mut dict_from_csv = HashMap::new();
     let mut dict_from_csv: HashMap<String, HashSet<String>> = HashMap::new();
 
     for result in reader.records() {
         let record = result.unwrap();
         let name = &record[0];
         let fruit = &record[1];
-
-        // println!("name: {}", name);
-        // println!("fruit: {}", fruit);
-
-        // dict_from_csv.add(name.to_string(), fruit.to_string());
         let n = dict_from_csv.entry(name.to_string());
         n.or_default().insert(fruit.to_string());
-
-        // if set1.contains(fruit) {
-        //     println!("{} likes {}", name, fruit);
-        // }
-        // if set2.contains(fruit) {
-        //     println!("{} likes {}", name, fruit);
-        // }
     }
 
     // iterate over dict
@@ -43,10 +29,6 @@ fn main() {
         let score:f64 = jaccard_similarity(dict_from_csv.get("set1").unwrap(), fruits);
         println!("score : {score:?}")
     }
-
-    // let similarity = jaccard_similarity(&set1, &set2);
-    // println!("Jaccard similarity: {}", similarity);
-    
 }
 
 fn jaccard_similarity(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
