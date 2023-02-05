@@ -1,16 +1,23 @@
 use std::collections::{HashSet, HashMap};
+use csv::ReaderBuilder;
 
 fn main() {
     // let set1: HashSet<&str> = ["apple", "banana", "cherry"].iter().cloned().collect();
     // let set2: HashSet<&str> = ["banana", "cherry", "date"].iter().cloned().collect();
 
-    // read in TSV file
-    let mut rdr = csv::Reader::from_path("test_set.tsv").unwrap();
+    /*
+    read in TSV file
+    csv::ReaderBuilder instead of just csv::Reader because we need to specify
+    that the file has no headers.
+    */
+    let mut reader = ReaderBuilder::new().has_headers(false)
+                                         .from_path("test_set.tsv")
+                                         .unwrap();
 
     // let mut dict_from_csv = HashMap::new();
     let mut dict_from_csv: HashMap<String, HashSet<String>> = HashMap::new();
 
-    for result in rdr.records() {
+    for result in reader.records() {
         let record = result.unwrap();
         let name = &record[0];
         let fruit = &record[1];
@@ -32,9 +39,9 @@ fn main() {
 
     // iterate over dict
     for (name, fruits) in &dict_from_csv {
-        println!("CSV read as key : value => {} : {:?}", name, fruits);
+        println!("CSV read as key : value => {name} : {fruits:?}");
         let score:f64 = jaccard_similarity(dict_from_csv.get("set1").unwrap(), fruits);
-        println!("score : {:?}", score)
+        println!("score : {score:?}")
     }
 
     // let similarity = jaccard_similarity(&set1, &set2);
