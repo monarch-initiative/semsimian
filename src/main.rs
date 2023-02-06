@@ -18,7 +18,7 @@ fn main() {
     // iterate over dict
     for (name, foods) in &data_dict {
         println!("Original HashMap : key => {name} ; value: {foods:?}");
-        let expanded_foods = expand(foods, &closures_dict);
+        let expanded_foods = expand_hash_set(foods, &closures_dict);
         println!("Expanded HashMap : key => {name} ; value: {expanded_foods:?}");
         let score:f64 = jaccard_similarity(data_dict.get("set1").unwrap(), &expanded_foods);
         println!("Jaccard score : {score:?}")
@@ -51,7 +51,7 @@ fn dict_from_csv(mut reader: Reader<File>) -> HashMap<String, HashSet<String>> {
     dict_from_csv
 }
 
-fn expand(set:&HashSet<String> , map: &HashMap<String, HashSet<String>>) -> HashSet<String> {
+fn expand_hash_set(set:&HashSet<String> , map: &HashMap<String, HashSet<String>>) -> HashSet<String> {
     let mut expanded_set = HashSet::<String>::new();
     for item in set.iter() {
         expanded_set.extend(map.get(item).unwrap().clone());
