@@ -12,14 +12,14 @@ fn main() {
     */
     // let closure_reader = read_file("closures.tsv");
 
-    let data_dict = dict_from_csv(read_file("test_set.tsv"));
-    let closures_dict = dict_from_csv(read_file("closures.tsv"));
-    let ref_set = expand_hash_set(data_dict.get("set1").unwrap(), &closures_dict);
-    
+    let data_dict = parse_associations(read_file("test_set.tsv"));
+    let closures_dict = parse_associations(read_file("closures.tsv"));
+    let ref_set = expand_terms_using_closure(data_dict.get("set1").unwrap(), &closures_dict);
+
     // iterate over dict
     for (name, foods) in &data_dict {
         println!("Original HashMap : key => {name} ; value: {foods:?}");
-        let expanded_foods = expand_hash_set(foods, &closures_dict);
+        let expanded_foods = expand_terms_using_closure(foods, &closures_dict);
         println!("Expanded HashMap : key => {name} ; value: {expanded_foods:?}");
         let score:f64 = jaccard_similarity(&ref_set, &expanded_foods);
         println!("Jaccard score : {score:?}")
@@ -38,7 +38,7 @@ fn read_file(filename: &str) -> Reader<File> {
                         .unwrap()
 }
 
-fn dict_from_csv(mut reader: Reader<File>) -> HashMap<String, HashSet<String>> {
+fn parse_associations(mut reader: Reader<File>) -> HashMap<String, HashSet<String>> {
     
     let mut dict_from_csv: HashMap<String, HashSet<String>> = HashMap::new();
 
@@ -52,10 +52,10 @@ fn dict_from_csv(mut reader: Reader<File>) -> HashMap<String, HashSet<String>> {
     dict_from_csv
 }
 
-fn expand_hash_set(set:&HashSet<String> , map: &HashMap<String, HashSet<String>>) -> HashSet<String> {
+fn expand_terms_using_closure(terms:&HashSet<String> , term_closure_map: &HashMap<String, HashSet<String>>) -> HashSet<String> {
     let mut expanded_set = HashSet::<String>::new();
-    for item in set.iter() {
-        expanded_set.extend(map.get(item).unwrap().clone());
+    for item in terms.iter() {
+        expanded_set.extend(term_closure_map.get(item).unwrap().clone());
     }
     expanded_set
 }
