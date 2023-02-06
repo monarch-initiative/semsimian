@@ -26,7 +26,7 @@ fn main() {
     // iterate over dict
     for (name, fruits) in &dict_from_csv {
         println!("CSV read as key : value => {name} : {fruits:?}");
-        let score:f64 = jaccard_similarity(dict_from_csv.get("set1").unwrap(), fruits);
+        let score:f64 = jaccard_similarity(dict_from_csv.get("set1").unwrap(), &fruits);
         println!("score : {score:?}")
     }
 }
