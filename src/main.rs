@@ -15,12 +15,13 @@ fn main() {
     let data_dict = dict_from_csv(read_file("test_set.tsv"));
     let closures_dict = dict_from_csv(read_file("closures.tsv"));
 
+    let ref_set = expand_hash_set(data_dict.get("set1").unwrap(), &closures_dict);
     // iterate over dict
     for (name, foods) in &data_dict {
         println!("Original HashMap : key => {name} ; value: {foods:?}");
         let expanded_foods = expand_hash_set(foods, &closures_dict);
         println!("Expanded HashMap : key => {name} ; value: {expanded_foods:?}");
-        let score:f64 = jaccard_similarity(data_dict.get("set1").unwrap(), &expanded_foods);
+        let score:f64 = jaccard_similarity(&ref_set, &expanded_foods);
         println!("Jaccard score : {score:?}")
     }
 }
