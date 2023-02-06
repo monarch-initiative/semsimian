@@ -10,7 +10,6 @@ fn main() {
     csv::ReaderBuilder instead of just csv::Reader because we need to specify
     that the file has no headers.
     */
-    // let closure_reader = read_file("closures.tsv");
 
     let data_dict = parse_associations(read_file("test_set.tsv"));
     let closures_dict = parse_associations(read_file("closures.tsv"));
@@ -27,19 +26,22 @@ fn main() {
 }
 
 fn jaccard_similarity(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
+    /* Returns Jaccard similarity between the two sets. */
+
     let intersection = set1.intersection(set2).count();
     let union_measure = set1.union(set2).count();
     intersection as f64 / union_measure as f64
 }
 
 fn read_file(filename: &str) -> Reader<File> {
+    /* Build CSV reader from filepath.*/
     ReaderBuilder::new().has_headers(false)
                         .from_path(filename)
                         .unwrap()
 }
 
 fn parse_associations(mut reader: Reader<File>) -> HashMap<String, HashSet<String>> {
-    
+    /* Parse CSV files using ReaderBuilder.*/
     let mut dict_from_csv: HashMap<String, HashSet<String>> = HashMap::new();
 
     for result in reader.records() {
@@ -53,6 +55,7 @@ fn parse_associations(mut reader: Reader<File>) -> HashMap<String, HashSet<Strin
 }
 
 fn expand_terms_using_closure(terms:&HashSet<String> , term_closure_map: &HashMap<String, HashSet<String>>) -> HashSet<String> {
+    /* Expand terms by inclusing ancestors in the set. */
     let mut expanded_set = HashSet::<String>::new();
     for item in terms.iter() {
         expanded_set.extend(term_closure_map.get(item).unwrap().clone());
