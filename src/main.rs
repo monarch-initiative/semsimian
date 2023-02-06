@@ -16,10 +16,10 @@ fn main() {
     let ref_set = expand_terms_using_closure(data_dict.get("set1").unwrap(), &closures_dict);
 
     // iterate over dict
-    for (name, foods) in &data_dict {
-        println!("Original HashMap : key => {name} ; value: {foods:?}");
-        let expanded_terms = expand_terms_using_closure(foods, &closures_dict);
-        println!("Expanded HashMap : key => {name} ; value: {expanded_terms:?}");
+    for (key, terms) in &data_dict {
+        println!("Original HashMap : key => {key} ; value: {terms:?}");
+        let expanded_terms = expand_terms_using_closure(terms, &closures_dict);
+        println!("Expanded HashMap : key => {key} ; value: {expanded_terms:?}");
         let score:f64 = jaccard_similarity(&ref_set, &expanded_terms);
         println!("Jaccard score : {score:?}")
     }
