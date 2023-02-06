@@ -21,7 +21,7 @@ fn main() {
         let expanded_foods = expand(foods, &closures_dict);
         println!("Expanded HashMap : key => {name} ; value: {expanded_foods:?}");
         let score:f64 = jaccard_similarity(data_dict.get("set1").unwrap(), &expanded_foods);
-        println!("score : {score:?}")
+        println!("Jaccard score : {score:?}")
     }
 }
 
