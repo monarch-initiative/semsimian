@@ -18,9 +18,9 @@ fn main() {
     // iterate over dict
     for (name, foods) in &data_dict {
         println!("Original HashMap : key => {name} ; value: {foods:?}");
-        let expanded_foods = expand_terms_using_closure(foods, &closures_dict);
-        println!("Expanded HashMap : key => {name} ; value: {expanded_foods:?}");
-        let score:f64 = jaccard_similarity(&ref_set, &expanded_foods);
+        let expanded_terms = expand_terms_using_closure(foods, &closures_dict);
+        println!("Expanded HashMap : key => {name} ; value: {expanded_terms:?}");
+        let score:f64 = jaccard_similarity(&ref_set, &expanded_terms);
         println!("Jaccard score : {score:?}")
     }
 }
