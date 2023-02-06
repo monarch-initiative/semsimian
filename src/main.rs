@@ -1,6 +1,16 @@
+
 use std::{collections::{HashSet, HashMap}, fs::File};
 use csv::{ReaderBuilder, Reader};
 
+#[derive(Debug)]
+struct Stats {
+    set_id: String,
+    original_reference_set: HashSet<String>,
+    expanded_reference_set: HashSet<String>,
+    original_new_set: HashSet<String>,
+    expanded_new_set: HashSet<String>,
+    jaccard_similarity: f64,
+}
 fn main() {
     // let set1: HashSet<&str> = ["apple", "banana", "cherry"].iter().cloned().collect();
     // let set2: HashSet<&str> = ["banana", "cherry", "date"].iter().cloned().collect();
@@ -13,15 +23,31 @@ fn main() {
 
     let data_dict = parse_associations(read_file("test_set.tsv"));
     let closures_dict = parse_associations(read_file("closures.tsv"));
-    let ref_set = expand_terms_using_closure(data_dict.get("set1").unwrap(), &closures_dict);
+    let ref_set = data_dict.get("set1").unwrap();
 
+    let mut stat_info = Stats{
+        set_id: String::new(),
+        original_reference_set: HashSet::new(),
+        expanded_reference_set: HashSet::new(),
+        original_new_set: HashSet::new(),
+        expanded_new_set: HashSet::new(),
+        jaccard_similarity: 0.0
+    };
+
+    stat_info.original_reference_set = ref_set.clone();
+    stat_info.expanded_reference_set = expand_terms_using_closure(&stat_info.original_reference_set, &closures_dict);
     // iterate over dict
     for (key, terms) in &data_dict {
-        println!("Original HashMap : key => {key} ; value: {terms:?}");
-        let expanded_terms = expand_terms_using_closure(terms, &closures_dict);
-        println!("Expanded HashMap : key => {key} ; value: {expanded_terms:?}");
-        let score:f64 = jaccard_similarity(&ref_set, &expanded_terms);
-        println!("Jaccard score : {score:?}")
+        // println!("Original HashMap : key => {key} ; value: {terms:?}");
+        // let expanded_terms = expand_terms_using_closure(terms, &closures_dict);
+        stat_info.set_id = key.to_string();
+        stat_info.original_new_set = terms.clone();
+        stat_info.expanded_new_set = expand_terms_using_closure(&stat_info.original_new_set, &closures_dict);
+        // println!("Expanded HashMap : key => {key} ; value: {expanded_terms:?}");
+        // let score:f64 = jaccard_similarity(&stat_info.expanded_reference_set, &stat_info.expanded_new_set);
+        stat_info.jaccard_similarity = jaccard_similarity(&stat_info.expanded_reference_set, &stat_info.expanded_new_set);
+        // println!("Jaccard score : {score:?}")
+        println!("{stat_info:?}")
     }
 }
 
