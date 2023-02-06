@@ -18,15 +18,15 @@ fn main() {
     for result in reader.records() {
         let record = result.unwrap();
         let name = &record[0];
-        let fruit = &record[1];
+        let food = &record[1];
         let n = dict_from_csv.entry(name.to_string());
-        n.or_default().insert(fruit.to_string());
+        n.or_default().insert(food.to_string());
     }
 
     // iterate over dict
-    for (name, fruits) in &dict_from_csv {
-        println!("CSV read as key : value => {name} : {fruits:?}");
-        let score:f64 = jaccard_similarity(dict_from_csv.get("set1").unwrap(), &fruits);
+    for (name, foods) in &dict_from_csv {
+        println!("CSV read as key : value => {name} : {foods:?}");
+        let score:f64 = jaccard_similarity(dict_from_csv.get("set1").unwrap(), &foods);
         println!("score : {score:?}")
     }
 }
