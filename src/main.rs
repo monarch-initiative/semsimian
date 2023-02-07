@@ -3,7 +3,7 @@ use std::{collections::{HashSet, HashMap}, fs::File};
 use csv::{ReaderBuilder, Reader};
 
 #[derive(Debug)]
-struct Stats {
+struct TermSetPairwiseSimilarity {
     set_id: String,
     original_subject_termset: HashSet<String>,
     subject_termset: HashSet<String>,
@@ -25,7 +25,7 @@ fn main() {
     let closures_dict = parse_associations(read_file("closures.tsv"));
     let ref_set = data_dict.get("set1").unwrap();
 
-    let mut stat_info = Stats{
+    let mut stat_info = TermSetPairwiseSimilarity{
         set_id: String::new(),
         original_subject_termset: HashSet::new(),
         subject_termset: HashSet::new(),
