@@ -5,10 +5,10 @@ use csv::{ReaderBuilder, Reader};
 #[derive(Debug)]
 struct Stats {
     set_id: String,
-    original_reference_set: HashSet<String>,
-    expanded_reference_set: HashSet<String>,
-    original_new_set: HashSet<String>,
-    expanded_new_set: HashSet<String>,
+    original_subject_termset: HashSet<String>,
+    subject_termset: HashSet<String>,
+    original_object_termset: HashSet<String>,
+    object_termset: HashSet<String>,
     jaccard_similarity: f64,
 }
 fn main() {
@@ -27,31 +27,38 @@ fn main() {
 
     let mut stat_info = Stats{
         set_id: String::new(),
-        original_reference_set: HashSet::new(),
-        expanded_reference_set: HashSet::new(),
-        original_new_set: HashSet::new(),
-        expanded_new_set: HashSet::new(),
+        original_subject_termset: HashSet::new(),
+        subject_termset: HashSet::new(),
+        original_object_termset: HashSet::new(),
+        object_termset: HashSet::new(),
         jaccard_similarity: 0.0
     };
 
-    stat_info.original_reference_set = ref_set.clone();
-    stat_info.expanded_reference_set = expand_terms_using_closure(&stat_info.original_reference_set, &closures_dict);
+    stat_info.original_subject_termset = ref_set.clone();
+    stat_info.subject_termset = expand_terms_using_closure
+                                        (
+                                            &stat_info.original_subject_termset,
+                                            &closures_dict
+                                        );
     // iterate over dict
     for (key, terms) in &data_dict {
-        // println!("Original HashMap : key => {key} ; value: {terms:?}");
-        // let expanded_terms = expand_terms_using_closure(terms, &closures_dict);
         stat_info.set_id = key.to_string();
-        stat_info.original_new_set = terms.clone();
-        stat_info.expanded_new_set = expand_terms_using_closure(&stat_info.original_new_set, &closures_dict);
-        // println!("Expanded HashMap : key => {key} ; value: {expanded_terms:?}");
-        // let score:f64 = jaccard_similarity(&stat_info.expanded_reference_set, &stat_info.expanded_new_set);
-        stat_info.jaccard_similarity = jaccard_similarity(&stat_info.expanded_reference_set, &stat_info.expanded_new_set);
-        // println!("Jaccard score : {score:?}")
+        stat_info.original_object_termset = terms.clone();
+        stat_info.object_termset = expand_terms_using_closure
+                                        (
+                                            &stat_info.original_object_termset,
+                                            &closures_dict
+                                        );
+        stat_info.jaccard_similarity = calculate_jaccard_similarity
+                                        (
+                                            &stat_info.subject_termset,
+                                            &stat_info.object_termset
+                                        );
         println!("{stat_info:?}")
     }
 }
 
-fn jaccard_similarity(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
+fn calculate_jaccard_similarity(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
 
     let intersection = set1.intersection(set2).count();
@@ -80,7 +87,10 @@ fn parse_associations(mut reader: Reader<File>) -> HashMap<String, HashSet<Strin
     dict_from_csv
 }
 
-fn expand_terms_using_closure(terms:&HashSet<String> , term_closure_map: &HashMap<String, HashSet<String>>) -> HashSet<String> {
+fn expand_terms_using_closure(
+        terms:&HashSet<String> ,
+        term_closure_map: &HashMap<String, HashSet<String>>
+    ) -> HashSet<String> {
     /* Expand terms by inclusing ancestors in the set. */
     let mut expanded_set = HashSet::<String>::new();
     for item in terms.iter() {
