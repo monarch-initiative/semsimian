@@ -25,7 +25,7 @@ fn main() {
     let closures_dict = parse_associations(read_file("closures.tsv"));
     let ref_set = data_dict.get("set1").unwrap();
 
-    let mut stat_info = TermSetPairwiseSimilarity{
+    let mut tsps_information = TermSetPairwiseSimilarity{
         set_id: String::new(),
         original_subject_termset: HashSet::new(),
         subject_termset: HashSet::new(),
@@ -34,27 +34,27 @@ fn main() {
         jaccard_similarity: 0.0
     };
 
-    stat_info.original_subject_termset = ref_set.clone();
-    stat_info.subject_termset = expand_terms_using_closure
+    tsps_information.original_subject_termset = ref_set.clone();
+    tsps_information.subject_termset = expand_terms_using_closure
                                         (
-                                            &stat_info.original_subject_termset,
+                                            &tsps_information.original_subject_termset,
                                             &closures_dict
                                         );
     // iterate over dict
     for (key, terms) in &data_dict {
-        stat_info.set_id = key.to_string();
-        stat_info.original_object_termset = terms.clone();
-        stat_info.object_termset = expand_terms_using_closure
+        tsps_information.set_id = key.to_string();
+        tsps_information.original_object_termset = terms.clone();
+        tsps_information.object_termset = expand_terms_using_closure
                                         (
-                                            &stat_info.original_object_termset,
+                                            &tsps_information.original_object_termset,
                                             &closures_dict
                                         );
-        stat_info.jaccard_similarity = calculate_jaccard_similarity
+        tsps_information.jaccard_similarity = calculate_jaccard_similarity
                                         (
-                                            &stat_info.subject_termset,
-                                            &stat_info.object_termset
+                                            &tsps_information.subject_termset,
+                                            &tsps_information.object_termset
                                         );
-        println!("{stat_info:?}")
+        println!("{tsps_information:?}")
     }
 }
 
