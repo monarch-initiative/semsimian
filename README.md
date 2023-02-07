@@ -1,6 +1,6 @@
 # RustSim
 
-- Setup you virtual environment
+- Setup your virtual environment of choice.
 - cd `rustsim` (home directory of this project)
 - `pip install maturin`
 - `maturin develop`
