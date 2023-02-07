@@ -59,7 +59,7 @@ fn main() {
                                             &tsps_information.subject_termset,
                                             &tsps_information.object_termset
                                         );
-        println!("{tsps_information:?}")
+        println!("{tsps_information:#?}")
     }
 }
 
