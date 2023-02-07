@@ -11,6 +11,18 @@ struct TermSetPairwiseSimilarity {
     object_termset: HashSet<String>,
     jaccard_similarity: f64,
 }
+impl TermSetPairwiseSimilarity {
+    fn new() -> TermSetPairwiseSimilarity {
+        TermSetPairwiseSimilarity {
+            set_id: String::new(),
+            original_subject_termset: HashSet::new(),
+            subject_termset: HashSet::new(),
+            original_object_termset: HashSet::new(),
+            object_termset: HashSet::new(),
+            jaccard_similarity: 0.0
+        }
+    }
+}
 fn main() {
     // let set1: HashSet<&str> = ["apple", "banana", "cherry"].iter().cloned().collect();
     // let set2: HashSet<&str> = ["banana", "cherry", "date"].iter().cloned().collect();
@@ -25,14 +37,7 @@ fn main() {
     let closures_dict = parse_associations(read_file("closures.tsv"));
     let ref_set = data_dict.get("set1").unwrap();
 
-    let mut tsps_information = TermSetPairwiseSimilarity{
-        set_id: String::new(),
-        original_subject_termset: HashSet::new(),
-        subject_termset: HashSet::new(),
-        original_object_termset: HashSet::new(),
-        object_termset: HashSet::new(),
-        jaccard_similarity: 0.0
-    };
+    let mut tsps_information = TermSetPairwiseSimilarity::new();
 
     tsps_information.original_subject_termset = ref_set.clone();
     tsps_information.subject_termset = expand_terms_using_closure
