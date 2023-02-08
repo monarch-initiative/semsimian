@@ -21,7 +21,6 @@ fn run(input_file:&str, closure_file:&str) -> PyResult<()>{
     let closures_dict = parse_associations(read_file(closure_file));
     let ref_set = data_dict.get("set1").unwrap();
     let mut tsps_information = TermSetPairwiseSimilarity::new();
-    let mut tsps_result_vector: Vec<TermSetPairwiseSimilarity> = Vec::new();
     tsps_information.original_subject_termset = ref_set.clone();
     tsps_information.subject_termset = expand_terms_using_closure
                                         (
@@ -43,10 +42,9 @@ fn run(input_file:&str, closure_file:&str) -> PyResult<()>{
                                             &tsps_information.object_termset
                                         );
         println!("{tsps_information:#?}")
-        // tsps_result_vector.push(tsps_information);
+        
     }
     Ok(())
-    // Ok(tsps_result_vector)
 }
 
 #[pymodule] 
