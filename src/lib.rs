@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use pyo3::prelude::*;
 mod file_io; use file_io::{read_file, parse_associations};
 mod similarity; use similarity::calculate_jaccard_similarity;
@@ -17,8 +19,8 @@ fn run(input_file:&str, closure_file:&str) -> PyResult<()>{
     closure_file = "closures.tsv"
     */
 
-    let data_dict = parse_associations(read_file(input_file));
-    let closures_dict = parse_associations(read_file(closure_file));
+    let data_dict = parse_associations(read_file(Path::new(input_file)));
+    let closures_dict = parse_associations(read_file(Path::new(closure_file)));
     let ref_set = data_dict.get("set1").unwrap();
     let mut tsps_information = TermSetPairwiseSimilarity::new();
     tsps_information.original_subject_termset = ref_set.clone();
