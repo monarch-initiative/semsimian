@@ -105,3 +105,18 @@ TermSetPairwiseSimilarity {
     jaccard_similarity: 0.42857142857142855,
 }
 ```
+
+## Troubleshooting
+
+### Building for Mac ARM M1 architectures
+
+If a `import rustsim` results in a `ImportError` warning about incompatible architecture, try the following:
+- Install `conda`. [This guide may be helpful.](https://towardsdatascience.com/how-to-manage-conda-environments-on-an-apple-silicon-m1-mac-1e29cb3bad12)
+- Set up a virtual environment with `conda` so that your Python build is aligned with your processor architecture (in this case, ARM).
+Try something like:
+```
+$ conda create -n myenv python=3.9
+...setup happens...
+$ conda activate myenv
+```
+and then proceed as above.
