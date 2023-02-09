@@ -1,3 +1,5 @@
+#![feature(format_args_capture)]
+
 use std::path::Path;
 
 use pyo3::prelude::*;
