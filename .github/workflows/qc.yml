@@ -8,43 +8,87 @@ on:
   workflow_dispatch:  
 
 jobs:
-  build-mac:
+  build-and-upload-mac:
     name: Build for Mac
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [x86_64-apple-darwin, aarch64-apple-darwin]
-    runs-on: macos-11
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: '3.10'
           architecture: x64
-      - name: Build
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build wheels for x86_64
         uses: PyO3/maturin-action@v1
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         with:
-          target: ${{ matrix.target }}
-          command: publish
+          target: x86_64
+          command: build
+          args: --release --out dist --sdist -i 3.7 3.8 3.9 pypy3.8 pypy3.9
+      - name: Install built x86_64 wheel and run tests 
+        run: |
+          pip install rustsim --no-index --find-links dist --force-reinstall
+          pip install pytest
+          # pytest
+      - name: Build wheels for aarm64
+        uses: PyO3/maturin-action@v1
+        with:
+          target: aarm64
+          command: build
+          args: --release --out dist --sdist -i 3.7 3.8 3.9 pypy3.8 pypy3.9
+      - name: Install built aarm64 wheel and run tests 
+        run: |
+          pip install rustsim --no-index --find-links dist --force-reinstall
+          # pytest
+      - name: Upload wheels for Mac
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist
 
-  build-manylinux:
+  build-and-upload-linux:
     name: Build for Linux
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64-unknown-linux-gnu]
-    runs-on: ubuntu-latest
+        target: [x86_64, i686]
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        architecture: x64
+    - name: Build wheels for Linux
+      uses: PyO3/maturin-action@v1
+      with:
+        rust-toolchain: stable
+        target: ${{ matrix.target }}
+        manylinux: auto
+        args: --release --out dist -i 3.7 3.8 3.9 pypy3.8 pypy3.9
+    - name: Install built wheel
+      if: matrix.target == 'x86_64'
+      run: |
+        pip install rustsim --no-index --find-links dist --force-reinstall
+        pip install pytest
+        # pytest
+    - name: Upload wheels
+      uses: actions/upload-artifact@v3
+      with:
+        name: wheels
+        path: dist
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: "startsWith(github.ref, 'refs/tags/')"
+    needs: [ build-and-upload-mac, build-and-upload-linux ]
+    steps:
+      - uses: actions/download-artifact@v3
         with:
-          python-version: '3.7'
-          architecture: x64
-      - name: Build
-        uses: PyO3/maturin-action@v1
+          name: wheels
+      - name: Publish to PyPI
         env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_PASSWORD }}
+        uses: PyO3/maturin-action@v1
         with:
-          target: ${{ matrix.target }}
-          command: publish
+          command: upload
+          args: --skip-existing *
