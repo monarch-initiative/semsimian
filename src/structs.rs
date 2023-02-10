@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TermSetPairwiseSimilarity {
     pub set_id: String,
     pub original_subject_termset: HashSet<String>,
