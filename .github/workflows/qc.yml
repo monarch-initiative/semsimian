@@ -24,7 +24,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
           command: publish
-          args: --release
 
   build-manylinux:
     name: Build for Linux
@@ -41,4 +40,3 @@ jobs:
         with:
           target: ${{ matrix.target }}
           command: publish
-          args: --release
