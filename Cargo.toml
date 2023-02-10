@@ -11,4 +11,5 @@ crate-type = ["cdylib"]
 [dependencies]
 csv = "1.1.6"
 dict = "0.1.5"
+generator = "0.7.2"
 pyo3 = { version = "0.18.0", features = ["extension-module"] }
