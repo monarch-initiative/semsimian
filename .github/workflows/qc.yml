@@ -26,7 +26,7 @@ jobs:
           args: --release --out dist --sdist -i 3.7 3.8 3.9 pypy3.8 pypy3.9
       - name: Install built x86_64 wheel and run tests 
         run: |
-          pip install rustsim --no-index --find-links dist --force-reinstall
+          pip install rustsim --no-index --force-reinstall
           pip install pytest
           # pytest
       - name: Build wheels for aarm64
@@ -37,7 +37,7 @@ jobs:
           args: --release --out dist --sdist -i 3.7 3.8 3.9 pypy3.8 pypy3.9
       - name: Install built aarm64 wheel and run tests 
         run: |
-          pip install rustsim --no-index --find-links dist --force-reinstall
+          pip install rustsim --no-index --force-reinstall
           # pytest
       - name: Upload wheels for Mac
         uses: actions/upload-artifact@v3
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64, i686]
+        target: [x86_64]
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
@@ -67,7 +67,7 @@ jobs:
     - name: Install built wheel
       if: matrix.target == 'x86_64'
       run: |
-        pip install rustsim --no-index --find-links dist --force-reinstall
+        pip install rustsim --no-index --force-reinstall
         pip install pytest
         # pytest
     - name: Upload wheels
