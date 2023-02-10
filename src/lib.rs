@@ -70,3 +70,5 @@ fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
     Ok(()) 
 }
+
+//TODO: Test the lib module.
