@@ -23,7 +23,7 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         with:
           target: ${{ matrix.target }}
-          command: build
+          command: publish
           args: --release
 
   build-manylinux:
@@ -40,5 +40,5 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         with:
           target: ${{ matrix.target }}
-          command: build
+          command: publish
           args: --release
