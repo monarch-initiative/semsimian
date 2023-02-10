@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
+use pyo3::{pyclass, pymethods};
+
 #[derive(Debug, Clone)]
+#[pyclass]
 pub struct TermSetPairwiseSimilarity {
     pub set_id: String,
     pub original_subject_termset: HashSet<String>,
@@ -9,7 +12,10 @@ pub struct TermSetPairwiseSimilarity {
     pub object_termset: HashSet<String>,
     pub jaccard_similarity: f64,
 }
+
+#[pymethods]
 impl TermSetPairwiseSimilarity {
+    #[staticmethod]
     pub fn new() -> TermSetPairwiseSimilarity {
         TermSetPairwiseSimilarity {
             set_id: String::new(),
