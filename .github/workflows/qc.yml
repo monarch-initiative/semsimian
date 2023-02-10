@@ -29,13 +29,12 @@ jobs:
           pip install rustsim --no-index --find-links dist --force-reinstall
           pip install pytest
           # pytest
-      - name: Build wheels for aarch64
+      - name: Build wheels for universal2
         uses: PyO3/maturin-action@v1
         with:
-          target: aarch64
           command: build
-          args: --release --out dist --sdist -i 3.7 3.8 3.9 pypy3.8 pypy3.9
-      - name: Install built aarm64 wheel and run tests 
+          args: --release --universal2 --out dist --sdist -i 3.7 3.8 3.9 pypy3.8 pypy3.9
+      - name: Install built universal2 wheel and run tests 
         run: |
           pip install rustsim --no-index --find-links dist --force-reinstall
           # pytest
