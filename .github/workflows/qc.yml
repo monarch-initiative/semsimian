@@ -78,7 +78,6 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
     needs: [ build-and-upload-mac, build-and-upload-linux ]
     steps:
       - uses: actions/download-artifact@v3
