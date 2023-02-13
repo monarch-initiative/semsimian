@@ -79,7 +79,9 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     needs: [ build-and-upload-mac, build-and-upload-linux ]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
+      - run: echo 'Releasing to PyPi because this is a push to main.'
       - uses: actions/download-artifact@v3
         with:
           name: wheels
