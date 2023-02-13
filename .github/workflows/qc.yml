@@ -89,4 +89,4 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: -r 'https://test.pypi.org/' --skip-existing *
+          args: --skip-existing *
