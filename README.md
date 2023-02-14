@@ -10,7 +10,7 @@ Python 3.9.16 (main, Jan 11 2023, 10:02:19)
 [Clang 14.0.6 ] :: Anaconda, Inc. on darwin
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import rustsim
->>> rustsim.run("test_set.tsv", "closures.tsv")
+>>> rustsim.run("tests/data/test_set.tsv", "tests/data/closures.tsv")
 ```
 should yield
 ```
