@@ -2,10 +2,11 @@ use std::{collections::{HashSet, HashMap}, fs::File, path::Path};
 use csv::{ReaderBuilder, Reader};
 
 pub fn read_file(filename: &Path) -> Reader<File> {
-    /* Build CSV reader from filepath.*/
-    ReaderBuilder::new().has_headers(false)
-                        .from_path(filename)
-                        .unwrap()
+    match File::open(filename) {
+        Ok(file) => ReaderBuilder::new().has_headers(false)
+                                        .from_reader(file),
+        Err(err) => panic!("Failed to open file: {} {}", filename.display(), err),
+    }
 }
 
 pub fn parse_associations(mut reader: Reader<File>) -> HashMap<String, HashSet<String>> {
