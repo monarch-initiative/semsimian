@@ -1,3 +1,3 @@
 /target
 **/__pycache__/**
-rustsim/rustsim.cpython-39-darwin.so
+python/rustsim/rustsim.cpython-39-darwin.so
