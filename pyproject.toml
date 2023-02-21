@@ -44,7 +44,7 @@ docs = [
     ]
 
 [tool.poetry.scripts]
-
+# rustsim = ""
 
 [tool.black]
 line-length = 100
