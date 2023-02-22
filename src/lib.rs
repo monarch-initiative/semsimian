@@ -9,7 +9,7 @@ mod structs; use structs::TermSetPairwiseSimilarity;
 
 // Generator<'a, (), & 'a mut TermSetPairwiseSimilarity>
 #[pyfunction]
-fn run <'a>(input_file:&str, closure_file:&str) -> PyResult<()>{
+fn run <'a>(input_file:&str, closure_file:&str) -> PyResult<Vec<TermSetPairwiseSimilarity>>{
     /*
     read in TSV file
     csv::ReaderBuilder instead of just csv::Reader because we need to specify
@@ -30,16 +30,18 @@ fn run <'a>(input_file:&str, closure_file:&str) -> PyResult<()>{
                                             &tsps_information.original_subject_termset,
                                             &closures_dict
                                         );
-    for tsps in iter_tsps(&data_dict, &closures_dict, tsps_information){
-        println!("{tsps:#?}");
+    let mut tsps_vector:Vec<TermSetPairwiseSimilarity> = Vec::new();
+    for tsps in iter_tsps(data_dict, closures_dict, tsps_information){
+        // println!("{tsps:#?}");
         //TODO: "yield" tsps instead of just printing.
+        tsps_vector.push(tsps);
     }
-    Ok(())
+    Ok(tsps_vector)
 }
 
 fn iter_tsps <'a>(
-    data_dict: & 'a HashMap<String, HashSet<String>>,
-    closures_dict: & 'a HashMap<String, HashSet<String>>,
+    data_dict:HashMap<String, HashSet<String>>,
+    closures_dict:HashMap<String, HashSet<String>>,
     tsps_info:TermSetPairwiseSimilarity,
 ) -> Generator<'a, (), TermSetPairwiseSimilarity> {
     // iterate over dict
@@ -51,7 +53,7 @@ fn iter_tsps <'a>(
             tsps.object_termset = expand_terms_using_closure
                                             (
                                                 &tsps_info.original_object_termset,
-                                                closures_dict
+                                                &closures_dict
                                             );
             tsps.jaccard_similarity = calculate_jaccard_similarity
                                             (
