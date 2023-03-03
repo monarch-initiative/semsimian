@@ -24,10 +24,10 @@ fn run <'a>(input_file:&str, closure_file:&str) -> PyResult<Vec<TermSetPairwiseS
     let closures_dict = parse_associations(read_file(Path::new(closure_file)));
     let ref_set = data_dict.get("set1").unwrap();
     let mut tsps_information = TermSetPairwiseSimilarity::new();
-    tsps_information.original_subject_termset = ref_set.clone();
+    let original_subject_termset = ref_set.clone();
     tsps_information.subject_termset = expand_terms_using_closure
                                         (
-                                            &tsps_information.original_subject_termset,
+                                            &original_subject_termset,
                                             &closures_dict
                                         );
     let mut tsps_vector:Vec<TermSetPairwiseSimilarity> = Vec::new();
@@ -39,6 +39,8 @@ fn run <'a>(input_file:&str, closure_file:&str) -> PyResult<Vec<TermSetPairwiseS
     Ok(tsps_vector)
 }
 
+// TODO: expand_terms_using_closure isn't populating the set
+
 fn iter_tsps <'a>(
     data_dict:HashMap<String, HashSet<String>>,
     closures_dict:HashMap<String, HashSet<String>>,
@@ -49,10 +51,10 @@ fn iter_tsps <'a>(
         for (key, terms) in data_dict {
             let mut tsps:TermSetPairwiseSimilarity = tsps_info.clone();
             tsps.set_id = key.to_string();
-            tsps.original_object_termset = terms.clone();
+            let original_object_termset = terms.clone();
             tsps.object_termset = expand_terms_using_closure
                                             (
-                                                &tsps_info.original_object_termset,
+                                                &original_object_termset,
                                                 &closures_dict
                                             );
             tsps.jaccard_similarity = calculate_jaccard_similarity
