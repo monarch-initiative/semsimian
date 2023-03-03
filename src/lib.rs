@@ -57,7 +57,7 @@ fn iter_tsps <'a>(
                                                 &original_object_termset,
                                                 &closures_dict
                                             );
-            tsps.jaccard_similarity = calculate_jaccard_similarity
+            tsps.best_score = calculate_jaccard_similarity
                                             (
                                                 &tsps_info.subject_termset,
                                                 &tsps_info.object_termset
