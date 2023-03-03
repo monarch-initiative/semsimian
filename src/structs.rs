@@ -26,4 +26,28 @@ impl TermSetPairwiseSimilarity {
             jaccard_similarity: 0.0
         }
     }
+
+    pub fn get_set_id(&self) -> String {
+        self.set_id.clone()
+    }
+
+    pub fn get_original_subject_termset(&self) -> HashSet<String> {
+        self.original_subject_termset.clone()
+    }
+
+    pub fn get_subject_termset(&self) -> HashSet<String> {
+        self.subject_termset.clone()
+    }
+
+    pub fn get_original_object_termset(&self) -> HashSet<String> {
+        self.original_object_termset.clone()
+    }
+
+    pub fn get_object_termset(&self) -> HashSet<String> {
+        self.object_termset.clone()
+    }
+
+    pub fn get_jaccard_similarity(&self) -> f64 {
+        self.jaccard_similarity
+    }
 }
