@@ -33,13 +33,11 @@ fn run <'a>(input_file:&str, closure_file:&str) -> PyResult<Vec<TermSetPairwiseS
     let mut tsps_vector:Vec<TermSetPairwiseSimilarity> = Vec::new();
     for tsps in iter_tsps(data_dict, closures_dict, tsps_information){
         // println!("{tsps:#?}");
-        //TODO: "yield" tsps instead of just printing.
         tsps_vector.push(tsps);
     }
     Ok(tsps_vector)
 }
 
-// TODO: expand_terms_using_closure isn't populating the set
 
 fn iter_tsps <'a>(
     data_dict:HashMap<String, HashSet<String>>,
@@ -59,8 +57,8 @@ fn iter_tsps <'a>(
                                             );
             tsps.best_score = calculate_jaccard_similarity
                                             (
-                                                &tsps_info.subject_termset,
-                                                &tsps_info.object_termset
+                                                &tsps.subject_termset,
+                                                &tsps.object_termset
                                             );
             s.yield_(tsps);
         }
