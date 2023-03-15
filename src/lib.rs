@@ -66,10 +66,15 @@ fn iter_tsps <'a>(
     })
 }
 
+#[pyfunction]
+fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<f64> {
+    Ok(calculate_jaccard_similarity(&set1, &set2))
+}
 
 #[pymodule] 
 fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
+    m.add_function(wrap_pyfunction!(jaccard_similarity, m)?)?;
     Ok(()) 
 }
 
