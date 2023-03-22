@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 mod file_io;
 use file_io::{parse_associations, read_file};
 mod similarity;
-use similarity::{calculate_jaccard_similarity, get_most_recent_common_ancestor};
+use similarity::{calculate_jaccard_similarity, get_most_recent_common_ancestor_with_score};
 mod closures;
 use closures::expand_terms_using_closure;
 mod structs;
@@ -69,15 +69,15 @@ fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<
 }
 
 #[pyfunction]
-fn information_content(map: HashMap<String, f64>) -> PyResult<HashMap<String, f64>> {
-    Ok(get_most_recent_common_ancestor(map))
+fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<HashMap<String, f64>> {
+    Ok(get_most_recent_common_ancestor_with_score(map))
 }
 
 #[pymodule]
 fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
     m.add_function(wrap_pyfunction!(jaccard_similarity, m)?)?;
-    m.add_function(wrap_pyfunction!(information_content, m)?)?;
+    m.add_function(wrap_pyfunction!(mrca_and_score, m)?)?;
     Ok(())
 }
 
