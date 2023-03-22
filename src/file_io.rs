@@ -1,10 +1,13 @@
-use std::{collections::{HashSet, HashMap}, fs::File, path::Path};
-use csv::{ReaderBuilder, Reader};
+use csv::{Reader, ReaderBuilder};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    path::Path,
+};
 
 pub fn read_file(filename: &Path) -> Reader<File> {
     match File::open(filename) {
-        Ok(file) => ReaderBuilder::new().has_headers(false)
-                                        .from_reader(file),
+        Ok(file) => ReaderBuilder::new().has_headers(false).from_reader(file),
         Err(err) => panic!("Failed to open file: {} {}", filename.display(), err),
     }
 }
@@ -25,18 +28,18 @@ pub fn parse_associations(mut reader: Reader<File>) -> HashMap<String, HashSet<S
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
     use super::*;
+    use std::path::Path;
 
     #[test]
-    fn test_read_file(){
+    fn test_read_file() {
         let input_file = Path::new("./tests/data/test_set.tsv");
         let mut input_reader = read_file(input_file);
-        assert_eq!(input_reader.records().count(),11);
+        assert_eq!(input_reader.records().count(), 11);
     }
 
     #[test]
-    fn test_parse_associations(){
+    fn test_parse_associations() {
         let input_file = Path::new("./tests/data/test_set.tsv");
         let input_reader = read_file(input_file);
         let assoc_dict = parse_associations(input_reader);
