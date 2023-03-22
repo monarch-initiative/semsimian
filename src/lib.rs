@@ -3,7 +3,7 @@ use std::{path::Path, collections::{HashMap, HashSet}};
 use generator::{done, Generator, Gn}; //https://crates.io/crates/generator
 use pyo3::prelude::*;
 mod file_io; use file_io::{read_file, parse_associations};
-mod similarity; use similarity::calculate_jaccard_similarity;
+mod similarity; use similarity::{calculate_jaccard_similarity, get_most_recent_common_ancestor};
 mod closures; use closures::expand_terms_using_closure;
 mod structs; use structs::TermSetPairwiseSimilarity;
 
@@ -71,10 +71,16 @@ fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<
     Ok(calculate_jaccard_similarity(&set1, &set2))
 }
 
+#[pyfunction]
+fn information_content(map: HashMap<String, f64>) -> PyResult<HashMap<String, f64>> {
+    Ok(get_most_recent_common_ancestor(map))
+}
+
 #[pymodule] 
 fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
     m.add_function(wrap_pyfunction!(jaccard_similarity, m)?)?;
+    m.add_function(wrap_pyfunction!(information_content, m)?)?;
     Ok(()) 
 }
 
