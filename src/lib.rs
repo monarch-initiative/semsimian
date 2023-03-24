@@ -69,7 +69,7 @@ fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<
 }
 
 #[pyfunction]
-fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<HashMap<String, f64>> {
+fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
     Ok(get_most_recent_common_ancestor_with_score(map))
 }
 

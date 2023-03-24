@@ -11,15 +11,13 @@ pub fn calculate_jaccard_similarity(set1: &HashSet<String>, set2: &HashSet<Strin
     jaccard
 }
 
-pub fn get_most_recent_common_ancestor_with_score(
-    map: HashMap<String, f64>,
-) -> HashMap<String, f64> {
+pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> (String, f64) {
     // Returns Inomration Content (IC) for entities.
     let (curie, max_ic) = map
         .into_iter()
         .max_by_key(|&(_, v)| OrderedFloat(v.abs()))
         .unwrap();
-    HashMap::from([(curie, max_ic)])
+    (curie, max_ic)
 }
 #[cfg(test)]
 mod tests {
@@ -45,10 +43,9 @@ mod tests {
             (String::from("BFO:0000002"), 0.7069),
             (String::from("BFO:0000003"), 14.89),
         ]);
-        let expected_map: HashMap<String, f64> =
-            HashMap::from([(String::from("CARO:0000000"), 21.05)]);
+        let expected_tuple: (String, f64) = (String::from("CARO:0000000"), 21.05);
 
         let result = get_most_recent_common_ancestor_with_score(map);
-        assert_eq!(result, expected_map);
+        assert_eq!(result, expected_tuple);
     }
 }
