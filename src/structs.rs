@@ -9,7 +9,7 @@ pub struct TermSetPairwiseSimilarity {
     pub subject_termset: HashSet<String>,
     pub object_termset: HashSet<String>,
     pub subject_best_matches: Vec<String>, // TODO: needs to be BestMatch
-    pub object_best_matches: Vec<String>, // TODO: needs to be BestMatch
+    pub object_best_matches: Vec<String>,  // TODO: needs to be BestMatch
     pub average_score: f64,
     pub best_score: f64,
     pub metric: String,
@@ -26,7 +26,7 @@ impl TermSetPairwiseSimilarity {
             subject_best_matches: Vec::new(),
             object_best_matches: Vec::new(),
             average_score: 0.0, // TODO: this is a placeholder.
-            best_score: 0.0, // TODO: this is a placeholder.
+            best_score: 0.0,    // TODO: this is a placeholder.
             metric: "SWO:0000243".to_string(),
         }
     }
