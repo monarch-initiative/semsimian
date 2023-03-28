@@ -5,7 +5,7 @@ pub fn get_intersection_between_sets<'a>(
     set1: &'a HashSet<String>,
     set2: &'a HashSet<String>,
 ) -> Generator<'a, (), &'a String> {
-    /* Yields intersection between the two sets. */
+    /* Yields intersection between the two sets. e.g. subject_ancestors and object_ancestors. */
     Gn::new_scoped(move |mut s| {
         for element in set1.intersection(&set2) {
             s.yield_(element);
