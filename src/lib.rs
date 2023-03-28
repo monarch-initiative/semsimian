@@ -13,6 +13,8 @@ mod closures;
 use closures::expand_terms_using_closure;
 mod structs;
 use structs::TermSetPairwiseSimilarity;
+mod ancestors;
+use ancestors::get_intersection_between_sets;
 
 // Generator<'a, (), & 'a mut TermSetPairwiseSimilarity>
 #[pyfunction]
@@ -72,12 +74,21 @@ fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<
 fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
     Ok(get_most_recent_common_ancestor_with_score(map))
 }
+#[pyfunction]
+fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<HashSet<String>> {
+    let mut result = HashSet::new();
+    for a in get_intersection_between_sets(&set1, &set2).into_iter() {
+        result.insert(a.to_string());
+    }
+    Ok(result)
+}
 
 #[pymodule]
 fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
     m.add_function(wrap_pyfunction!(jaccard_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(mrca_and_score, m)?)?;
+    m.add_function(wrap_pyfunction!(get_intersection, m)?)?;
     Ok(())
 }
 
