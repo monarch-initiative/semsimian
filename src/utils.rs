@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
     let mut result = HashMap::new();
@@ -6,9 +6,7 @@ pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
         result.insert(idx as i32 + 1, String::from(item));
     }
     result
-    
 }
-
 
 #[cfg(test)]
 
@@ -26,6 +24,5 @@ mod tests {
 
         // println!("{:?}",convert_set_to_hashmap(&set));
         assert_eq!(set.len(), convert_set_to_hashmap(&set).len());
-        
     }
 }
