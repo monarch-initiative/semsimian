@@ -6,6 +6,7 @@ use std::{
 use generator::{done, Generator, Gn}; //https://crates.io/crates/generator
 use pyo3::prelude::*;
 mod file_io;
+mod utils;
 use file_io::{parse_associations, read_file};
 mod similarity;
 use similarity::{calculate_jaccard_similarity, get_most_recent_common_ancestor_with_score};
