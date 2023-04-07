@@ -6,6 +6,7 @@ use std::{
 use generator::{done, Generator, Gn}; //https://crates.io/crates/generator
 use pyo3::prelude::*;
 mod file_io;
+mod utils;
 use file_io::{parse_associations, read_file};
 mod similarity;
 use similarity::{calculate_jaccard_similarity, get_most_recent_common_ancestor_with_score};
@@ -15,6 +16,7 @@ mod structs;
 use structs::TermSetPairwiseSimilarity;
 mod ancestors;
 use ancestors::get_intersection_between_sets;
+use utils::numericize_sets;
 
 // Generator<'a, (), & 'a mut TermSetPairwiseSimilarity>
 #[pyfunction]
@@ -57,8 +59,10 @@ fn iter_tsps<'a>(
             let original_object_termset = terms.clone();
             tsps.object_termset =
                 expand_terms_using_closure(&original_object_termset, &closures_dict);
+            let (num_tsps_subj_terms, num_tsps_object_terms, _) =
+                numericize_sets(&tsps.subject_termset, &tsps.object_termset);
             tsps.best_score =
-                calculate_jaccard_similarity(&tsps.subject_termset, &tsps.object_termset);
+                calculate_jaccard_similarity(&num_tsps_subj_terms, &num_tsps_object_terms);
             s.yield_(tsps);
         }
         done!();
@@ -67,13 +71,15 @@ fn iter_tsps<'a>(
 
 #[pyfunction]
 fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<f64> {
-    Ok(calculate_jaccard_similarity(&set1, &set2))
+    let (num_set1, num_set2, _) = numericize_sets(&set1, &set2);
+    Ok(calculate_jaccard_similarity(&num_set1, &num_set2))
 }
 
 #[pyfunction]
 fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
     Ok(get_most_recent_common_ancestor_with_score(map))
 }
+
 #[pyfunction]
 fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<HashSet<String>> {
     let mut result = HashSet::new();

@@ -2,9 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use ordered_float::OrderedFloat;
 
-pub fn calculate_jaccard_similarity(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
+pub fn calculate_jaccard_similarity(set1: &HashSet<i32>, set2: &HashSet<i32>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
-
     let intersection = set1.intersection(&set2).count();
     let union_measure = set1.union(&set2).count();
     let jaccard = intersection as f64 / union_measure as f64;
@@ -21,6 +20,8 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
 }
 #[cfg(test)]
 mod tests {
+    use crate::utils::numericize_sets;
+
     use super::*;
     #[test]
     fn test_calculate_jaccard_similarity() {
@@ -31,7 +32,8 @@ mod tests {
             String::from("fruit"),
             String::from("tropical"),
         ]);
-        let result = calculate_jaccard_similarity(&set1, &set2);
+        let (num_set1, num_set2, _) = numericize_sets(&set1, &set2);
+        let result = calculate_jaccard_similarity(&num_set1, &num_set2);
         println!("{result}");
         assert_eq!(result, 0.5);
     }
