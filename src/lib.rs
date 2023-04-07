@@ -79,6 +79,7 @@ fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<
 fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
     Ok(get_most_recent_common_ancestor_with_score(map))
 }
+
 #[pyfunction]
 fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<HashSet<String>> {
     let mut result = HashSet::new();

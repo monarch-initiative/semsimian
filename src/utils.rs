@@ -99,7 +99,7 @@ mod tests {
             (6 as i32, String::from("grapes")),
             (7 as i32, String::from("fruits")),
         ]);
-        let (str_set1, str_set2) = stringify_sets_using_map(&set1, &set2, &map);
+        let (str_set1, str_set2) = _stringify_sets_using_map(&set1, &set2, &map);
         assert_eq!(set1.len(), str_set1.len());
         assert_eq!(set2.len(), str_set2.len());
     }
@@ -120,7 +120,7 @@ mod tests {
         ]);
 
         let (num_set1, num_set2, map) = numericize_sets(&set1, &set2);
-        let (str_set1, str_set2) = stringify_sets_using_map(&num_set1, &num_set2, &map);
+        let (str_set1, str_set2) = _stringify_sets_using_map(&num_set1, &num_set2, &map);
 
         assert_eq!(set1, str_set1);
         assert_eq!(set2, str_set2);
