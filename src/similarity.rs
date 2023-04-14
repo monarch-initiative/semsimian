@@ -63,7 +63,11 @@ pub fn calculate_phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
     // take the average of the two average resnik sims
 }
 
-fn phenomizer_score(enity)
+// fn phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
+//                                   entity1: HashSet<String>,
+//                                   entity2: HashSet<String>){
+//
+// }
 
 #[cfg(test)]
 mod tests {
@@ -97,4 +101,21 @@ mod tests {
         let result = get_most_recent_common_ancestor_with_score(map);
         assert_eq!(result, expected_tuple);
     }
+
+    #[test]
+    fn test_calculate_phenomizer_score() {
+        let map: HashMap<String, HashMap<String, f64>> = HashMap::from([
+            (String::from("CARO:0000000"), HashMap::from([(String::from(""), 20.0)])),
+            (String::from("BFO:0000002"), HashMap::from([(String::from(""), 20.0)])),
+            (String::from("BFO:0000003"), HashMap::from([(String::from(""), 20.0)])),
+        ]);
+
+        let entity_one = HashSet::new();
+        let entity_two = HashSet::new();
+        let expected_tuple: (String, f64) = (String::from("CARO:0000000"), 21.05);
+
+        let result = calculate_phenomizer_score(map, entity_one, entity_two);
+        assert_eq!(result, expected_tuple);
+    }
+
 }
