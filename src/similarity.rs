@@ -73,6 +73,7 @@ mod tests {
     use crate::utils::numericize_sets;
 
     use super::*;
+
     #[test]
     fn test_calculate_jaccard_similarity() {
         let set1: HashSet<String> = HashSet::from([String::from("apple"), String::from("banana")]);
@@ -104,14 +105,30 @@ mod tests {
     #[test]
     fn test_calculate_phenomizer_score() {
         let map: HashMap<String, HashMap<String, f64>> = HashMap::from([
-            (String::from("CARO:0000000"), HashMap::from([(String::from(""), 20.0)])),
-            (String::from("BFO:0000002"), HashMap::from([(String::from(""), 20.0)])),
-            (String::from("BFO:0000003"), HashMap::from([(String::from(""), 20.0)])),
+            (String::from("CARO:0000000"), HashMap::from(
+                [(String::from("CARO:0000000"), 5.0),
+                    (String::from("BFO:0000002"), 4.0),
+                    (String::from("BFO:0000003"), 3.0)])),
+            (String::from("BFO:0000002"), HashMap::from(
+                [(String::from("CARO:0000000"), 2.0),
+                    (String::from("BFO:0000002"), 4.0),
+                    (String::from("BFO:0000003"), 3.0)])),
+            (String::from("BFO:0000003"), HashMap::from(
+                [(String::from("CARO:0000000"), 1.0),
+                    (String::from("BFO:0000002"), 3.0),
+                    (String::from("BFO:0000003"), 4.0)])),
         ]);
 
-        let entity_one = HashSet::new();
-        let entity_two = HashSet::new();
-        let expected = 20.0;
+        let mut entity_one = HashSet::new();
+        entity_one.insert(String::from("CARO:0000000")); // resnik of best match = 5
+        entity_one.insert(String::from("BFO:0000002")); // resnik of best match = 4
+
+        let mut entity_two = HashSet::new();
+        entity_two.insert(String::from("BFO:0000003")); // resnik of best match = 3
+        entity_two.insert(String::from("BFO:0000002")); // resnik of best match = 4
+        entity_two.insert(String::from("CARO:0000000")); // resnik of best match = 5
+
+        let expected = ((5.0 + 4.0) / 2.0 + (3.0 + 4.0 + 5.0) / 3.0) / 2.0;
 
         let result = calculate_phenomizer_score(map, entity_one, entity_two);
         assert_eq!(result, expected);
