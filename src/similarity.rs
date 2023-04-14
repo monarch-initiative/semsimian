@@ -36,7 +36,6 @@ fn pairwise_entity_resnik_score(map: &HashMap<String, HashMap<String, f64>>,
                                 entity2: &HashSet<String>) -> f64{
     let mut entity1_to_entity2_sum_resnik_sim = 0.0;
 
-    // TODO: Multi thread the separate loops
     for e1_term in entity1.clone().into_iter() {
         let mut max_resnik_sim_e1_e2 = 0.0;
         for e2_term in entity2.clone().into_iter() {
