@@ -29,9 +29,9 @@ pub fn calculate_phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
     let mut entity1_to_entity2_sum_resnik_sim = 0.0;
 
     // Multi thread the seperate loops
-    for e1_term in entity1 {
+    for e1_term in entity1.clone().into_iter() {
         let mut max_resnik_sim_e1_e2 = 0.0;
-        for e2_term in entity2 {
+        for e2_term in entity2.clone().into_iter() {
             // NB: this will definitely fail if the term is not in the map
             let mica = map.get(&e1_term).unwrap().get(&e2_term).unwrap();
             if mica > &max_resnik_sim_e1_e2 {
@@ -46,21 +46,20 @@ pub fn calculate_phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
     let mut entity2_to_entity1_sum_resnik_sim = 0.0;
 
     // Multi thread the seperate loops
-    for e2_term in entity2 {
+    for e2_term in entity2.clone().into_iter() {
         let mut max_resnik_sim_e2_e1 = 0.0;
-        for e1_term in entity1 {
+        for e1_term in entity1.clone().into_iter() {
             // NB: this will definitely fail if the term is not in the map
             let mica = map.get(&e1_term).unwrap().get(&e2_term).unwrap();
             if mica > &max_resnik_sim_e2_e1 {
                 max_resnik_sim_e2_e1 = *mica;
             }
         }
-        entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
+        entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e2_e1;
     }
     let mut entity2_to_entity1_average_resnik_sim = entity2_to_entity1_sum_resnik_sim / entity1.len() as f64;
 
-    return (entity2_to_entity1_sum_resnik_sim + entity2_to_entity1_average_resnik_sim)/2
-    // take the average of the two average resnik sims
+    return (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim)/2.0
 }
 
 // fn phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
@@ -112,10 +111,10 @@ mod tests {
 
         let entity_one = HashSet::new();
         let entity_two = HashSet::new();
-        let expected_tuple: (String, f64) = (String::from("CARO:0000000"), 21.05);
+        let expected = 20.0;
 
         let result = calculate_phenomizer_score(map, entity_one, entity_two);
-        assert_eq!(result, expected_tuple);
+        assert_eq!(result, expected);
     }
 
 }
