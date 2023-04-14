@@ -20,7 +20,6 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
 }
 
 
-// Save space by encoding string values to integers
 pub fn calculate_phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
                                   entity1: HashSet<String>,
                                   entity2: HashSet<String>) -> f64 {
