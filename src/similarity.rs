@@ -24,9 +24,9 @@ pub fn calculate_phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
                                   entity1: HashSet<String>,
                                   entity2: HashSet<String>) -> f64 {
     // calculate average resnik sim of all terms in entity1 and their best match in entity2
-    let entity1_to_entity2_average_resnik_sim: f64 = pairwise_entity_score(&map, &entity1, &entity2);
+    let entity1_to_entity2_average_resnik_sim: f64 = pairwise_entity_resnik_score(&map, &entity1, &entity2);
     // now do the same for entity2 to entity1
-    let entity2_to_entity1_average_resnik_sim: f64 = pairwise_entity_score(&map, &entity2, &entity1);
+    let entity2_to_entity1_average_resnik_sim: f64 = pairwise_entity_resnik_score(&map, &entity2, &entity1);
     // return the average of the two
     return (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim)/2.0
 }
