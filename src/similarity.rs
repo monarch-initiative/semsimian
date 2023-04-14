@@ -24,11 +24,20 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
 pub fn calculate_phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
                                   entity1: HashSet<String>,
                                   entity2: HashSet<String>) -> f64 {
-    /* Returns Phenomizer score for two entities. */
     // calculate average resnik sim of all terms in entity1 and their best match in entity2
+    let entity1_to_entity2_average_resnik_sim: f64 = pairwise_entity_score(&map, &entity1, &entity2);
+    // now do the same for entity2 to entity1
+    let entity2_to_entity1_average_resnik_sim: f64 = pairwise_entity_score(&map, &entity2, &entity1);
+    // return the average of the two
+    return (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim)/2.0
+}
+
+fn pairwise_entity_resnik_score(map: &HashMap<String, HashMap<String, f64>>,
+                                entity1: &HashSet<String>,
+                                entity2: &HashSet<String>) -> f64{
     let mut entity1_to_entity2_sum_resnik_sim = 0.0;
 
-    // Multi thread the seperate loops
+    // TODO: Multi thread the separate loops
     for e1_term in entity1.clone().into_iter() {
         let mut max_resnik_sim_e1_e2 = 0.0;
         for e2_term in entity2.clone().into_iter() {
@@ -41,33 +50,8 @@ pub fn calculate_phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
         entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
     }
     let entity1_to_entity2_average_resnik_sim = entity1_to_entity2_sum_resnik_sim / entity1.len() as f64;
-
-    // calculate average resnik sim of all terms in entity2 and their best match in entity1
-    let mut entity2_to_entity1_sum_resnik_sim = 0.0;
-
-    // Multi thread the seperate loops
-    for e2_term in entity2.clone().into_iter() {
-        let mut max_resnik_sim_e2_e1 = 0.0;
-        for e1_term in entity1.clone().into_iter() {
-            // NB: this will definitely fail if the term is not in the map
-            let mica = map.get(&e1_term).unwrap().get(&e2_term).unwrap();
-            if mica > &max_resnik_sim_e2_e1 {
-                max_resnik_sim_e2_e1 = *mica;
-                println!("{} {} {}", e2_term, e1_term, max_resnik_sim_e2_e1)
-            }
-        }
-        entity2_to_entity1_sum_resnik_sim += max_resnik_sim_e2_e1;
-    }
-    let entity2_to_entity1_average_resnik_sim = entity2_to_entity1_sum_resnik_sim / entity2.len() as f64;
-
-    return (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim)/2.0
+    return entity1_to_entity2_average_resnik_sim;
 }
-
-// fn phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
-//                                   entity1: HashSet<String>,
-//                                   entity2: HashSet<String>){
-//
-// }
 
 #[cfg(test)]
 mod tests {
