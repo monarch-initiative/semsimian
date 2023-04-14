@@ -18,6 +18,33 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
         .unwrap();
     (curie, max_ic)
 }
+
+pub fn calculate_phenomizer_score(map: HashMap<String, f64>,
+                                  entity1: HashSet<String>,
+                                  entity2: HashSet<String>,
+                                  ancestor_map: HashMap<String, HashSet<String>>) -> f64 {
+    /* Returns Phenomizer score for two entities. */
+    // calculate average resnik sim of all terms in entity1 and their best match in entity2
+    let mut entity1_to_entity2_average_resnik_sim = 0.0;
+    for term in entity1 {
+        let mut max_resnik_sim = 0.0;
+        for ancestor in ancestor_map.get(&term).unwrap() {
+            if entity2.contains(ancestor) {
+                let resnik_sim = map.get(ancestor).unwrap();
+                if resnik_sim > &max_resnik_sim {
+                    max_resnik_sim = *resnik_sim;
+                }
+            }
+        }
+        entity1_to_entity2_average_resnik_sim += max_resnik_sim;
+    }
+
+    // calculate average resnik sim of all terms in entity2 and their best match in entity1
+    let mut entity2_to_entity1_average_resnik_sim = 0.0;
+
+    // take the average of the two average resnik sims
+}
+
 #[cfg(test)]
 mod tests {
     use crate::utils::numericize_sets;
