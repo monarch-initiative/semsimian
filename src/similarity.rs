@@ -2,6 +2,45 @@ use std::collections::{HashMap, HashSet};
 
 use ordered_float::OrderedFloat;
 
+
+pub fn convert_list_of_tuples_to_hashmap(list_of_tuples: Vec<(String, String, String)>
+) -> HashMap<String, HashMap<String, HashSet<String>>> {
+    // list_of_tuples: Vec<(String, String, String)> [s, p, o]
+    // Returns:
+    // ['GO:1234': {'is_a': ['GO:0008150','GO:0003674','GO:0005575']}, {'part_of': ['GO:0008150','GO:0003674','GO:0005575']}]
+    let mut map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+    for  (s, p, o) in list_of_tuples {
+        let mut predicate_map: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut object_set: HashSet<String> = HashSet::new();
+        object_set.insert(o);
+        predicate_map.append(p, object_set);
+        map.insert(s, predicate_map);
+    }
+    map
+}
+
+// TODO: parameterize by predicate!
+pub fn semantic_jaccard_similarity(closure_table: &HashMap<String, HashSet<String>>,
+                                   entity1: &HashSet<String>,
+                                   entity2: &HashSet<String>) -> f64 {
+    /* Returns semantic Jaccard similarity between the two sets. */
+    let entity1_closure = expand_terms_using_closure(entity1, closure_table);
+    let entity2_closure = expand_terms_using_closure(entity2, closure_table);
+    let jaccard = calculate_jaccard_similarity(&entity1_closure, &entity2_closure);
+    jaccard
+}
+
+fn expand_terms_using_closure(terms: &HashSet<String>,
+                              closure_table: &HashMap<String, HashSet<String>>,
+                              predictates: HashSet<String>) -> HashSet<String> {
+    let mut closure: HashSet<String> = HashSet::new();
+    for term in terms {
+        let term_closure = closure_table.get(term).unwrap();
+        closure = closure.union(term_closure).cloned().collect();
+    }
+    closure
+}
+
 pub fn calculate_jaccard_similarity(set1: &HashSet<i32>, set2: &HashSet<i32>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
     let intersection = set1.intersection(&set2).count();
