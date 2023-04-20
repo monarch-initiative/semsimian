@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::{HashMap, HashSet};
 
 pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
@@ -46,6 +47,33 @@ pub fn _stringify_sets_using_map(
         }
     }
     (str_set1, str_set2)
+}
+
+pub fn convert_list_of_tuples_to_hashmap(
+    list_of_tuples: Vec<(String, String, String)>,
+) -> HashMap<String, HashMap<String, HashSet<String>>> {
+    // list_of_tuples: Vec<(String, String, String)> [s, p, o]
+    // Returns:
+    // ['GO:1234': {'is_a': ['GO:0008150','GO:0003674','GO:0005575']}, {'part_of': ['GO:0008150','GO:0003674','GO:0005575']}]
+    let mut subject_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+    for (s, p, o) in list_of_tuples {
+        match subject_map.get_mut(&s) {
+            Some(predicate_map) => match predicate_map.get_mut(&p) {
+                Some(object_set) => {
+                    object_set.insert(o);
+                }
+                None => {
+                    predicate_map.insert(p, HashSet::from([o]));
+                }
+            },
+            None => {
+                let mut p_map = HashMap::new();
+                p_map.insert(p.to_string(), HashSet::from([o]));
+                subject_map.insert(s.to_string(), p_map);
+            }
+        };
+    }
+    subject_map
 }
 
 #[cfg(test)]
@@ -124,5 +152,64 @@ mod tests {
 
         assert_eq!(set1, str_set1);
         assert_eq!(set2, str_set2);
+    }
+
+    #[test]
+    fn test_convert_list_of_tuples_to_hashmap() {
+        let expected_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::from([
+            (
+                String::from("ABCD:123"),
+                HashMap::from([
+                    (
+                        String::from("is_a"),
+                        HashSet::from([String::from("BCDE:234")]),
+                    ),
+                    (
+                        String::from("part_of"),
+                        HashSet::from([String::from("ABCDE:1234")]),
+                    ),
+                ]),
+            ),
+            (
+                String::from("XYZ:123"),
+                HashMap::from([
+                    (
+                        String::from("is_a"),
+                        HashSet::from([String::from("WXY:234")]),
+                    ),
+                    (
+                        String::from("part_of"),
+                        HashSet::from([String::from("WXYZ:1234")]),
+                    ),
+                ]),
+            ),
+        ]);
+        //{"ABCD:123": {"is_a": {"BCDE:234"}, "part_of": {"ABCDE:1234"}}, "XYZ:123": {"is_a": {"WXY:234"}, "part_of": {"WXYZ:1234"}}}
+        let list_of_tuples: Vec<(String, String, String)> = vec![
+            (
+                String::from("ABCD:123"),
+                String::from("is_a"),
+                String::from("BCDE:234"),
+            ),
+            (
+                String::from("ABCD:123"),
+                String::from("part_of"),
+                String::from("ABCDE:1234"),
+            ),
+            (
+                String::from("XYZ:123"),
+                String::from("is_a"),
+                String::from("WXY:234"),
+            ),
+            (
+                String::from("XYZ:123"),
+                String::from("part_of"),
+                String::from("WXYZ:1234"),
+            ),
+        ];
+
+        let subject_map = convert_list_of_tuples_to_hashmap(list_of_tuples);
+        // println!("{:?}",subject_map);
+        assert_eq!(expected_map, subject_map);
     }
 }

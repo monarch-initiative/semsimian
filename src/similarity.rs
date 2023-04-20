@@ -2,27 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use ordered_float::OrderedFloat;
 
-
-pub fn convert_list_of_tuples_to_hashmap(list_of_tuples: Vec<(String, String, String)>
-) -> HashMap<String, HashMap<String, HashSet<String>>> {
-    // list_of_tuples: Vec<(String, String, String)> [s, p, o]
-    // Returns:
-    // ['GO:1234': {'is_a': ['GO:0008150','GO:0003674','GO:0005575']}, {'part_of': ['GO:0008150','GO:0003674','GO:0005575']}]
-    let mut map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-    for  (s, p, o) in list_of_tuples {
-        let mut predicate_map: HashMap<String, HashSet<String>> = HashMap::new();
-        let mut object_set: HashSet<String> = HashSet::new();
-        object_set.insert(o);
-        predicate_map.append(p, object_set);
-        map.insert(s, predicate_map);
-    }
-    map
-}
-
 // TODO: parameterize by predicate!
-pub fn semantic_jaccard_similarity(closure_table: &HashMap<String, HashSet<String>>,
-                                   entity1: &HashSet<String>,
-                                   entity2: &HashSet<String>) -> f64 {
+pub fn semantic_jaccard_similarity(
+    closure_table: &HashMap<String, HashSet<String>>,
+    entity1: &HashSet<String>,
+    entity2: &HashSet<String>,
+) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
     let entity1_closure = expand_terms_using_closure(entity1, closure_table);
     let entity2_closure = expand_terms_using_closure(entity2, closure_table);
@@ -30,9 +15,11 @@ pub fn semantic_jaccard_similarity(closure_table: &HashMap<String, HashSet<Strin
     jaccard
 }
 
-fn expand_terms_using_closure(terms: &HashSet<String>,
-                              closure_table: &HashMap<String, HashSet<String>>,
-                              predictates: HashSet<String>) -> HashSet<String> {
+fn expand_terms_using_closure(
+    terms: &HashSet<String>,
+    closure_table: &HashMap<String, HashSet<String>>,
+    predictates: HashSet<String>,
+) -> HashSet<String> {
     let mut closure: HashSet<String> = HashSet::new();
     for term in terms {
         let term_closure = closure_table.get(term).unwrap();
@@ -58,21 +45,26 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
     (curie, max_ic)
 }
 
-
-pub fn calculate_phenomizer_score(map: HashMap<String, HashMap<String, f64>>,
-                                  entity1: HashSet<String>,
-                                  entity2: HashSet<String>) -> f64 {
+pub fn calculate_phenomizer_score(
+    map: HashMap<String, HashMap<String, f64>>,
+    entity1: HashSet<String>,
+    entity2: HashSet<String>,
+) -> f64 {
     // calculate average resnik sim of all terms in entity1 and their best match in entity2
-    let entity1_to_entity2_average_resnik_sim: f64 = pairwise_entity_resnik_score(&map, &entity1, &entity2);
+    let entity1_to_entity2_average_resnik_sim: f64 =
+        pairwise_entity_resnik_score(&map, &entity1, &entity2);
     // now do the same for entity2 to entity1
-    let entity2_to_entity1_average_resnik_sim: f64 = pairwise_entity_resnik_score(&map, &entity2, &entity1);
+    let entity2_to_entity1_average_resnik_sim: f64 =
+        pairwise_entity_resnik_score(&map, &entity2, &entity1);
     // return the average of the two
-    return (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim)/2.0
+    return (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0;
 }
 
-fn pairwise_entity_resnik_score(map: &HashMap<String, HashMap<String, f64>>,
-                                entity1: &HashSet<String>,
-                                entity2: &HashSet<String>) -> f64{
+fn pairwise_entity_resnik_score(
+    map: &HashMap<String, HashMap<String, f64>>,
+    entity1: &HashSet<String>,
+    entity2: &HashSet<String>,
+) -> f64 {
     let mut entity1_to_entity2_sum_resnik_sim = 0.0;
 
     for e1_term in entity1.clone().into_iter() {
@@ -86,7 +78,8 @@ fn pairwise_entity_resnik_score(map: &HashMap<String, HashMap<String, f64>>,
         }
         entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
     }
-    let entity1_to_entity2_average_resnik_sim = entity1_to_entity2_sum_resnik_sim / entity1.len() as f64;
+    let entity1_to_entity2_average_resnik_sim =
+        entity1_to_entity2_sum_resnik_sim / entity1.len() as f64;
     return entity1_to_entity2_average_resnik_sim;
 }
 
@@ -127,18 +120,30 @@ mod tests {
     #[test]
     fn test_calculate_phenomizer_score() {
         let map: HashMap<String, HashMap<String, f64>> = HashMap::from([
-            (String::from("CARO:0000000"), HashMap::from(
-                [(String::from("CARO:0000000"), 5.0),
+            (
+                String::from("CARO:0000000"),
+                HashMap::from([
+                    (String::from("CARO:0000000"), 5.0),
                     (String::from("BFO:0000002"), 4.0),
-                    (String::from("BFO:0000003"), 3.0)])),
-            (String::from("BFO:0000002"), HashMap::from(
-                [(String::from("CARO:0000000"), 2.0),
+                    (String::from("BFO:0000003"), 3.0),
+                ]),
+            ),
+            (
+                String::from("BFO:0000002"),
+                HashMap::from([
+                    (String::from("CARO:0000000"), 2.0),
                     (String::from("BFO:0000002"), 4.0),
-                    (String::from("BFO:0000003"), 3.0)])),
-            (String::from("BFO:0000003"), HashMap::from(
-                [(String::from("CARO:0000000"), 1.0),
+                    (String::from("BFO:0000003"), 3.0),
+                ]),
+            ),
+            (
+                String::from("BFO:0000003"),
+                HashMap::from([
+                    (String::from("CARO:0000000"), 1.0),
                     (String::from("BFO:0000002"), 3.0),
-                    (String::from("BFO:0000003"), 4.0)])),
+                    (String::from("BFO:0000003"), 4.0),
+                ]),
+            ),
         ]);
 
         let mut entity_one = HashSet::new();
@@ -155,5 +160,4 @@ mod tests {
         let result = calculate_phenomizer_score(map, entity_one, entity_two);
         assert_eq!(result, expected);
     }
-
 }
