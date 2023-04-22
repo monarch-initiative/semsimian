@@ -6,7 +6,7 @@ pub fn semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
-    predicates: HashSet<String>,
+    predicates: &HashSet<String>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
     let entity1_closure = expand_term_using_closure(&entity1, closure_table, &predicates);
@@ -80,9 +80,52 @@ fn pairwise_entity_resnik_score(
 
 #[cfg(test)]
 mod tests {
+    use pyo3::buffer::ElementType::Float;
     use crate::utils::numericize_sets;
 
     use super::*;
+
+    #[test]
+    fn test_semantic_jaccard_similarity() {
+        let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("CARO:0000000"));
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("CARO:0000000"), map);
+        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("BFO:0000002"), map);
+        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("BFO:0000003"), map);
+        let mut sco_predicate: HashSet<String> = HashSet::new();
+        sco_predicate.insert(String::from("subClassOf"));
+        let result = semantic_jaccard_similarity(
+            &closure_table,
+            String::from("CARO:0000000"),
+            String::from("BFO:0000002"),
+            &sco_predicate,
+        );
+        println!("{result}");
+        assert_eq!(result, 2.0 / 3.0);
+
+        let result2 = semantic_jaccard_similarity(
+            &closure_table,
+            String::from("BFO:0000002"),
+            String::from("BFO:0000003"),
+            &sco_predicate,
+        );
+        println!("{result2}");
+        assert_eq!(result2, 0.5);
+    }
 
     #[test]
     fn test_calculate_jaccard_similarity() {
