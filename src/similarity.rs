@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use ordered_float::OrderedFloat;
 use crate::utils::expand_term_using_closure;
 
-// TODO: parameterize by predicate!
 pub fn semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
