@@ -4,27 +4,30 @@ use ordered_float::OrderedFloat;
 
 // TODO: parameterize by predicate!
 pub fn semantic_jaccard_similarity(
-    closure_table: &HashMap<String, HashSet<String>>,
-    entity1: &HashSet<String>,
-    entity2: &HashSet<String>,
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    entity1: String,
+    entity2: String,
     predicates: HashSet<String>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
-    let entity1_closure = expand_terms_using_closure(entity1, closure_table, &predicates);
-    let entity2_closure = expand_terms_using_closure(entity2, closure_table, &predicates);
+    let entity1_closure = expand_term_using_closure(&entity1, closure_table, &predicates);
+    let entity2_closure = expand_term_using_closure(&entity2, closure_table, &predicates);
     let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
     jaccard
 }
 
-fn expand_terms_using_closure(
-    terms: &HashSet<String>,
-    closure_table: &HashMap<String, HashSet<String>>,
+fn expand_term_using_closure(
+    term: &String,
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     predicates: &HashSet<String>,
 ) -> HashSet<String> {
     let mut closure: HashSet<String> = HashSet::new();
-    for term in terms {
-        let term_closure = closure_table.get(term).unwrap();
-        closure = closure.union(term_closure).cloned().collect();
+    if let Some(term_closure) = closure_table.get(term) {
+        for pred in predicates {
+            if let Some(closure_terms) = term_closure.get(pred) {
+                closure.extend(closure_terms.iter().map(|s| s.to_owned()));
+            }
+        }
     }
     closure
 }
