@@ -13,5 +13,4 @@ csv = "1.1.6"
 dict = "0.1.5"
 generator = "0.7.2"
 ordered-float = "3.6.0"
-#pyo3 = { version = "0.18.0", features = ["extension-module"] }
 pyo3 = "*"
