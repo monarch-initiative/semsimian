@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
-
 use ordered_float::OrderedFloat;
+use crate::utils::expand_term_using_closure;
 
 // TODO: parameterize by predicate!
 pub fn semantic_jaccard_similarity(
@@ -14,22 +14,6 @@ pub fn semantic_jaccard_similarity(
     let entity2_closure = expand_term_using_closure(&entity2, closure_table, &predicates);
     let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
     jaccard
-}
-
-fn expand_term_using_closure(
-    term: &String,
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    predicates: &HashSet<String>,
-) -> HashSet<String> {
-    let mut closure: HashSet<String> = HashSet::new();
-    if let Some(term_closure) = closure_table.get(term) {
-        for pred in predicates {
-            if let Some(closure_terms) = term_closure.get(pred) {
-                closure.extend(closure_terms.iter().map(|s| s.to_owned()));
-            }
-        }
-    }
-    closure
 }
 
 pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {

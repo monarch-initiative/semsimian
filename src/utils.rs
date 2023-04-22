@@ -75,6 +75,22 @@ pub fn convert_list_of_tuples_to_hashmap(
     subject_map
 }
 
+pub fn expand_term_using_closure(
+    term: &String,
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    predicates: &HashSet<String>,
+) -> HashSet<String> {
+    let mut closure: HashSet<String> = HashSet::new();
+    if let Some(term_closure) = closure_table.get(term) {
+        for pred in predicates {
+            if let Some(closure_terms) = term_closure.get(pred) {
+                closure.extend(closure_terms.iter().map(|s| s.to_owned()));
+            }
+        }
+    }
+    closure
+}
+
 #[cfg(test)]
 
 mod tests {
