@@ -1,4 +1,3 @@
-use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::{HashMap, HashSet};
 
 pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
