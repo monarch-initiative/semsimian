@@ -80,7 +80,6 @@ fn pairwise_entity_resnik_score(
 
 #[cfg(test)]
 mod tests {
-    use pyo3::buffer::ElementType::Float;
     use crate::utils::numericize_sets;
 
     use super::*;
@@ -88,6 +87,15 @@ mod tests {
     #[test]
     fn test_semantic_jaccard_similarity() {
         let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+
+        // closure table looks like this:
+        // CARO:0000000 -> subClassOf -> CARO:0000000, BFO:0000002, BFO:0000003
+
+        // BFO:0000002 -> subClassOf -> BFO:0000002, BFO:0000003
+
+        // BFO:0000003 -> subClassOf -> BFO:0000003
+        //             -> partOf -> BFO:0000004
+
         let mut map: HashMap<String, HashSet<String>> = HashMap::new();
         let mut set: HashSet<String> = HashSet::new();
         set.insert(String::from("CARO:0000000"));
@@ -105,6 +113,11 @@ mod tests {
         let mut set: HashSet<String> = HashSet::new();
         set.insert(String::from("BFO:0000003"));
         map.insert(String::from("subClassOf"), set);
+
+        let mut set2: HashSet<String> = HashSet::new();
+        set2.insert(String::from("BFO:0000004"));
+        map.insert(String::from("partOf"), set2);
+
         closure_table.insert(String::from("BFO:0000003"), map);
         let mut sco_predicate: HashSet<String> = HashSet::new();
         sco_predicate.insert(String::from("subClassOf"));
@@ -125,6 +138,19 @@ mod tests {
         );
         println!("{result2}");
         assert_eq!(result2, 0.5);
+
+        let mut sco_po_predicate: HashSet<String> = HashSet::new();
+        sco_po_predicate.insert(String::from("subClassOf"));
+        sco_po_predicate.insert(String::from("partOf"));
+        let result3 = semantic_jaccard_similarity(
+            &closure_table,
+            String::from("BFO:0000002"),
+            String::from("BFO:0000003"),
+            &sco_po_predicate,
+        );
+        println!("{result3}");
+        assert_eq!(result3, 2.0 / 5.0);
+
     }
 
     #[test]
