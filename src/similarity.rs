@@ -7,18 +7,19 @@ pub fn semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashSet<String>>,
     entity1: &HashSet<String>,
     entity2: &HashSet<String>,
+    predicates: HashSet<String>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
-    let entity1_closure = expand_terms_using_closure(entity1, closure_table);
-    let entity2_closure = expand_terms_using_closure(entity2, closure_table);
-    let jaccard = calculate_jaccard_similarity(&entity1_closure, &entity2_closure);
+    let entity1_closure = expand_terms_using_closure(entity1, closure_table, &predicates);
+    let entity2_closure = expand_terms_using_closure(entity2, closure_table, &predicates);
+    let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
     jaccard
 }
 
 fn expand_terms_using_closure(
     terms: &HashSet<String>,
     closure_table: &HashMap<String, HashSet<String>>,
-    predictates: HashSet<String>,
+    predicates: &HashSet<String>,
 ) -> HashSet<String> {
     let mut closure: HashSet<String> = HashSet::new();
     for term in terms {
@@ -26,6 +27,14 @@ fn expand_terms_using_closure(
         closure = closure.union(term_closure).cloned().collect();
     }
     closure
+}
+
+pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
+    /* Returns Jaccard similarity between the two sets. */
+    let intersection = set1.intersection(&set2).count();
+    let union_measure = set1.union(&set2).count();
+    let jaccard = intersection as f64 / union_measure as f64;
+    jaccard
 }
 
 pub fn calculate_jaccard_similarity(set1: &HashSet<i32>, set2: &HashSet<i32>) -> f64 {
