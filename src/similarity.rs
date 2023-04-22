@@ -114,6 +114,21 @@ mod tests {
     }
 
     #[test]
+    fn test_calculate_jaccard_similarity_str() {
+        let set1: HashSet<String> = HashSet::from([String::from("apple"), String::from("banana")]);
+        let set2: HashSet<String> = HashSet::from([
+            String::from("apple"),
+            String::from("banana"),
+            String::from("fruit"),
+            String::from("tropical"),
+        ]);
+        let result = calculate_jaccard_similarity_str(&set1, &set2);
+        println!("{result}");
+        assert_eq!(result, 0.5);
+    }
+
+
+    #[test]
     fn test_get_most_recent_common_ancestor_with_score() {
         let map: HashMap<String, f64> = HashMap::from([
             (String::from("CARO:0000000"), 21.05),
