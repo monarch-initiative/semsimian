@@ -3,10 +3,10 @@ use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 
 pub fn calculate_semantic_jaccard_similarity(
-    closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
-    predicates: HashSet<String>,
+    predicates: &HashSet<String>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
     let entity1_closure = expand_term_using_closure(&entity1, &closure_table, &predicates);
@@ -122,19 +122,19 @@ mod tests {
         let mut sco_predicate: HashSet<String> = HashSet::new();
         sco_predicate.insert(String::from("subClassOf"));
         let result = calculate_semantic_jaccard_similarity(
-            closure_table.clone(),
+            &closure_table,
             String::from("CARO:0000000"),
             String::from("BFO:0000002"),
-            sco_predicate.clone(),
+            &sco_predicate,
         );
         println!("{result}");
         assert_eq!(result, 2.0 / 3.0);
 
         let result2 = calculate_semantic_jaccard_similarity(
-            closure_table.clone(),
+            &closure_table,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
-            sco_predicate.clone(),
+            &sco_predicate,
         );
         println!("{result2}");
         assert_eq!(result2, 0.5);
@@ -143,10 +143,10 @@ mod tests {
         sco_po_predicate.insert(String::from("subClassOf"));
         sco_po_predicate.insert(String::from("partOf"));
         let result3 = calculate_semantic_jaccard_similarity(
-            closure_table.clone(),
+            &closure_table,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
-            sco_po_predicate.clone(),
+            &sco_po_predicate,
         );
         println!("{result3}");
         assert_eq!(result3, 2.0 / 5.0);

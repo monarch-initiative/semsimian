@@ -100,10 +100,10 @@ fn semantic_jaccard_similarity(
     predicates: HashSet<String>,
 ) -> PyResult<f64> {
     Ok(calculate_semantic_jaccard_similarity(
-        closure_table,
+        &closure_table,
         entity1,
         entity2,
-        predicates,
+        &predicates,
     ))
 }
 
