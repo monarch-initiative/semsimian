@@ -34,7 +34,6 @@ fn integration_test_1() {
         ),
     ];
     let closure_table = convert_list_of_tuples_to_hashmap(list_of_tuples);
-
     let sem_jaccard = calculate_semantic_jaccard_similarity(
         &closure_table,
         "apple".to_string(),
