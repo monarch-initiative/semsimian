@@ -6,24 +6,24 @@ use std::{
 use generator::{done, Generator, Gn}; //https://crates.io/crates/generator
 use pyo3::prelude::*;
 mod file_io;
-mod utils;
+pub mod utils;
 use file_io::{parse_associations, read_file};
-mod similarity;
+pub mod similarity;
 use similarity::{
     calculate_jaccard_similarity, calculate_phenomizer_score,
     calculate_semantic_jaccard_similarity, get_most_recent_common_ancestor_with_score,
 };
-mod closures;
+pub mod closures;
 use closures::expand_terms_using_closure;
-mod structs;
+pub mod structs;
 use structs::TermSetPairwiseSimilarity;
-mod ancestors;
+pub mod ancestors;
 use ancestors::get_intersection_between_sets;
 use utils::{convert_list_of_tuples_to_hashmap, numericize_sets};
 
 // Generator<'a, (), & 'a mut TermSetPairwiseSimilarity>
 #[pyfunction]
-fn run<'a>(input_file: &str, closure_file: &str) -> PyResult<Vec<TermSetPairwiseSimilarity>> {
+pub fn run<'a>(input_file: &str, closure_file: &str) -> PyResult<Vec<TermSetPairwiseSimilarity>> {
     /*
     read in TSV file
     csv::ReaderBuilder instead of just csv::Reader because we need to specify
@@ -49,7 +49,7 @@ fn run<'a>(input_file: &str, closure_file: &str) -> PyResult<Vec<TermSetPairwise
     Ok(tsps_vector)
 }
 
-fn iter_tsps<'a>(
+pub fn iter_tsps<'a>(
     data_dict: HashMap<String, HashSet<String>>,
     closures_dict: HashMap<String, HashSet<String>>,
     tsps_info: TermSetPairwiseSimilarity,
@@ -73,18 +73,18 @@ fn iter_tsps<'a>(
 }
 
 #[pyfunction]
-fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<f64> {
+pub fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<f64> {
     let (num_set1, num_set2, _) = numericize_sets(&set1, &set2);
     Ok(calculate_jaccard_similarity(&num_set1, &num_set2))
 }
 
 #[pyfunction]
-fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
+pub fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
     Ok(get_most_recent_common_ancestor_with_score(map))
 }
 
 #[pyfunction]
-fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<HashSet<String>> {
+pub fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<HashSet<String>> {
     let mut result = HashSet::new();
     for a in get_intersection_between_sets(&set1, &set2).into_iter() {
         result.insert(a.to_string());
@@ -93,7 +93,7 @@ fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<Ha
 }
 
 #[pyfunction]
-fn semantic_jaccard_similarity(
+pub fn semantic_jaccard_similarity(
     closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
@@ -108,14 +108,14 @@ fn semantic_jaccard_similarity(
 }
 
 #[pyfunction]
-fn relationships_to_closure_table(
+pub fn relationships_to_closure_table(
     list_of_tuples: Vec<(String, String, String)>,
 ) -> PyResult<HashMap<String, HashMap<String, HashSet<String>>>> {
     Ok(convert_list_of_tuples_to_hashmap(list_of_tuples))
 }
 
 #[pyfunction]
-fn phenomizer_score(
+pub fn phenomizer_score(
     map: HashMap<String, HashMap<String, f64>>,
     entity1: HashSet<String>,
     entity2: HashSet<String>,
@@ -136,50 +136,3 @@ fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 //TODO: Test the lib module.
-#[cfg(test)]
-
-mod tests {
-    use std::collections::HashSet;
-
-    use super::*;
-    #[test]
-    fn test_integration_1() {
-        let list_of_tuples = vec![
-            ("apple".to_string(), "is_a".to_string(), "fruit".to_string()),
-            (
-                "apple".to_string(),
-                "subclass_of".to_string(),
-                "red".to_string(),
-            ),
-            (
-                "cherry".to_string(),
-                "subclass_of".to_string(),
-                "red".to_string(),
-            ),
-            (
-                "cherry".to_string(),
-                "is_a".to_string(),
-                "fruit".to_string(),
-            ),
-            (
-                "cherry".to_string(),
-                "is_a".to_string(),
-                "seeded_fruit".to_string(),
-            ),
-            (
-                "seeded_fruit".to_string(),
-                "is_a".to_string(),
-                "fruit".to_string(),
-            ),
-        ];
-        let closure_table = convert_list_of_tuples_to_hashmap(list_of_tuples);
-        let sem_jaccard = calculate_semantic_jaccard_similarity(
-            &closure_table,
-            "apple".to_string(),
-            "cherry".to_string(),
-            &HashSet::from(["is_a".to_string()]),
-        );
-        // println!("{sem_jaccard}");
-        assert_eq!(sem_jaccard, 0.5)
-    }
-}

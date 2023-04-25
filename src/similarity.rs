@@ -55,7 +55,7 @@ pub fn calculate_phenomizer_score(
     return (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0;
 }
 
-fn pairwise_entity_resnik_score(
+pub fn pairwise_entity_resnik_score(
     map: &HashMap<String, HashMap<String, f64>>,
     entity1: &HashSet<String>,
     entity2: &HashSet<String>,
