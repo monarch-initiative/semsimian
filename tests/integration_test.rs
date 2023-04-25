@@ -4,7 +4,7 @@ use rustsim::similarity::calculate_semantic_jaccard_similarity;
 use rustsim::utils::convert_list_of_tuples_to_hashmap;
 
 #[test]
-fn integration_test_1() {
+fn integration_test_semantic_jaccard_similarity() {
     let list_of_tuples = vec![
         ("apple".to_string(), "is_a".to_string(), "fruit".to_string()),
         (
