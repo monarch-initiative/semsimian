@@ -6,17 +6,20 @@ use std::{
 use generator::{done, Generator, Gn}; //https://crates.io/crates/generator
 use pyo3::prelude::*;
 mod file_io;
-mod utils;
+pub mod utils;
 use file_io::{parse_associations, read_file};
-mod similarity;
-use similarity::{calculate_jaccard_similarity, get_most_recent_common_ancestor_with_score};
-mod closures;
+pub mod similarity;
+use similarity::{
+    calculate_jaccard_similarity, calculate_phenomizer_score,
+    calculate_semantic_jaccard_similarity, get_most_recent_common_ancestor_with_score,
+};
+pub mod closures;
 use closures::expand_terms_using_closure;
-mod structs;
+pub mod structs;
 use structs::TermSetPairwiseSimilarity;
-mod ancestors;
+pub mod ancestors;
 use ancestors::get_intersection_between_sets;
-use utils::numericize_sets;
+use utils::{convert_list_of_tuples_to_hashmap, numericize_sets};
 
 // Generator<'a, (), & 'a mut TermSetPairwiseSimilarity>
 #[pyfunction]
@@ -89,12 +92,46 @@ fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<Ha
     Ok(result)
 }
 
+#[pyfunction]
+fn semantic_jaccard_similarity(
+    closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
+    entity1: String,
+    entity2: String,
+    predicates: HashSet<String>,
+) -> PyResult<f64> {
+    Ok(calculate_semantic_jaccard_similarity(
+        &closure_table,
+        entity1,
+        entity2,
+        &predicates,
+    ))
+}
+
+#[pyfunction]
+fn relationships_to_closure_table(
+    list_of_tuples: Vec<(String, String, String)>,
+) -> PyResult<HashMap<String, HashMap<String, HashSet<String>>>> {
+    Ok(convert_list_of_tuples_to_hashmap(list_of_tuples))
+}
+
+#[pyfunction]
+fn phenomizer_score(
+    map: HashMap<String, HashMap<String, f64>>,
+    entity1: HashSet<String>,
+    entity2: HashSet<String>,
+) -> PyResult<f64> {
+    Ok(calculate_phenomizer_score(map, entity1, entity2))
+}
+
 #[pymodule]
 fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
     m.add_function(wrap_pyfunction!(jaccard_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(mrca_and_score, m)?)?;
     m.add_function(wrap_pyfunction!(get_intersection, m)?)?;
+    m.add_function(wrap_pyfunction!(semantic_jaccard_similarity, m)?)?;
+    m.add_function(wrap_pyfunction!(relationships_to_closure_table, m)?)?;
+    m.add_function(wrap_pyfunction!(phenomizer_score, m)?)?;
     Ok(())
 }
 
