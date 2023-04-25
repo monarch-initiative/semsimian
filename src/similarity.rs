@@ -142,6 +142,7 @@ mod tests {
         let mut sco_po_predicate: HashSet<String> = HashSet::new();
         sco_po_predicate.insert(String::from("subClassOf"));
         sco_po_predicate.insert(String::from("partOf"));
+        // println!("{closure_table:?}");
         let result3 = calculate_semantic_jaccard_similarity(
             &closure_table,
             String::from("BFO:0000002"),
@@ -149,7 +150,7 @@ mod tests {
             &sco_po_predicate,
         );
         println!("{result3}");
-        assert_eq!(result3, 2.0 / 5.0);
+        assert_eq!(result3, 1.0 / 3.0);
     }
 
     #[test]

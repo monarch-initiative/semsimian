@@ -136,3 +136,32 @@ fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 //TODO: Test the lib module.
+#[cfg(test)]
+
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+    #[test]
+    fn test_integration_1() {
+        let list_of_tuples = vec![
+            ("apple".to_string(), "is_a".to_string(), "fruit".to_string()),
+            ("apple".to_string(), "subclass_of".to_string(), "red".to_string()),
+            ("cherry".to_string(), "subclass_of".to_string(), "red".to_string()),
+            ("cherry".to_string(), "is_a".to_string(), "fruit".to_string()),
+            ("cherry".to_string(), "is_a".to_string(), "seeded_fruit".to_string()),
+            ("seeded_fruit".to_string(), "is_a".to_string(), "fruit".to_string()),
+
+        ];
+        let closure_table = convert_list_of_tuples_to_hashmap(list_of_tuples);
+        let sem_jaccard = calculate_semantic_jaccard_similarity(
+            &closure_table,
+            "apple".to_string(),
+            "cherry".to_string(),
+            &HashSet::from(["is_a".to_string()]),
+        );
+        // println!("{sem_jaccard}");
+        assert_eq!(sem_jaccard, 0.5)
+
+    }
+}
