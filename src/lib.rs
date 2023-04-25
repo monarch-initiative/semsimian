@@ -23,7 +23,7 @@ use utils::{convert_list_of_tuples_to_hashmap, numericize_sets};
 
 // Generator<'a, (), & 'a mut TermSetPairwiseSimilarity>
 #[pyfunction]
-pub fn run<'a>(input_file: &str, closure_file: &str) -> PyResult<Vec<TermSetPairwiseSimilarity>> {
+fn run<'a>(input_file: &str, closure_file: &str) -> PyResult<Vec<TermSetPairwiseSimilarity>> {
     /*
     read in TSV file
     csv::ReaderBuilder instead of just csv::Reader because we need to specify
@@ -49,7 +49,7 @@ pub fn run<'a>(input_file: &str, closure_file: &str) -> PyResult<Vec<TermSetPair
     Ok(tsps_vector)
 }
 
-pub fn iter_tsps<'a>(
+fn iter_tsps<'a>(
     data_dict: HashMap<String, HashSet<String>>,
     closures_dict: HashMap<String, HashSet<String>>,
     tsps_info: TermSetPairwiseSimilarity,
@@ -73,18 +73,18 @@ pub fn iter_tsps<'a>(
 }
 
 #[pyfunction]
-pub fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<f64> {
+fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<f64> {
     let (num_set1, num_set2, _) = numericize_sets(&set1, &set2);
     Ok(calculate_jaccard_similarity(&num_set1, &num_set2))
 }
 
 #[pyfunction]
-pub fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
+fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
     Ok(get_most_recent_common_ancestor_with_score(map))
 }
 
 #[pyfunction]
-pub fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<HashSet<String>> {
+fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<HashSet<String>> {
     let mut result = HashSet::new();
     for a in get_intersection_between_sets(&set1, &set2).into_iter() {
         result.insert(a.to_string());
@@ -93,7 +93,7 @@ pub fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResul
 }
 
 #[pyfunction]
-pub fn semantic_jaccard_similarity(
+fn semantic_jaccard_similarity(
     closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
@@ -108,14 +108,14 @@ pub fn semantic_jaccard_similarity(
 }
 
 #[pyfunction]
-pub fn relationships_to_closure_table(
+fn relationships_to_closure_table(
     list_of_tuples: Vec<(String, String, String)>,
 ) -> PyResult<HashMap<String, HashMap<String, HashSet<String>>>> {
     Ok(convert_list_of_tuples_to_hashmap(list_of_tuples))
 }
 
 #[pyfunction]
-pub fn phenomizer_score(
+fn phenomizer_score(
     map: HashMap<String, HashMap<String, f64>>,
     entity1: HashSet<String>,
     entity2: HashSet<String>,
