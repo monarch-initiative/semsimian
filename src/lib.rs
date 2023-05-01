@@ -97,7 +97,7 @@ fn semantic_jaccard_similarity(
     closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
-    predicates: HashSet<String>,
+    predicates: Option<HashSet<String>>,
 ) -> PyResult<f64> {
     Ok(calculate_semantic_jaccard_similarity(
         &closure_table,

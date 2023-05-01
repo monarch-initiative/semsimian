@@ -38,7 +38,7 @@ fn integration_test_semantic_jaccard_similarity() {
         &closure_table,
         "apple".to_string(),
         "cherry".to_string(),
-        &HashSet::from(["is_a".to_string()]),
+        &Some(HashSet::from(["is_a".to_string()])),
     );
 
     assert_eq!(sem_jaccard, 0.5)
