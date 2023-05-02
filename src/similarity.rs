@@ -85,6 +85,7 @@ pub fn calculate_max_information_content(
     predicates: &Option<HashSet<String>>,
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
+    0.0
 }
 
 #[cfg(test)]
@@ -160,6 +161,16 @@ mod tests {
         );
         println!("{result3}");
         assert_eq!(result3, 1.0 / 3.0);
+
+        // No predicates.
+        let result4 = calculate_semantic_jaccard_similarity(
+            &closure_table,
+            String::from("BFO:0000002"),
+            String::from("BFO:0000003"),
+            &None,
+        );
+        println!("{result4}");
+        assert_eq!(result4, 1.0 / 3.0);
     }
 
     #[test]
