@@ -78,13 +78,20 @@ pub fn convert_list_of_tuples_to_hashmap(
 pub fn expand_term_using_closure(
     term: &String,
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    predicates: &HashSet<String>,
+    predicates: &Option<HashSet<String>>,
 ) -> HashSet<String> {
     let mut closure: HashSet<String> = HashSet::new();
     if let Some(term_closure) = closure_table.get(term) {
-        for pred in predicates {
-            if let Some(closure_terms) = term_closure.get(pred) {
+        if predicates.is_none() {
+            for (_, closure_terms) in term_closure {
                 closure.extend(closure_terms.iter().map(|s| s.to_owned()));
+            }
+        }
+        else {
+            for pred in predicates.as_ref().unwrap() {
+                if let Some(closure_terms) = term_closure.get(pred) {
+                    closure.extend(closure_terms.iter().map(|s| s.to_owned()));
+                }
             }
         }
     }

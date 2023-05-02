@@ -6,7 +6,7 @@ pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
-    predicates: &HashSet<String>,
+    predicates: &Option<HashSet<String>>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
     let entity1_closure = expand_term_using_closure(&entity1, &closure_table, &predicates);
@@ -125,7 +125,7 @@ mod tests {
             &closure_table,
             String::from("CARO:0000000"),
             String::from("BFO:0000002"),
-            &sco_predicate,
+            &Some(sco_predicate.clone()),
         );
         println!("{result}");
         assert_eq!(result, 2.0 / 3.0);
@@ -134,7 +134,7 @@ mod tests {
             &closure_table,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
-            &sco_predicate,
+            &Some(sco_predicate.clone()),
         );
         println!("{result2}");
         assert_eq!(result2, 0.5);
@@ -147,7 +147,7 @@ mod tests {
             &closure_table,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
-            &sco_po_predicate,
+            &Some(sco_po_predicate.clone()),
         );
         println!("{result3}");
         assert_eq!(result3, 1.0 / 3.0);
