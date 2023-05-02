@@ -86,8 +86,7 @@ pub fn expand_term_using_closure(
             for (_, closure_terms) in term_closure {
                 closure.extend(closure_terms.iter().map(|s| s.to_owned()));
             }
-        }
-        else {
+        } else {
             for pred in predicates.as_ref().unwrap() {
                 if let Some(closure_terms) = term_closure.get(pred) {
                     closure.extend(closure_terms.iter().map(|s| s.to_owned()));

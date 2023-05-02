@@ -10,7 +10,7 @@ pub mod utils;
 use file_io::{parse_associations, read_file};
 pub mod similarity;
 use similarity::{
-    calculate_jaccard_similarity, calculate_phenomizer_score,
+    calculate_jaccard_similarity, calculate_max_information_content, calculate_phenomizer_score,
     calculate_semantic_jaccard_similarity, get_most_recent_common_ancestor_with_score,
 };
 pub mod closures;
@@ -121,6 +121,21 @@ fn phenomizer_score(
     entity2: HashSet<String>,
 ) -> PyResult<f64> {
     Ok(calculate_phenomizer_score(map, entity1, entity2))
+}
+
+#[pyfunction]
+fn max_information_content(
+    closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
+    entity1: String,
+    entity2: String,
+    predicates: Option<HashSet<String>>,
+) -> PyResult<f64> {
+    Ok(calculate_max_information_content(
+        &closure_table,
+        entity1,
+        entity2,
+        &predicates,
+    ))
 }
 
 #[pymodule]

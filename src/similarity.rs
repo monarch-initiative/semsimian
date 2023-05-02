@@ -78,6 +78,15 @@ pub fn pairwise_entity_resnik_score(
     return entity1_to_entity2_average_resnik_sim;
 }
 
+pub fn calculate_max_information_content(
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    entity1: String,
+    entity2: String,
+    predicates: &Option<HashSet<String>>,
+) -> f64 {
+    // CODE TO CALCULATE MAX IC
+}
+
 #[cfg(test)]
 mod tests {
     use crate::utils::numericize_sets;
