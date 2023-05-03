@@ -93,7 +93,7 @@ pub fn calculate_max_information_content(
 
     let information_content_scores = calculate_information_content_scores(
         &filtered_common_ancestors,
-        &closure_table,
+        closure_table,
         predicates
     );
 
