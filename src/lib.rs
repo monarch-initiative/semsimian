@@ -108,6 +108,23 @@ fn semantic_jaccard_similarity(
 }
 
 #[pyfunction]
+fn max_information_content(
+    closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
+    entity1: String,
+    entity2: String,
+    predicates: Option<HashSet<String>>,
+) -> PyResult<f64> {
+    Ok(calculate_max_information_content(
+        &closure_table,
+        &entity1,
+        &entity2,
+        &predicates
+    ))
+}
+
+
+
+#[pyfunction]
 fn relationships_to_closure_table(
     list_of_tuples: Vec<(String, String, String)>,
 ) -> PyResult<HashMap<String, HashMap<String, HashSet<String>>>> {
@@ -123,20 +140,20 @@ fn phenomizer_score(
     Ok(calculate_phenomizer_score(map, entity1, entity2))
 }
 
-#[pyfunction]
-fn max_information_content(
-    closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
-    entity1: String,
-    entity2: String,
-    predicates: Option<HashSet<String>>,
-) -> PyResult<f64> {
-    Ok(calculate_max_information_content(
-        &closure_table,
-        entity1,
-        entity2,
-        &predicates,
-    ))
-}
+// #[pyfunction]
+// fn max_information_content(
+//     closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
+//     entity1: String,
+//     entity2: String,
+//     predicates: Option<HashSet<String>>,
+// ) -> PyResult<f64> {
+//     Ok(calculate_max_information_content(
+//         &closure_table,
+//         entity1,
+//         entity2,
+//         &predicates,
+//     ))
+// }
 
 #[pymodule]
 fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
