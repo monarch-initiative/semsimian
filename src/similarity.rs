@@ -110,11 +110,16 @@ fn common_ancestors(
 
     // TODO: if predicates is empty, need to use ALL predicates
 
-    let entity1_ancestors = closure_table.get(entity1);
-    let entity2_ancestors = closure_table.get(entity2);
+    // if predicates.is_none(){
+    //     // if predicates is None, then we need to use ALL predicates
+    // }
 
     if let (Some(e1_ancestors),
         Some(e2_ancestors)) = (entity1_ancestors, entity2_ancestors) {
+
+        // the code below that uses filter_ancestors_by_predicates() should probably be using expand_term_using_closure()
+        // let entity1_closure = expand_term_using_closure(&entity1, &closure_table, &predicates);
+        // let entity2_closure = expand_term_using_closure(&entity2, &closure_table, &predicates);
         let filtered_e1_ancestors = filter_ancestors_by_predicates(&e1_ancestors, &predicates);
         let filtered_e2_ancestors = filter_ancestors_by_predicates(&e2_ancestors, &predicates);
 
