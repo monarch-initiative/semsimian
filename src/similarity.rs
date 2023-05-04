@@ -126,8 +126,8 @@ fn common_ancestors(
         all_predicates = predicates.clone();
     }
             // expand_term_using_closure() handles case of the entity being not present -> returning empty set
-            let entity1_closure =expand_term_using_closure(entity1, closure_table, &all_predicates)
-            let entity2_closure = expand_term_using_closure(entity2, closure_table, &all_predicates)
+            let entity1_closure =expand_term_using_closure(entity1, closure_table, &all_predicates);
+            let entity2_closure = expand_term_using_closure(entity2, closure_table, &all_predicates);
 
             entity1_closure
                 .into_iter()
