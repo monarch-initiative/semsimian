@@ -134,6 +134,7 @@ fn common_ancestors(
     }
 
 
+// TODO: I think we can get rid of this function? Seems to be redundant with expand_term_using_closure()
 fn _filter_ancestors_by_predicates(
     ancestors: &HashMap<String, HashSet<String>>,
     predicates: &Option<HashSet<String>>,
