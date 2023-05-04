@@ -101,6 +101,9 @@ pub fn calculate_max_information_content(
     max_ic
 }
 
+/// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
+
+
 fn common_ancestors(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: &String,
@@ -110,27 +113,28 @@ fn common_ancestors(
 
     // TODO: if predicates is empty, need to use ALL predicates
 
-    // if predicates.is_none(){
-    //     // if predicates is None, then we need to use ALL predicates
-    // }
-
-    if let (Some(e1_ancestors),
-        Some(e2_ancestors)) = (entity1_ancestors, entity2_ancestors) {
-
-        // the code below that uses filter_ancestors_by_predicates() should probably be using expand_term_using_closure()
-        // let entity1_closure = expand_term_using_closure(&entity1, &closure_table, &predicates);
-        // let entity2_closure = expand_term_using_closure(&entity2, &closure_table, &predicates);
-        let filtered_e1_ancestors = filter_ancestors_by_predicates(&e1_ancestors, &predicates);
-        let filtered_e2_ancestors = filter_ancestors_by_predicates(&e2_ancestors, &predicates);
-
-        filtered_e1_ancestors
-            .into_iter()
-            .filter(|ancestor| filtered_e2_ancestors.contains(ancestor))
-            .collect()
+    let all_predicates: Option<HashSet<String>>;
+    if predicates.is_none() {
+        // if predicates is None, then we need to use ALL 
+        all_predicates = Some(closure_table
+            .values()
+            .flat_map(|predicates_map| predicates_map.keys())
+            .cloned()
+            .collect::<HashSet<String>>(),
+        );
     } else {
-        vec![]
+        all_predicates = predicates.clone();
     }
-}
+            // expand_term_using_closure() handles case of the entity being not present -> returning empty set
+            let entity1_closure =expand_term_using_closure(entity1, closure_table, &all_predicates)
+            let entity2_closure = expand_term_using_closure(entity2, closure_table, &all_predicates)
+
+            entity1_closure
+                .into_iter()
+                .filter(|ancestor| entity2_closure.contains(ancestor))
+                .collect()
+    }
+
 
 fn filter_ancestors_by_predicates(
     ancestors: &HashMap<String, HashSet<String>>,
