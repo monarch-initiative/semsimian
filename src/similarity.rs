@@ -111,8 +111,6 @@ fn common_ancestors(
     predicates: &Option<HashSet<String>>,
 ) -> Vec<String> {
 
-    // TODO: if predicates is empty, need to use ALL predicates
-
     let all_predicates: Option<HashSet<String>>;
     if predicates.is_none() {
         // if predicates is None, then we need to use ALL 
