@@ -134,7 +134,7 @@ fn common_ancestors(
     }
 
 
-fn filter_ancestors_by_predicates(
+fn _filter_ancestors_by_predicates(
     ancestors: &HashMap<String, HashSet<String>>,
     predicates: &Option<HashSet<String>>,
 ) -> HashSet<String> {
@@ -372,6 +372,7 @@ mod tests {
         assert_eq!(result, expected);
     }
 
+    #[test]
     fn test_calculate_max_information_content() {
         let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
 
