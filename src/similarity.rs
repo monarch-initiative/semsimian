@@ -78,6 +78,138 @@ pub fn pairwise_entity_resnik_score(
     return entity1_to_entity2_average_resnik_sim;
 }
 
+pub fn calculate_max_information_content(
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    entity1: &String,
+    entity2: &String,
+    predicates: &Option<HashSet<String>>,
+) -> f64 {
+    // CODE TO CALCULATE MAX IC
+    let owl_thing = "owl:Thing".to_string();
+    let filtered_common_ancestors: Vec<String> =
+        common_ancestors(&closure_table, &entity1, &entity2, &predicates)
+            .into_iter()
+            .filter(|ancestor| *ancestor != owl_thing) //removes owl:Thing from common ancestor, leaving only common ancestors
+            .collect();
+
+    let information_content_scores =
+        calculate_information_content_scores(&filtered_common_ancestors, closure_table, predicates);
+
+    let (_ancestor, max_ic) = mrca_and_score(&information_content_scores);
+    max_ic
+}
+
+/// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
+
+fn common_ancestors(
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    entity1: &String,
+    entity2: &String,
+    predicates: &Option<HashSet<String>>,
+) -> Vec<String> {
+    let all_predicates: Option<HashSet<String>>;
+    if predicates.is_none() {
+        // if predicates is None, then we need to use ALL
+        all_predicates = Some(
+            closure_table
+                .values()
+                .flat_map(|predicates_map| predicates_map.keys())
+                .cloned()
+                .collect::<HashSet<String>>(),
+        );
+    } else {
+        all_predicates = predicates.clone();
+    }
+    // expand_term_using_closure() handles case of the entity being not present -> returning empty set
+    let entity1_closure = expand_term_using_closure(entity1, closure_table, &all_predicates);
+    let entity2_closure = expand_term_using_closure(entity2, closure_table, &all_predicates);
+
+    entity1_closure
+        .into_iter()
+        .filter(|ancestor| entity2_closure.contains(ancestor))
+        .collect()
+}
+
+fn _filter_ancestors_by_predicates(
+    // currently this is not used, but it might be useful in the future
+    ancestors: &HashMap<String, HashSet<String>>,
+    predicates: &Option<HashSet<String>>,
+) -> HashSet<String> {
+    match predicates {
+        Some(preds) => {
+            let mut filtered = HashSet::new();
+            for (predicate, entities) in ancestors {
+                if preds.contains(predicate) {
+                    for entity in entities {
+                        filtered.insert(entity.clone());
+                    }
+                }
+            }
+            filtered
+        }
+        None => ancestors
+            .values()
+            .flat_map(|entities| entities.iter().cloned())
+            .collect(),
+    }
+}
+
+// scores: maps ancestors to corresponding IC scores
+fn mrca_and_score(scores: &HashMap<String, f64>) -> (Option<String>, f64) {
+    let mut max_ic = 0.0;
+    let mut mrca = None;
+
+    for (ancestor, ic) in scores.iter() {
+        if *ic > max_ic {
+            max_ic = *ic;
+            mrca = Some(ancestor.clone());
+        }
+    }
+    (mrca, max_ic)
+}
+
+// TODO: provide a way to specify 'bespoke' information contents for each term
+// for example, in a population of patients of interest
+fn calculate_information_content_scores(
+    filtered_common_ancestors: &Vec<String>,
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    predicates: &Option<HashSet<String>>,
+) -> HashMap<String, f64> {
+    let (term_frequencies, corpus_size) =
+        calculate_term_frequencies_and_corpus_size(closure_table, predicates);
+
+    let mut ic_scores = HashMap::new();
+    for ancestor in filtered_common_ancestors {
+        if let Some(freq) = term_frequencies.get(ancestor) {
+            let probability = *freq as f64 / corpus_size as f64;
+            let ic = -probability.log2();
+            ic_scores.insert(ancestor.clone(), ic);
+        }
+    }
+    ic_scores
+}
+
+fn calculate_term_frequencies_and_corpus_size(
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    predicates: &Option<HashSet<String>>,
+) -> (HashMap<String, usize>, usize) {
+    let mut term_frequencies = HashMap::new();
+    let mut corpus_size = 0;
+
+    for (_entity, predicate_map) in closure_table {
+        for (predicate, terms) in predicate_map {
+            if predicates.is_none() || predicates.as_ref().unwrap().contains(predicate) {
+                for term in terms {
+                    *term_frequencies.entry(term.clone()).or_insert(0) += 1;
+                }
+                corpus_size += terms.len();
+            }
+        }
+    }
+
+    (term_frequencies, corpus_size)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::utils::numericize_sets;
@@ -237,5 +369,66 @@ mod tests {
 
         let result = calculate_phenomizer_score(map, entity_one, entity_two);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_calculate_max_information_content() {
+        let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+
+        // closure table looks like this:
+        // CARO:0000000 -> subClassOf -> CARO:0000000, BFO:0000002, BFO:0000003
+        // BFO:0000002 -> subClassOf -> BFO:0000002, BFO:0000003
+        // BFO:0000003 -> subClassOf -> BFO:0000003
+
+        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("CARO:0000000"));
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("CARO:0000000"), map.clone());
+
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("BFO:0000002"), map.clone());
+
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("BFO:0000003"), map);
+
+        // Term frequencies:
+        // "CARO:0000000": 1
+        // "BFO:0000002": 2
+        // "BFO:0000003": 3
+        //
+        // Corpus size: 6 (sum of term frequencies)
+        //
+        // Information Content (IC) scores:
+        // IC("CARO:0000000") = -log2(1/6) ≈ 2.585
+        // IC("BFO:0000002") = -log2(2/6) ≈ 1.585
+        // IC("BFO:0000003") = -log2(3/6) ≈ 1
+        //
+        // Max IC for "CARO:0000000" and "BFO:0000002":
+        // Common ancestors: "BFO:0000002" and "BFO:0000003"
+        // Max IC: 1.585 (IC of "BFO:0000002")
+
+        let predicates = Some(HashSet::from([String::from("subClassOf")]));
+        let result = calculate_max_information_content(
+            &closure_table,
+            &String::from("CARO:0000000"),
+            &String::from("BFO:0000002"),
+            &predicates,
+        );
+        println!("Max IC: {}", result);
+        let expected_value = 1.585;
+        assert!(
+            (result - expected_value).abs() < 1e-3,
+            "Expected value: {}, got: {}",
+            expected_value,
+            result
+        );
     }
 }
