@@ -118,11 +118,9 @@ fn max_information_content(
         &closure_table,
         &entity1,
         &entity2,
-        &predicates
+        &predicates,
     ))
 }
-
-
 
 #[pyfunction]
 fn relationships_to_closure_table(
