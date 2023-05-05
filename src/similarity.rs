@@ -168,6 +168,8 @@ fn mrca_and_score(scores: &HashMap<String, f64>) -> (Option<String>, f64) {
     (mrca, max_ic)
 }
 
+// TODO: provide a way to specify 'bespoke' information contents for each term
+// for example, in a population of patients of interest
 fn calculate_information_content_scores(
     filtered_common_ancestors: &Vec<String>,
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
