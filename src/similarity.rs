@@ -86,16 +86,14 @@ pub fn calculate_max_information_content(
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
     let owl_thing = "owl:Thing".to_string();
-    let filtered_common_ancestors: Vec<String> = common_ancestors(&closure_table, &entity1, &entity2, &predicates)
-        .into_iter()
-        .filter(|ancestor| *ancestor != owl_thing) //removes owl:Thing from common ancestor, leaving only common ancestors
-        .collect();
+    let filtered_common_ancestors: Vec<String> =
+        common_ancestors(&closure_table, &entity1, &entity2, &predicates)
+            .into_iter()
+            .filter(|ancestor| *ancestor != owl_thing) //removes owl:Thing from common ancestor, leaving only common ancestors
+            .collect();
 
-    let information_content_scores = calculate_information_content_scores(
-        &filtered_common_ancestors,
-        closure_table,
-        predicates
-    );
+    let information_content_scores =
+        calculate_information_content_scores(&filtered_common_ancestors, closure_table, predicates);
 
     let (_ancestor, max_ic) = mrca_and_score(&information_content_scores);
     max_ic
@@ -103,36 +101,34 @@ pub fn calculate_max_information_content(
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
 
-
 fn common_ancestors(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: &String,
     entity2: &String,
     predicates: &Option<HashSet<String>>,
 ) -> Vec<String> {
-
     let all_predicates: Option<HashSet<String>>;
     if predicates.is_none() {
-        // if predicates is None, then we need to use ALL 
-        all_predicates = Some(closure_table
-            .values()
-            .flat_map(|predicates_map| predicates_map.keys())
-            .cloned()
-            .collect::<HashSet<String>>(),
+        // if predicates is None, then we need to use ALL
+        all_predicates = Some(
+            closure_table
+                .values()
+                .flat_map(|predicates_map| predicates_map.keys())
+                .cloned()
+                .collect::<HashSet<String>>(),
         );
     } else {
         all_predicates = predicates.clone();
     }
-            // expand_term_using_closure() handles case of the entity being not present -> returning empty set
-            let entity1_closure =expand_term_using_closure(entity1, closure_table, &all_predicates);
-            let entity2_closure = expand_term_using_closure(entity2, closure_table, &all_predicates);
+    // expand_term_using_closure() handles case of the entity being not present -> returning empty set
+    let entity1_closure = expand_term_using_closure(entity1, closure_table, &all_predicates);
+    let entity2_closure = expand_term_using_closure(entity2, closure_table, &all_predicates);
 
-            entity1_closure
-                .into_iter()
-                .filter(|ancestor| entity2_closure.contains(ancestor))
-                .collect()
-    }
-
+    entity1_closure
+        .into_iter()
+        .filter(|ancestor| entity2_closure.contains(ancestor))
+        .collect()
+}
 
 // TODO: I think we can get rid of this function? Seems to be redundant with expand_term_using_closure()
 fn _filter_ancestors_by_predicates(
@@ -417,7 +413,6 @@ mod tests {
         // Common ancestors: "BFO:0000002" and "BFO:0000003"
         // Max IC: 1.585 (IC of "BFO:0000002")
 
-
         let predicates = Some(HashSet::from([String::from("subClassOf")]));
         let result = calculate_max_information_content(
             &closure_table,
@@ -427,9 +422,11 @@ mod tests {
         );
         println!("Max IC: {}", result);
         let expected_value = 1.585;
-        assert!((result - expected_value).abs() < 1e-3, "Expected value: {}, got: {}", expected_value, result);
+        assert!(
+            (result - expected_value).abs() < 1e-3,
+            "Expected value: {}, got: {}",
+            expected_value,
+            result
+        );
     }
 }
-
-
-

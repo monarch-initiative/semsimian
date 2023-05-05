@@ -233,4 +233,38 @@ mod tests {
         // println!("{:?}",subject_map);
         assert_eq!(expected_map, subject_map);
     }
+
+    #[test]
+    fn test_expand_term_using_closure() {
+        let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("CARO:0000000"));
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("CARO:0000000"), map.clone());
+
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("BFO:0000002"), map.clone());
+
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("subClassOf"), set);
+        closure_table.insert(String::from("BFO:0000003"), map);
+
+        let term = String::from("CARO:0000000");
+        let predicates = HashSet::from(["subClassOf".to_string()]);
+        let result = expand_term_using_closure(&term, &closure_table, &Some(predicates));
+
+        let expected_result = HashSet::from([
+            "BFO:0000002".to_string(),
+            "BFO:0000003".to_string(),
+            "CARO:0000000".to_string(),
+        ]);
+        assert_eq!(result, expected_result);
+    }
 }
