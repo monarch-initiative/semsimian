@@ -130,8 +130,8 @@ fn common_ancestors(
         .collect()
 }
 
-// TODO: I think we can get rid of this function? Seems to be redundant with expand_term_using_closure()
 fn _filter_ancestors_by_predicates(
+    // currently this is not used, but it might be useful in the future
     ancestors: &HashMap<String, HashSet<String>>,
     predicates: &Option<HashSet<String>>,
 ) -> HashSet<String> {
