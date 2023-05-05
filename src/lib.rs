@@ -138,21 +138,6 @@ fn phenomizer_score(
     Ok(calculate_phenomizer_score(map, entity1, entity2))
 }
 
-// #[pyfunction]
-// fn max_information_content(
-//     closure_table: HashMap<String, HashMap<String, HashSet<String>>>,
-//     entity1: String,
-//     entity2: String,
-//     predicates: Option<HashSet<String>>,
-// ) -> PyResult<f64> {
-//     Ok(calculate_max_information_content(
-//         &closure_table,
-//         entity1,
-//         entity2,
-//         &predicates,
-//     ))
-// }
-
 #[pymodule]
 fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
@@ -162,6 +147,8 @@ fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(semantic_jaccard_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(relationships_to_closure_table, m)?)?;
     m.add_function(wrap_pyfunction!(phenomizer_score, m)?)?;
+    m.add_function(wrap_pyfunction!(max_information_content, m)?)?;
+
     Ok(())
 }
 
