@@ -75,6 +75,7 @@ pub fn convert_list_of_tuples_to_hashmap(
     subject_map
 }
 
+// TODO: Needs a test.
 pub fn expand_term_using_closure(
     term: &String,
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
