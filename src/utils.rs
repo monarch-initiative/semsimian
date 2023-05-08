@@ -50,30 +50,49 @@ pub fn _stringify_sets_using_map(
 
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: Vec<(String, String, String)>,
-) -> HashMap<String, HashMap<String, HashSet<String>>> {
-    // list_of_tuples: Vec<(String, String, String)> [s, p, o]
-    // Returns:
-    // ['GO:1234': {'is_a': ['GO:0008150','GO:0003674','GO:0005575']}, {'part_of': ['GO:0008150','GO:0003674','GO:0005575']}]
+) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, usize>) {
     let mut subject_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+    let mut freq_map: HashMap<String, usize> = HashMap::new();
+
     for (s, p, o) in list_of_tuples {
+        // Update frequency count for s and its ancestors
+        let mut ancestor = &s;
+
+        *freq_map.entry(s.clone()).or_insert(0) += 1;
+        *freq_map.entry(o.clone()).or_insert(0) += 1;
+
+        while let Some(predicate_map) = subject_map.get(ancestor) {
+            *freq_map.entry(ancestor.clone()).or_insert(0) += 1;
+            ancestor = predicate_map.get("is_a").and_then(|set| set.iter().next()).unwrap_or(&"".to_string());
+        }
+
         match subject_map.get_mut(&s) {
             Some(predicate_map) => match predicate_map.get_mut(&p) {
                 Some(object_set) => {
-                    object_set.insert(o);
+                    object_set.insert(o.clone());
                 }
                 None => {
-                    predicate_map.insert(p, HashSet::from([o]));
+                    predicate_map.insert(p.to_string(), HashSet::from([o.clone()]));
                 }
             },
             None => {
                 let mut p_map = HashMap::new();
-                p_map.insert(p.to_string(), HashSet::from([o]));
+                p_map.insert(p.to_string(), HashSet::from([o.clone()]));
                 subject_map.insert(s.to_string(), p_map);
             }
         };
+
+        // Update frequency count for o and its ancestors
+        let mut ancestor = &o;
+        while let Some(predicate_map) = subject_map.get(ancestor) {
+            *freq_map.entry(ancestor.clone()).or_insert(0) += 1;
+            ancestor = predicate_map.get("is_a").and_then(|set| set.iter().next()).unwrap_or(&"".to_string());
+        }
     }
-    subject_map
+    // TODO: return IC, not freq map
+    (subject_map, freq_map)
 }
+
 
 pub fn expand_term_using_closure(
     term: &String,
