@@ -50,19 +50,24 @@ pub fn _stringify_sets_using_map(
 
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: Vec<(String, String, String)>,
-) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, usize>) {
+) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, f64>) {
     let mut subject_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
+    let mut ic_map: HashMap<String, f64> = HashMap::new();
+    let mut total_count = 0;
 
     for (s, p, o) in list_of_tuples {
         // Update frequency count for s and its ancestors
         let mut ancestor = &s;
 
         *freq_map.entry(s.clone()).or_insert(0) += 1;
+        total_count += 1;
         *freq_map.entry(o.clone()).or_insert(0) += 1;
+        total_count += 1;
 
         while let Some(predicate_map) = subject_map.get(ancestor) {
             *freq_map.entry(ancestor.clone()).or_insert(0) += 1;
+            total_count += 1;
             ancestor = predicate_map.get("is_a").and_then(|set| set.iter().next()).unwrap_or(&"".to_string());
         }
 
@@ -86,11 +91,16 @@ pub fn convert_list_of_tuples_to_hashmap(
         let mut ancestor = &o;
         while let Some(predicate_map) = subject_map.get(ancestor) {
             *freq_map.entry(ancestor.clone()).or_insert(0) += 1;
+            total_count += 1;
             ancestor = predicate_map.get("is_a").and_then(|set| set.iter().next()).unwrap_or(&"".to_string());
         }
     }
-    // TODO: return IC, not freq map
-    (subject_map, freq_map)
+
+    // calculate IC for all terms using frequency map and total count
+    for (k, v) in freq_map.iter_mut() {
+        ic_map.insert(k.to_string(), (*v as f64 / total_count as f64).log2());
+    }
+    (subject_map, ic_map)
 }
 
 
