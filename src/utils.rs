@@ -50,6 +50,9 @@ pub fn _stringify_sets_using_map(
 
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: Vec<(String, String, String)>,
+    // TODO: support providing a list of observed terms:
+    // list_of_observed_terms: Option<Vec<String>>, // a way of assigning custom frequencies to terms
+    // TODO: also deal with terms with counts of zero: this will have Inf information content, and cause problems
 ) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, f64>) {
     let mut subject_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
