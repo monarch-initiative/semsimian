@@ -1,7 +1,7 @@
 use std::collections::HashSet;
-extern crate rustsim;
-use rustsim::similarity::calculate_semantic_jaccard_similarity;
-use rustsim::utils::convert_list_of_tuples_to_hashmap;
+extern crate semsimian;
+use semsimian::similarity::calculate_semantic_jaccard_similarity;
+use semsimian::utils::convert_list_of_tuples_to_hashmap;
 
 #[test]
 fn integration_test_semantic_jaccard_similarity() {

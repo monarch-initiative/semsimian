@@ -139,7 +139,7 @@ fn phenomizer_score(
 }
 
 #[pymodule]
-fn rustsim(_py: Python, m: &PyModule) -> PyResult<()> {
+fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
     m.add_function(wrap_pyfunction!(jaccard_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(mrca_and_score, m)?)?;

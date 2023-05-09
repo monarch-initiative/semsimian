@@ -1,7 +1,7 @@
-# RustSim
+# semsimian
 
 - Setup your virtual environment of choice.
-- cd `rustsim` (home directory of this project)
+- cd `semsimian` (home directory of this project)
 - `pip install maturin`
 - `maturin develop`
 - `python`
@@ -9,8 +9,8 @@
 Python 3.9.16 (main, Jan 11 2023, 10:02:19) 
 [Clang 14.0.6 ] :: Anaconda, Inc. on darwin
 Type "help", "copyright", "credits" or "license" for more information.
->>> import rustsim
->>> rustsim.run("tests/data/test_set.tsv", "tests/data/closures.tsv")
+>>> import semsimian
+>>> semsimian.run("tests/data/test_set.tsv", "tests/data/closures.tsv")
 ```
 should yield
 ```
@@ -110,7 +110,7 @@ TermSetPairwiseSimilarity {
 
 ### Building for Mac ARM M1 architectures
 
-If a `import rustsim` results in a `ImportError` warning about incompatible architecture, try the following:
+If a `import semsimian` results in a `ImportError` warning about incompatible architecture, try the following:
 - Install `conda`. [This guide may be helpful.](https://towardsdatascience.com/how-to-manage-conda-environments-on-an-apple-silicon-m1-mac-1e29cb3bad12)
 - Set up a virtual environment with `conda` so that your Python build is aligned with your processor architecture (in this case, ARM).
 Try something like:

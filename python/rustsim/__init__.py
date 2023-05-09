@@ -1,1 +1,1 @@
-"""RustSim package"""
+"""semsimian package"""

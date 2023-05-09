@@ -1,11 +1,11 @@
 [package]
-name = "rustsim"
+name = "semsimian"
 version = "0.1.12"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "rustsim"
+name = "semsimian"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
