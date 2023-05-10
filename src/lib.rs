@@ -125,7 +125,7 @@ fn max_information_content(
 #[pyfunction]
 fn relationships_to_closure_table(
     list_of_tuples: Vec<(String, String, String)>,
-) -> PyResult<HashMap<String, HashMap<String, HashSet<String>>>> {
+) -> PyResult<(HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, f64>)> {
     Ok(convert_list_of_tuples_to_hashmap(list_of_tuples))
 }
 

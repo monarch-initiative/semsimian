@@ -50,30 +50,62 @@ pub fn _stringify_sets_using_map(
 
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: Vec<(String, String, String)>,
-) -> HashMap<String, HashMap<String, HashSet<String>>> {
-    // list_of_tuples: Vec<(String, String, String)> [s, p, o]
-    // Returns:
-    // ['GO:1234': {'is_a': ['GO:0008150','GO:0003674','GO:0005575']}, {'part_of': ['GO:0008150','GO:0003674','GO:0005575']}]
+    // TODO: support providing a list of observed terms:
+    // list_of_observed_terms: Option<Vec<String>>, // a way of assigning custom frequencies to terms
+    // TODO: also deal with terms with counts of zero: this will have Inf information content, and cause problems
+) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, f64>) {
     let mut subject_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+    let mut freq_map: HashMap<String, usize> = HashMap::new();
+    let mut ic_map: HashMap<String, f64> = HashMap::new();
+    let mut total_count = 0;
+
     for (s, p, o) in list_of_tuples {
+        // Update frequency count for s and its ancestors
+        let mut ancestor = &s;
+
+        *freq_map.entry(s.clone()).or_insert(0) += 1;
+        total_count += 1;
+        *freq_map.entry(o.clone()).or_insert(0) += 1;
+        total_count += 1;
+
+        while let Some(predicate_map) = subject_map.get(ancestor) {
+            *freq_map.entry(ancestor.clone()).or_insert(0) += 1;
+            total_count += 1;
+            ancestor = predicate_map.get("is_a").and_then(|set| set.iter().next()).unwrap_or(&"".to_string());
+        }
+
         match subject_map.get_mut(&s) {
             Some(predicate_map) => match predicate_map.get_mut(&p) {
                 Some(object_set) => {
-                    object_set.insert(o);
+                    object_set.insert(o.clone());
                 }
                 None => {
-                    predicate_map.insert(p, HashSet::from([o]));
+                    predicate_map.insert(p.to_string(), HashSet::from([o.clone()]));
                 }
             },
             None => {
                 let mut p_map = HashMap::new();
-                p_map.insert(p.to_string(), HashSet::from([o]));
+                p_map.insert(p.to_string(), HashSet::from([o.clone()]));
                 subject_map.insert(s.to_string(), p_map);
             }
         };
+
+        // Update frequency count for o and its ancestors
+        let mut ancestor = &o;
+        while let Some(predicate_map) = subject_map.get(ancestor) {
+            *freq_map.entry(ancestor.clone()).or_insert(0) += 1;
+            total_count += 1;
+            ancestor = predicate_map.get("is_a").and_then(|set| set.iter().next()).unwrap_or(&"".to_string());
+        }
     }
-    subject_map
+
+    // calculate IC for all terms using frequency map and total count
+    for (k, v) in freq_map.iter_mut() {
+        ic_map.insert(k.to_string(), (*v as f64 / total_count as f64).log2());
+    }
+    (subject_map, ic_map)
 }
+
 
 pub fn expand_term_using_closure(
     term: &String,
