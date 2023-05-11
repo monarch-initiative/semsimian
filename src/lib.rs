@@ -29,10 +29,12 @@ pub struct RustSemsimian {
 }
 
 impl RustSemsimian {
-    pub fn new() -> RustSemsimian {
+    pub fn new(spo: Vec<(String, String, String)>) -> RustSemsimian {
+        let (closure_map, ic_map) = convert_list_of_tuples_to_hashmap(spo);
+
         RustSemsimian {
-            ic_map: HashMap::new(),
-            closure_map: HashMap::new(),
+            ic_map,
+            closure_map
         }
     }
 
@@ -74,8 +76,8 @@ pub struct Semsimian {
 #[pymethods]
 impl Semsimian {
     #[new]
-    fn new() -> PyResult<Self> {
-        let ss = RustSemsimian::new();
+    fn new(spo: Vec<(String, String, String)>) -> PyResult<Self> {
+        let ss = RustSemsimian::new(spo);
         Ok(Semsimian { ss })
     }
 
@@ -131,12 +133,6 @@ fn max_information_content(
     ))
 }
 
-#[pyfunction]
-fn relationships_to_closure_table(
-    list_of_tuples: Vec<(String, String, String)>,
-) -> PyResult<(HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, f64>)> {
-    Ok(convert_list_of_tuples_to_hashmap(list_of_tuples))
-}
 
 #[pyfunction]
 fn phenomizer_score(
