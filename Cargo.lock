@@ -278,17 +278,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
 
 [[package]]
-name = "semsimian"
-version = "0.1.12"
-dependencies = [
- "csv",
- "dict",
- "generator",
- "ordered-float",
- "pyo3",
-]
-
-[[package]]
 name = "rustversion"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -305,6 +294,17 @@ name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
+
+[[package]]
+name = "semsimian"
+version = "0.1.13"
+dependencies = [
+ "csv",
+ "dict",
+ "generator",
+ "ordered-float",
+ "pyo3",
+]
 
 [[package]]
 name = "serde"
