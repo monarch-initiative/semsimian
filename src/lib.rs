@@ -3,8 +3,8 @@ use std::{
     path::Path,
 };
 
-use generator::{done, Generator, Gn}; //https://crates.io/crates/generator
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 mod file_io;
 pub mod utils;
 use file_io::{parse_associations, read_file};
@@ -21,76 +21,85 @@ pub mod ancestors;
 use ancestors::get_intersection_between_sets;
 use utils::{convert_list_of_tuples_to_hashmap, numericize_sets};
 
-// Generator<'a, (), & 'a mut TermSetPairwiseSimilarity>
-#[pyfunction]
-fn run<'a>(input_file: &str, closure_file: &str) -> PyResult<Vec<TermSetPairwiseSimilarity>> {
-    /*
-    read in TSV file
-    csv::ReaderBuilder instead of just csv::Reader because we need to specify
-    that the file has no headers.
 
-    test e.g.:
-    input_file = "test_set.tsv"
-    closure_file = "closures.tsv"
-    */
-
-    let data_dict = parse_associations(read_file(Path::new(input_file)));
-    let closures_dict = parse_associations(read_file(Path::new(closure_file)));
-    let ref_set = data_dict.get("set1").unwrap();
-    let mut tsps_information = TermSetPairwiseSimilarity::new();
-    let original_subject_termset = ref_set.clone();
-    tsps_information.subject_termset =
-        expand_terms_using_closure(&original_subject_termset, &closures_dict);
-    let mut tsps_vector: Vec<TermSetPairwiseSimilarity> = Vec::new();
-    for tsps in iter_tsps(data_dict, closures_dict, tsps_information) {
-        // println!("{tsps:#?}");
-        tsps_vector.push(tsps);
-    }
-    Ok(tsps_vector)
+#[derive(Default)]
+pub struct RustSemsimian {
+    ic_map: HashMap<String, f64>,
+    closure_map: HashMap<String, HashMap<String, HashSet<String>>>,
 }
 
-fn iter_tsps<'a>(
-    data_dict: HashMap<String, HashSet<String>>,
-    closures_dict: HashMap<String, HashSet<String>>,
-    tsps_info: TermSetPairwiseSimilarity,
-) -> Generator<'a, (), TermSetPairwiseSimilarity> {
-    // iterate over dict
-    Gn::new_scoped(move |mut s| {
-        for (key, terms) in data_dict {
-            let mut tsps: TermSetPairwiseSimilarity = tsps_info.clone();
-            tsps.set_id = key.to_string();
-            let original_object_termset = terms.clone();
-            tsps.object_termset =
-                expand_terms_using_closure(&original_object_termset, &closures_dict);
-            let (num_tsps_subj_terms, num_tsps_object_terms, _) =
-                numericize_sets(&tsps.subject_termset, &tsps.object_termset);
-            tsps.best_score =
-                calculate_jaccard_similarity(&num_tsps_subj_terms, &num_tsps_object_terms);
-            s.yield_(tsps);
+impl RustSemsimian {
+    pub fn new() -> RustSemsimian {
+        RustSemsimian {
+            ic_map: HashMap::new(),
+            closure_map: HashMap::new(),
         }
-        done!();
-    })
+    }
+
+    pub fn jaccard_similarity(&self, term1: &str, term2: &str) -> f64 {
+        let term1_set = self.get_closure(term1);
+        let term2_set = self.get_closure(term2);
+        let intersection = term1_set.intersection(&term2_set).count() as f64;
+        let union = term1_set.union(&term2_set).count() as f64;
+        intersection / union
+    }
+
+    pub fn information_content(&self, term: &str) -> f64 {
+        let ic = self.ic_map.get(term).unwrap_or(&0.0);
+        *ic
+    }
+
+    fn get_closure(&self, term: &str) -> HashSet<String> {
+        let mut closure = HashSet::new();
+        let mut stack = vec![term.to_string()];
+        while let Some(t) = stack.pop() {
+            if !closure.contains(&t) {
+                closure.insert(t.clone());
+                if let Some(ancestors) = self.closure_map.get(&t) {
+                    for parent in ancestors.keys() {
+                        stack.push(parent.clone());
+                    }
+                }
+            }
+        }
+        closure
+    }
 }
 
-#[pyfunction]
-fn jaccard_similarity(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<f64> {
-    let (num_set1, num_set2, _) = numericize_sets(&set1, &set2);
-    Ok(calculate_jaccard_similarity(&num_set1, &num_set2))
+#[pyclass]
+pub struct Semsimian {
+    ss: RustSemsimian,
 }
+
+#[pymethods]
+impl Semsimian {
+    #[new]
+    fn new() -> PyResult<Self> {
+        let ss = RustSemsimian::new();
+        Ok(Semsimian { ss })
+    }
+
+    fn jaccard_similarity(&self, term1: &str, term2: &str) -> PyResult<f64> {
+        Ok(self.ss.jaccard_similarity(term1, term2))
+    }
+
+    fn information_content(&self, term: &str) -> PyResult<f64> {
+        Ok(self.ss.information_content(term))
+    }
+}
+
+#[pymodule]
+fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Semsimian>()?;
+    Ok(())
+}
+
 
 #[pyfunction]
 fn mrca_and_score(map: HashMap<String, f64>) -> PyResult<(String, f64)> {
     Ok(get_most_recent_common_ancestor_with_score(map))
 }
 
-#[pyfunction]
-fn get_intersection(set1: HashSet<String>, set2: HashSet<String>) -> PyResult<HashSet<String>> {
-    let mut result = HashSet::new();
-    for a in get_intersection_between_sets(&set1, &set2).into_iter() {
-        result.insert(a.to_string());
-    }
-    Ok(result)
-}
 
 #[pyfunction]
 fn semantic_jaccard_similarity(
@@ -138,18 +147,5 @@ fn phenomizer_score(
     Ok(calculate_phenomizer_score(map, entity1, entity2))
 }
 
-#[pymodule]
-fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(run, m)?)?;
-    m.add_function(wrap_pyfunction!(jaccard_similarity, m)?)?;
-    m.add_function(wrap_pyfunction!(mrca_and_score, m)?)?;
-    m.add_function(wrap_pyfunction!(get_intersection, m)?)?;
-    m.add_function(wrap_pyfunction!(semantic_jaccard_similarity, m)?)?;
-    m.add_function(wrap_pyfunction!(relationships_to_closure_table, m)?)?;
-    m.add_function(wrap_pyfunction!(phenomizer_score, m)?)?;
-    m.add_function(wrap_pyfunction!(max_information_content, m)?)?;
-
-    Ok(())
-}
 
 //TODO: Test the lib module.
