@@ -38,7 +38,7 @@ impl RustSemsimian {
         }
     }
 
-    pub fn jaccard_similarity(&self, term1: &str, term2: &str) -> f64 {
+    pub fn jaccard_similarity(&self, term1: &str, term2: &str, predicates: HashSet<String>) -> f64 {
         let term1_set = self.get_closure(term1);
         let term2_set = self.get_closure(term2);
         let intersection = term1_set.intersection(&term2_set).count() as f64;
@@ -46,11 +46,15 @@ impl RustSemsimian {
         intersection / union
     }
 
+    // TODO: implement max IC (what do we call this? max information content?, resnik_similarity?)
+
+    // this is not terribly useful, it's just the IC of a term
     pub fn information_content(&self, term: &str) -> f64 {
         let ic = self.ic_map.get(term).unwrap_or(&0.0);
         *ic
     }
 
+    // TODO: deal with predicates (see working code elsewhere in this repo)
     fn get_closure(&self, term: &str) -> HashSet<String> {
         let mut closure = HashSet::new();
         let mut stack = vec![term.to_string()];
@@ -81,8 +85,8 @@ impl Semsimian {
         Ok(Semsimian { ss })
     }
 
-    fn jaccard_similarity(&self, term1: &str, term2: &str) -> PyResult<f64> {
-        Ok(self.ss.jaccard_similarity(term1, term2))
+    fn jaccard_similarity(&self, term1: &str, term2: &str, predicates: HashSet<String>) -> PyResult<f64> {
+        Ok(self.ss.jaccard_similarity(term1, term2, predicates))
     }
 
     fn information_content(&self, term: &str) -> PyResult<f64> {
