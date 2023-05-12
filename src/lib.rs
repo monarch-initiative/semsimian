@@ -31,7 +31,7 @@ impl RustSemsimian {
         intersection / union
     }
 
-    // TODO: this calculates ic on the fly each time, it should instead us ic_map
+    // TODO: this calculates ic on the fly each time, it should instead use ic_map
     pub fn resnik_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
         calculate_max_information_content(&self.closure_map, term1, term2, &predicates)
     }
@@ -62,6 +62,10 @@ impl Semsimian {
 
     fn jaccard_similarity(&self, term1: String, term2: String, predicates: Option<HashSet<String>>) -> PyResult<f64> {
         Ok(self.ss.jaccard_similarity(&term1, &term2, predicates))
+    }
+
+    fn resnik_similarity(&self, term1: String, term2: String, predicates: Option<HashSet<String>>) -> PyResult<f64> {
+        Ok(self.ss.resnik_similarity(&term1, &term2, predicates))
     }
 
 }
