@@ -25,9 +25,9 @@ impl RustSemsimian {
         }
     }
 
-    pub fn jaccard_similarity(&self, term1: &str, term2: &str, predicates: HashSet<String>) -> f64 {
-        let term1_set = self.get_closure(term1);
-        let term2_set = self.get_closure(term2);
+    pub fn jaccard_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
+        let term1_set = expand_term_using_closure(term1, &self.closure_map, &predicates);
+        let term2_set = expand_term_using_closure(term2, &self.closure_map, &predicates);
         let intersection = term1_set.intersection(&term2_set).count() as f64;
         let union = term1_set.union(&term2_set).count() as f64;
         intersection / union
@@ -74,8 +74,8 @@ impl Semsimian {
         Ok(Semsimian { ss })
     }
 
-    fn jaccard_similarity(&self, term1: &str, term2: &str, predicates: HashSet<String>) -> PyResult<f64> {
-        Ok(self.ss.jaccard_similarity(term1, term2, predicates))
+    fn jaccard_similarity(&self, term1: String, term2: String, predicates: Option<HashSet<String>>) -> PyResult<f64> {
+        Ok(self.ss.jaccard_similarity(&term1, &term2, predicates))
     }
 
 }
