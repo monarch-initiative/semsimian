@@ -35,6 +35,7 @@ impl RustSemsimian {
 
     // TODO: implement max IC (what do we call this? max information content?, resnik_similarity?)
 
+    // TODO: make this predicate aware
     pub fn phenomizer_score(
         map: HashMap<String, HashMap<String, f64>>,
         entity1: HashSet<String>,
@@ -43,22 +44,6 @@ impl RustSemsimian {
         Ok(calculate_phenomizer_score(map, entity1, entity2))
     }
 
-    // TODO: deal with predicates (see working code elsewhere in this repo)
-    fn get_closure(&self, term: &str) -> HashSet<String> {
-        let mut closure = HashSet::new();
-        let mut stack = vec![term.to_string()];
-        while let Some(t) = stack.pop() {
-            if !closure.contains(&t) {
-                closure.insert(t.clone());
-                if let Some(ancestors) = self.closure_map.get(&t) {
-                    for parent in ancestors.keys() {
-                        stack.push(parent.clone());
-                    }
-                }
-            }
-        }
-        closure
-    }
 }
 
 #[pyclass]
