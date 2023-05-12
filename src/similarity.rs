@@ -383,6 +383,9 @@ mod tests {
     fn test_calculate_max_information_content() {
         let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
         let mut ic_map: HashMap<String, f64> = HashMap::new();
+        ic_map.insert(String::from("CARO:0000000"), 2.585);
+        ic_map.insert(String::from("BFO:0000002"), 1.585);
+        ic_map.insert(String::from("BFO:0000003"), 1.0);
 
         // closure table looks like this:
         // CARO:0000000 -> subClassOf -> CARO:0000000, BFO:0000002, BFO:0000003

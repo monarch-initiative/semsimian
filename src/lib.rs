@@ -7,13 +7,15 @@ pub mod similarity;
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
 use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure};
 
-#[derive(Default)]
 pub struct RustSemsimian {
     ic_map: HashMap<String, f64>,
     closure_map: HashMap<String, HashMap<String, HashSet<String>>>,
 }
 
 impl RustSemsimian {
+    // TODO: this is tied directly to Oak, and should be made more generic
+    // TODO: also, we should support loading 'custom' ic
+    // TODO: also also, we should use str's instead of String
     pub fn new(spo: Vec<(String, String, String)>) -> RustSemsimian {
         let (closure_map, ic_map) = convert_list_of_tuples_to_hashmap(spo);
 
