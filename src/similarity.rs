@@ -376,9 +376,13 @@ mod tests {
         assert_eq!(result, expected);
     }
 
+    // TODO: test that closure map in Semsimian object is correct
+    // TODO: test that ic map in Semsimian object is correct
+
     #[test]
     fn test_calculate_max_information_content() {
-        let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+        let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+        let mut ic_map: HashMap<String, f64> = HashMap::new();
 
         // closure table looks like this:
         // CARO:0000000 -> subClassOf -> CARO:0000000, BFO:0000002, BFO:0000003
@@ -391,18 +395,18 @@ mod tests {
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
         map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("CARO:0000000"), map.clone());
+        closure_map.insert(String::from("CARO:0000000"), map.clone());
 
         let mut set: HashSet<String> = HashSet::new();
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
         map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("BFO:0000002"), map.clone());
+        closure_map.insert(String::from("BFO:0000002"), map.clone());
 
         let mut set: HashSet<String> = HashSet::new();
         set.insert(String::from("BFO:0000003"));
         map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("BFO:0000003"), map);
+        closure_map.insert(String::from("BFO:0000003"), map);
 
         // Term frequencies:
         // "CARO:0000000": 1
@@ -422,7 +426,8 @@ mod tests {
 
         let predicates = Some(HashSet::from([String::from("subClassOf")]));
         let result = calculate_max_information_content(
-            &closure_table,
+            &closure_map,
+            &ic_map,
             &String::from("CARO:0000000"),
             &String::from("BFO:0000002"),
             &predicates,
