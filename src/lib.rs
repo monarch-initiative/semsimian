@@ -4,8 +4,8 @@ use std::{
 use pyo3::prelude::*;
 pub mod utils;
 pub mod similarity;
-use similarity::{*};
-use utils::{*};
+use similarity::{calculate_max_information_content, calculate_phenomizer_score};
+use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure};
 
 #[derive(Default)]
 pub struct RustSemsimian {
@@ -31,9 +31,8 @@ impl RustSemsimian {
         intersection / union
     }
 
-    // TODO: this calculates ic on the fly each time, it should instead use ic_map
     pub fn resnik_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
-        calculate_max_information_content(&self.closure_map, term1, term2, &predicates)
+        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, &predicates)
     }
 
     // TODO: make this predicate aware

@@ -79,24 +79,29 @@ pub fn pairwise_entity_resnik_score(
 }
 
 pub fn calculate_max_information_content(
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    closure_map: &HashMap<String, HashMap<String, HashSet<String>>>,
+    ic_map: &HashMap<String, f64>,
     entity1: &String,
     entity2: &String,
     predicates: &Option<HashSet<String>>,
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
-    let owl_thing = "owl:Thing".to_string();
     let filtered_common_ancestors: Vec<String> =
-        common_ancestors(&closure_table, &entity1, &entity2, &predicates)
-            .into_iter()
-            .filter(|ancestor| *ancestor != owl_thing) //removes owl:Thing from common ancestor, leaving only common ancestors
-            .collect();
+        common_ancestors(&closure_map, &entity1, &entity2, &predicates);
 
-    let information_content_scores =
-        calculate_information_content_scores(&filtered_common_ancestors, closure_table, predicates);
+    // for each member of filtered_common_ancestors, find the entry for it in ic_map
+    let mut max_ic: f64 = 0.0;
+    for ancestor in filtered_common_ancestors.iter() {
+        if let Some(ic) = ic_map.get(ancestor) {
+            if *ic > max_ic {
+                max_ic = *ic;
 
-    let (_ancestor, max_ic) = mrca_and_score(&information_content_scores);
+            }
+        }
+    }
+    // then return the String and f64 for the filtered_common_ancestors with the highest f64
     max_ic
+
 }
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
