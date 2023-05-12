@@ -1,13 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
 };
-
 use pyo3::prelude::*;
 pub mod utils;
 pub mod similarity;
 use similarity::{*};
 use utils::{*};
-
 
 #[derive(Default)]
 pub struct RustSemsimian {
