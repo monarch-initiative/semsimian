@@ -31,7 +31,10 @@ impl RustSemsimian {
         intersection / union
     }
 
-    // TODO: implement max IC (what do we call this? max information content?, resnik_similarity?)
+    // TODO: this calculates ic on the fly each time, it should instead us ic_map
+    pub fn resnik_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
+        calculate_max_information_content(&self.closure_map, term1, term2, &predicates)
+    }
 
     // TODO: make this predicate aware
     pub fn phenomizer_score(
