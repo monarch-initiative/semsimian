@@ -35,7 +35,7 @@ impl RustSemsimian {
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, &predicates)
     }
 
-    // TODO: make this predicate aware
+    // TODO: make this predicate aware, and make it work with the new closure map
     pub fn phenomizer_score(
         map: HashMap<String, HashMap<String, f64>>,
         entity1: HashSet<String>,
