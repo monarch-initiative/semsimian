@@ -107,6 +107,15 @@ pub fn calculate_max_information_content(
 
 fn common_ancestors(
     closure_table: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
+
+    // {"GO:1234": {'is_a': {'GO:5678', 'GO:9012'}, 'part_of': {'GO:3456', 'GO:7890'}}}
+
+    // {"GO:5678": ('is_a', 'part_of'): {['GO:3456', 'GO:7890']}}\
+
+    // {"GO:5678": vec![('is_a', 'part_of')]: {['GO:3456', 'GO:7890']}}
+
+    // {"GO:5678": 'is_a_+_part_of': {['GO:3456', 'GO:7890']}}
+
     entity1: &String,
     entity2: &String,
 ) -> Vec<String> {

@@ -1,5 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
+pub fn predicate_set_to_key(predicate_set: &HashSet<String>) -> String {
+    let mut result = String::new();
+
+    let mut vec_of_predicates: Vec<String> = predicate_set.iter().map(|x| x.to_string()).collect();
+    vec_of_predicates.sort();
+
+    for predicate in vec_of_predicates {
+        result.concat(&predicate);
+    }
+    result
+}
+
 pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
     let mut result = HashMap::new();
     for (idx, item) in set1.iter().enumerate() {
