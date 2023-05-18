@@ -110,19 +110,7 @@ fn common_ancestors(
     entity1: &String,
     entity2: &String,
 ) -> Vec<String> {
-    let all_predicates: Option<HashSet<String>>;
-    if predicates.is_none() {
-        // if predicates is None, then we need to use ALL
-        all_predicates = Some(
-            closure_table
-                .values()
-                .flat_map(|predicates_map| predicates_map.keys())
-                .cloned()
-                .collect::<HashSet<String>>(),
-        );
-    } else {
-        all_predicates = predicates.clone();
-    }
+
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
     let entity1_closure = expand_term_using_closure(entity1, closure_table);
     let entity2_closure = expand_term_using_closure(entity2, closure_table);
@@ -379,8 +367,8 @@ mod tests {
 
     #[test]
     fn test_calculate_max_information_content() {
-        let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-        let mut ic_map: HashMap<String, f64> = HashMap::new();
+        let mut closure_map: HashMap<HashSet<String>, HashMap<String, HashSet<String>>> = HashMap::new();
+        let mut ic_map: HashMap<HashSet<String>, HashMap<String, f64>> = HashMap::new();
         ic_map.insert(String::from("CARO:0000000"), 2.585);
         ic_map.insert(String::from("BFO:0000002"), 1.585);
         ic_map.insert(String::from("BFO:0000003"), 1.0);

@@ -67,7 +67,7 @@ impl RustSemsimian {
             closure_and_ic_map = (self.closure_map.get(&predicates).unwrap(), self.ic_map.get(&predicates).unwrap());
         }
         else {
-            closure_and_ic_map = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
+            closure_and_ic_map = convert_list_of_tuples_to_hashmap(self.spo);
             self.closure_map.insert(predicates.clone(), closure_and_ic_map.0);
             self.ic_map.insert(predicates.clone(), closure_and_ic_map.1);
         }
