@@ -24,7 +24,6 @@ impl RustSemsimian {
     // TODO: also, we should support loading 'custom' ic
     // TODO: also also, we should use str's instead of String
     pub fn new(spo: Vec<(String, String, String)>) -> RustSemsimian {
-        // let (closure_map, ic_map) = convert_list_of_tuples_to_hashmap(spo);
 
         RustSemsimian {
             spo,
