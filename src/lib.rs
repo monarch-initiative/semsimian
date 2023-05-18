@@ -4,6 +4,7 @@ use std::{
 use pyo3::prelude::*;
 pub mod utils;
 pub mod similarity;
+
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
 use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure};
 
