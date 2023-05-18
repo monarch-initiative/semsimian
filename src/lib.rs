@@ -105,3 +105,12 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 
 
 //TODO: Test the lib module.
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+
+    fn test_reality() {
+        assert_eq!(1, 1);
+    }
+}
