@@ -35,7 +35,7 @@ impl RustSemsimian {
         }
     }
 
-    pub fn jaccard_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
+    pub fn jaccard_similarity(&self, term1: &TermID, term2: &TermID, predicates: Option<HashSet<Predicate>>) -> f64 {
 
         let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
         let term1_set = expand_term_using_closure(term1, this_closure_map);
@@ -46,7 +46,7 @@ impl RustSemsimian {
         intersection / union
     }
 
-    pub fn resnik_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
+    pub fn resnik_similarity(&self, term1: &TermID, term2: &TermID, predicates: Option<HashSet<Predicate>>) -> f64 {
         let (this_closure_map, this_ic_map) = self.get_closure_and_ic_map(predicates);
 
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2)
@@ -63,7 +63,8 @@ impl RustSemsimian {
     }
 
     // get closure and ic map for a given set of predicates. if the closure and ic map for the given predicates doesn't exist, create them
-    fn get_closure_and_ic_map(&mut self, predicates: Option<HashSet<String>>) -> (HashMap<HashSet<String>, HashMap<String, HashSet<String>>>, HashMap<HashSet<String>, HashMap<String, f64>>) {
+    fn get_closure_and_ic_map(&mut self, predicates: Option<HashSet<Predicate>>) ->
+            (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
         let closure_and_ic_map = (HashMap::new(), HashMap::new());
         if self.closure_map.contains_key(&predicates) && self.ic_map.contains_key(&predicates) {
             closure_and_ic_map = (self.closure_map.get(&predicates).unwrap(), self.ic_map.get(&predicates).unwrap());
@@ -85,16 +86,16 @@ pub struct Semsimian {
 #[pymethods]
 impl Semsimian {
     #[new]
-    fn new(spo: Vec<(String, String, String)>) -> PyResult<Self> {
+    fn new(spo: Vec<(TermID, Predicate, TermID)>) -> PyResult<Self> {
         let ss = RustSemsimian::new(spo);
         Ok(Semsimian { ss })
     }
 
-    fn jaccard_similarity(&self, term1: String, term2: String, predicates: Option<HashSet<String>>) -> PyResult<f64> {
+    fn jaccard_similarity(&self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
         Ok(self.ss.jaccard_similarity(&term1, &term2, predicates))
     }
 
-    fn resnik_similarity(&self, term1: String, term2: String, predicates: Option<HashSet<String>>) -> PyResult<f64> {
+    fn resnik_similarity(&self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
         Ok(self.ss.resnik_similarity(&term1, &term2, predicates))
     }
 

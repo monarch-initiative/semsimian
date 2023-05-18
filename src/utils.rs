@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-pub fn predicate_set_to_key(predicate_set: &HashSet<String>) -> String {
+pub fn predicate_set_to_key(predicate_set: &HashSet<String>) -> PredicateSetKey {
     let mut result = String::new();
 
     let mut vec_of_predicates: Vec<String> = predicate_set.iter().map(|x| x.to_string()).collect();
