@@ -7,14 +7,14 @@ type TermID = String;
 type PredicateSetKey = String;
 
 pub fn calculate_semantic_jaccard_similarity(
-    closure_table: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
     predicates: &HashSet<String>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
-    let entity1_closure = expand_term_using_closure(&entity1, &closure_table, &predicates);
-    let entity2_closure = expand_term_using_closure(&entity2, &closure_table, &predicates);
+    let entity1_closure = expand_term_using_closure(&entity1, closure_table, &predicates);
+    let entity2_closure = expand_term_using_closure(&entity2, closure_table, &predicates);
     let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
     jaccard
 }
