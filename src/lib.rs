@@ -34,10 +34,11 @@ impl RustSemsimian {
     }
 
     pub fn jaccard_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
-        let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
 
-        let term1_set = expand_term_using_closure(term1, &this_closure_map, &predicates);
-        let term2_set = expand_term_using_closure(term2, &this_closure_map, &predicates);
+        let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
+        let term1_set = expand_term_using_closure(term1, &self.closure_map);
+        let term2_set = expand_term_using_closure(term2, &self.closure_map);
+
         let intersection = term1_set.intersection(&term2_set).count() as f64;
         let union = term1_set.union(&term2_set).count() as f64;
         intersection / union
@@ -47,7 +48,8 @@ impl RustSemsimian {
         // TODO: add check to see if we have ic_map and closure_map for the given predicates
         let (this_closure_map, this_ic_map) = self.get_closure_and_ic_map(predicates);
 
-        calculate_max_information_content(&this_closure_map, &this_ic_map, term1, term2, &predicates)
+        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2)
+
     }
 
     // TODO: make this predicate aware, and make it work with the new closure map

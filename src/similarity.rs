@@ -3,14 +3,14 @@ use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 
 pub fn calculate_semantic_jaccard_similarity(
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    closure_table: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
     predicates: &Option<HashSet<String>>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
-    let entity1_closure = expand_term_using_closure(&entity1, &closure_table, &predicates);
-    let entity2_closure = expand_term_using_closure(&entity2, &closure_table, &predicates);
+    let entity1_closure = expand_term_using_closure(&entity1, &closure_table);
+    let entity2_closure = expand_term_using_closure(&entity2, &closure_table);
     let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
     jaccard
 }
@@ -79,15 +79,14 @@ pub fn pairwise_entity_resnik_score(
 }
 
 pub fn calculate_max_information_content(
-    closure_map: &HashMap<String, HashMap<String, HashSet<String>>>,
-    ic_map: &HashMap<String, f64>,
+    closure_map: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
+    ic_map: &HashMap<HashSet<String>, HashMap<String, f64>>,
     entity1: &String,
     entity2: &String,
-    predicates: &Option<HashSet<String>>,
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
     let filtered_common_ancestors: Vec<String> =
-        common_ancestors(&closure_map, &entity1, &entity2, &predicates);
+        common_ancestors(&closure_map, &entity1, &entity2);
 
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
@@ -110,7 +109,6 @@ fn common_ancestors(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: &String,
     entity2: &String,
-    predicates: &Option<HashSet<String>>,
 ) -> Vec<String> {
     let all_predicates: Option<HashSet<String>>;
     if predicates.is_none() {
@@ -126,8 +124,8 @@ fn common_ancestors(
         all_predicates = predicates.clone();
     }
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
-    let entity1_closure = expand_term_using_closure(entity1, closure_table, &all_predicates);
-    let entity2_closure = expand_term_using_closure(entity2, closure_table, &all_predicates);
+    let entity1_closure = expand_term_using_closure(entity1, closure_table);
+    let entity2_closure = expand_term_using_closure(entity2, closure_table);
 
     entity1_closure
         .into_iter()
@@ -433,7 +431,6 @@ mod tests {
             &ic_map,
             &String::from("CARO:0000000"),
             &String::from("BFO:0000002"),
-            &predicates,
         );
         println!("Max IC: {}", result);
         let expected_value = 1.585;
