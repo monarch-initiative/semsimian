@@ -34,21 +34,10 @@ impl RustSemsimian {
     }
 
     pub fn jaccard_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
-        // TODO: add check to see if we have ic_map and closure_map for the given predicates
-        // if (!self.ic_map.get(&predicates).is_none()){
-        //     // go calculate ic_map for these predicates and put in self.ic_map
-        //     let ic_map_for_these_predicates = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
-        //
-        // }
-        // if (!self.closure_map.get(&predicates).is_none()) {
-        //     // go calculate closure_map for these predicates and put in self.closure_map
-        //     let closure_map_for_these_predicates = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
-        //
-        // }
-        // (closure_map, _) = self.get_closure_and_ic_map(&predicates);
+        let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
 
-        let term1_set = expand_term_using_closure(term1, &self.closure_map, &predicates);
-        let term2_set = expand_term_using_closure(term2, &self.closure_map, &predicates);
+        let term1_set = expand_term_using_closure(term1, &this_closure_map, &predicates);
+        let term2_set = expand_term_using_closure(term2, &this_closure_map, &predicates);
         let intersection = term1_set.intersection(&term2_set).count() as f64;
         let union = term1_set.union(&term2_set).count() as f64;
         intersection / union
@@ -56,7 +45,9 @@ impl RustSemsimian {
 
     pub fn resnik_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
         // TODO: add check to see if we have ic_map and closure_map for the given predicates
-        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, &predicates)
+        let (this_closure_map, this_ic_map) = self.get_closure_and_ic_map(predicates);
+
+        calculate_max_information_content(&this_closure_map, &this_ic_map, term1, term2, &predicates)
     }
 
     // TODO: make this predicate aware, and make it work with the new closure map
@@ -68,6 +59,24 @@ impl RustSemsimian {
         Ok(calculate_phenomizer_score(map, entity1, entity2))
     }
 
+    // get closure and ic map for a given set of predicates. if the closure and ic map for the given predicates doesn't exist, create them
+    fn get_closure_and_ic_map(&self, predicates: Option<HashSet<String>>) -> (HashMap<HashSet<String>, HashMap<String, HashSet<String>>>, HashMap<HashSet<String>, HashMap<String, f64>>) {
+        let closure_and_ic_map = (HashMap::new(), HashMap::new());
+        if self.closure_map.contains_key(&predicates) {
+            closure_and_ic_map.0 = self.closure_map.get(&predicates);
+        }
+        else {
+            closure_and_ic_map.0 = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
+        }
+
+        if self.ic_map.contains_key(&predicates) {
+            closure_and_ic_map.1 = self.ic_map.get(&predicates);
+        }
+        else {
+            closure_and_ic_map.1 = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
+        }
+        closure_and_ic_map
+    }
 }
 
 #[pyclass]
