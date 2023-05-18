@@ -66,13 +66,13 @@ pub fn _stringify_sets_using_map(
 }
 
 pub fn convert_list_of_tuples_to_hashmap(
-    list_of_tuples: Vec<(String, String, String)>
+    list_of_tuples: Vec<(String, String, String)>,
+    predicates: &Option<HashSet<Predicate>>
 ) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, f64>) {
     let mut subject_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
     let mut ic_map: HashMap<String, f64> = HashMap::new();
     let mut total_count = 0;
-    let mut predicates: HashSet<String>;
     let empty_string = "".to_string();
 
     fn get_term_frequencies(
@@ -91,7 +91,7 @@ pub fn convert_list_of_tuples_to_hashmap(
     }
 
     for (s, p, o) in list_of_tuples {
-        if !predicates.contains(&p) {
+        if !predicates.contains(&p) && !predicates.is_none(){
             continue;
         }
         *freq_map.entry(s.clone()).or_insert(0) += 1;

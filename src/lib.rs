@@ -6,7 +6,7 @@ pub mod utils;
 pub mod similarity;
 
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
-use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure};
+use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure, predicate_set_to_key};
 
 type Predicate = String;
 type TermID = String;
@@ -46,10 +46,10 @@ impl RustSemsimian {
         intersection / union
     }
 
-    pub fn resnik_similarity(&self, term1: &TermID, term2: &TermID, predicates: Option<HashSet<Predicate>>) -> f64 {
+    pub fn resnik_similarity(&self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
         let (this_closure_map, this_ic_map) = self.get_closure_and_ic_map(predicates);
 
-        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2)
+        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
 
     }
 
@@ -70,9 +70,10 @@ impl RustSemsimian {
             closure_and_ic_map = (self.closure_map.get(&predicates).unwrap(), self.ic_map.get(&predicates).unwrap());
         }
         else {
-            closure_and_ic_map = convert_list_of_tuples_to_hashmap(self.spo);
-            self.closure_map.insert(predicates.clone(), closure_and_ic_map.0);
-            self.ic_map.insert(predicates.clone(), closure_and_ic_map.1);
+            closure_and_ic_map = convert_list_of_tuples_to_hashmap(self.spo, &predicates);
+            let predicate_set_key = predicate_set_to_key(predicates);
+            self.closure_map.insert(predicate_set_key, closure_and_ic_map.0);
+            self.ic_map.insert(predicate_set_key, closure_and_ic_map.1);
         }
         closure_and_ic_map
     }

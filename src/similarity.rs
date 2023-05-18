@@ -2,6 +2,10 @@ use crate::utils::expand_term_using_closure;
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 
+type Predicate = String;
+type TermID = String;
+type PredicateSetKey = String;
+
 pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
     entity1: String,
@@ -79,14 +83,15 @@ pub fn pairwise_entity_resnik_score(
 }
 
 pub fn calculate_max_information_content(
-    closure_map: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
-    ic_map: &HashMap<HashSet<String>, HashMap<String, f64>>,
-    entity1: &String,
-    entity2: &String,
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    entity1: &TermID,
+    entity2: &TermID,
+    predicates: &Option<HashSet<Predicate>>
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
     let filtered_common_ancestors: Vec<String> =
-        common_ancestors(&closure_map, &entity1, &entity2);
+        common_ancestors(&closure_map, &entity1, &entity2, &predicates);
 
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
@@ -106,7 +111,7 @@ pub fn calculate_max_information_content(
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
 
 fn common_ancestors(
-    closure_table: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
 
     // {"GO:1234": {'is_a': {'GO:5678', 'GO:9012'}, 'part_of': {'GO:3456', 'GO:7890'}}}
 
@@ -116,13 +121,14 @@ fn common_ancestors(
 
     // {"GO:5678": 'is_a_+_part_of': {['GO:3456', 'GO:7890']}}
 
-    entity1: &String,
-    entity2: &String,
+    entity1: &TermID,
+    entity2: &TermID,
+    predicates: &Option<HashSet<Predicate>>
 ) -> Vec<String> {
 
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
-    let entity1_closure = expand_term_using_closure(entity1, closure_table);
-    let entity2_closure = expand_term_using_closure(entity2, closure_table);
+    let entity1_closure = expand_term_using_closure(entity1, closure_map);
+    let entity2_closure = expand_term_using_closure(entity2, closure_map);
 
     entity1_closure
         .into_iter()
@@ -155,7 +161,7 @@ fn _filter_ancestors_by_predicates(
 }
 
 // scores: maps ancestors to corresponding IC scores
-fn mrca_and_score(scores: &HashMap<String, f64>) -> (Option<String>, f64) {
+fn mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
     let mut max_ic = 0.0;
     let mut mrca = None;
 
@@ -171,7 +177,7 @@ fn mrca_and_score(scores: &HashMap<String, f64>) -> (Option<String>, f64) {
 // TODO: provide a way to specify 'bespoke' information contents for each term
 // for example, in a population of patients of interest
 fn calculate_information_content_scores(
-    filtered_common_ancestors: &Vec<String>,
+    filtered_common_ancestors: &Vec<TermID>,
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     predicates: &Option<HashSet<String>>,
 ) -> HashMap<String, f64> {
