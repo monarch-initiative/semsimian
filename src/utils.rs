@@ -50,6 +50,7 @@ pub fn _stringify_sets_using_map(
 
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: Vec<(String, String, String)>,
+    predicates: HashSet<String>
 ) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, f64>) {
     let mut subject_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
@@ -73,6 +74,9 @@ pub fn convert_list_of_tuples_to_hashmap(
     }
 
     for (s, p, o) in list_of_tuples {
+        if !predicates.contains(&p) {
+            continue;
+        }
         *freq_map.entry(s.clone()).or_insert(0) += 1;
         total_count += 1;
         *freq_map.entry(o.clone()).or_insert(0) += 1;
