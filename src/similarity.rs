@@ -1,4 +1,4 @@
-use crate::utils::expand_term_using_closure;
+use crate::utils::{expand_term_using_closure, predicate_set_to_key};
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 
@@ -93,10 +93,12 @@ pub fn calculate_max_information_content(
     let filtered_common_ancestors: Vec<String> =
         common_ancestors(&closure_map, &entity1, &entity2, &predicates);
 
+    let predicate_set_key = predicate_set_to_key(predicates);
+
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
     for ancestor in filtered_common_ancestors.iter() {
-        if let Some(ic) = ic_map.get(ancestor) {
+        if let Some(ic) = ic_map.get(predicate_set_key).get(ancestor) {
             if *ic > max_ic {
                 max_ic = *ic;
 
