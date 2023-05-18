@@ -106,7 +106,7 @@ pub fn calculate_max_information_content(
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
 
 fn common_ancestors(
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
+    closure_table: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
     entity1: &String,
     entity2: &String,
 ) -> Vec<String> {
