@@ -11,7 +11,7 @@ use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure};
 pub struct RustSemsimian {
     spo: Vec<(String, String, String)>,
 
-    // TODO: Let's change these Strings to something more descriptive, like CURIE or some such
+    // TODO: Let's change these Strings to something more descriptive, like PREDICATE and TERM_ID or some such
     ic_map: HashMap<HashSet<String>, HashMap<String, f64>>,
     // ic_map is something like {('is_a', 'part_of'), {'GO:1234': 1.234}}
 
