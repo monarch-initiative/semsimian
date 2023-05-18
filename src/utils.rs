@@ -1,5 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
+type Predicate = String;
+type TermID = String;
+type PredicateSetKey = String;
+
 pub fn predicate_set_to_key(predicate_set: &HashSet<String>) -> PredicateSetKey {
     let mut result = String::new();
 
@@ -7,7 +11,8 @@ pub fn predicate_set_to_key(predicate_set: &HashSet<String>) -> PredicateSetKey 
     vec_of_predicates.sort();
 
     for predicate in vec_of_predicates {
-        result.concat(&predicate);
+        result.push_str("+");
+        result.push_str(&predicate);
     }
     result
 }
@@ -296,6 +301,25 @@ mod tests {
 
         
     }
+
+    #[test]
+    fn test_predicate_set_to_string(){
+        let mut predicate_set1: HashSet<String> = HashSet::new();
+        predicate_set1.insert(String::from("is_a"));
+        assert_eq!(predicate_set_to_key(&predicate_set1), "+is_a");
+
+        let mut predicate_set2: HashSet<String> = HashSet::new();
+        predicate_set2.insert(String::from("is_a"));
+        predicate_set2.insert(String::from("part_of"));
+        assert_eq!(predicate_set_to_key(&predicate_set2), "+is_a+part_of");
+
+        let mut predicate_set3: HashSet<String> = HashSet::new();
+        predicate_set3.insert(String::from("part_of"));
+        predicate_set3.insert(String::from("is_a"));
+        assert_eq!(predicate_set_to_key(&predicate_set3), "+is_a+part_of");
+    }
+
+
 
     #[test]
     fn test_expand_term_using_closure() {
