@@ -91,7 +91,7 @@ pub fn convert_list_of_tuples_to_hashmap(
     }
 
     for (s, p, o) in list_of_tuples {
-        if !predicates.contains(&p) && !predicates.is_none(){
+        if predicates.is_some() && !predicates.as_ref().unwrap().contains(&p) {
             continue;
         }
         *freq_map.entry(s.clone()).or_insert(0) += 1;
