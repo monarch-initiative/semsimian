@@ -35,7 +35,7 @@ impl RustSemsimian {
         }
     }
 
-    pub fn jaccard_similarity(&self, term1: &TermID, term2: &TermID, predicates: &HashSet<Predicate>) -> f64 {
+    pub fn jaccard_similarity(&self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
 
         let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
         let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
@@ -93,11 +93,11 @@ impl Semsimian {
     }
 
     fn jaccard_similarity(&self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
-        Ok(self.ss.jaccard_similarity(&term1, &term2, predicates))
+        Ok(self.ss.jaccard_similarity(&term1, &term2, &predicates))
     }
 
     fn resnik_similarity(&self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
-        Ok(self.ss.resnik_similarity(&term1, &term2, predicates))
+        Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
     }
 
 }

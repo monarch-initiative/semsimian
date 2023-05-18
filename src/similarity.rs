@@ -10,7 +10,7 @@ pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: String,
     entity2: String,
-    predicates: &HashSet<String>,
+    predicates: &Option<HashSet<String>>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
     let entity1_closure = expand_term_using_closure(&entity1, closure_table, &predicates);

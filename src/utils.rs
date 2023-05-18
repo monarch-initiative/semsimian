@@ -125,7 +125,7 @@ pub fn convert_list_of_tuples_to_hashmap(
 pub fn expand_term_using_closure(
     term: &String,
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    predicates: &HashSet<String>,
+    predicates: &Option<HashSet<String>>,
 ) -> HashSet<String> {
     let mut ancestors: HashSet<String> = HashSet::new();
 
