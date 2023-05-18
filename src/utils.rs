@@ -125,7 +125,7 @@ pub fn expand_term_using_closure(
     let mut ancestors: HashSet<String> = HashSet::new();
 
     for (closure_predicate_key, closure_map) in closure_table.iter() {
-        if closure_predicate_key == predicate_set_to_key(predicates) {
+        if *closure_predicate_key == predicate_set_to_key(predicates) {
             if let Some(ancestors_for_predicates) = closure_map.get(term) {
                 ancestors.extend(*ancestors_for_predicates);
             }
