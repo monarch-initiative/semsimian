@@ -8,22 +8,25 @@ pub mod similarity;
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
 use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure};
 
+type Predicate = String;
+type TermID = String;
+type PredicateSetKey = String;
+
 pub struct RustSemsimian {
-    spo: Vec<(String, String, String)>,
+    spo: Vec<(TermID, Predicate, TermID)>,
 
-    // TODO: Let's change these Strings to something more descriptive, like PREDICATE and TERM_ID or some such
-    ic_map: HashMap<HashSet<String>, HashMap<String, f64>>,
-    // ic_map is something like {('is_a', 'part_of'), {'GO:1234': 1.234}}
+    ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    // ic_map is something like {('is_a_+_part_of'), {'GO:1234': 1.234}}
 
-    closure_map: HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
-    // closure_map is something like {('is_a', 'part_of'), {'GO:1234': {'GO:1234', 'GO:5678'}}}
+    closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    // closure_map is something like {('is_a_+_part_of'), {'GO:1234': {'GO:1234', 'GO:5678'}}}
 }
 
 impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
     // TODO: also, we should support loading 'custom' ic
     // TODO: also also, we should use str's instead of String
-    pub fn new(spo: Vec<(String, String, String)>) -> RustSemsimian {
+    pub fn new(spo: Vec<(TermID, Predicate, TermID)>) -> RustSemsimian {
 
         RustSemsimian {
             spo,
