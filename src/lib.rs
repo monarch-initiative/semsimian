@@ -9,8 +9,14 @@ use similarity::{calculate_max_information_content, calculate_phenomizer_score};
 use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure};
 
 pub struct RustSemsimian {
-    ic_map: HashMap<String, f64>,
-    closure_map: HashMap<String, HashMap<String, HashSet<String>>>,
+    spo: Vec<(String, String, String)>,
+
+    // TODO: Let's change these Strings to something more descriptive, like CURIE or some such
+    ic_map: HashMap<HashSet<String>, HashMap<String, f64>>,
+    // ic_map is something like {('is_a', 'part_of'), {'GO:1234': 1.234}}
+
+    closure_map: HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
+    // closure_map is something like {('is_a', 'part_of'), {'GO:1234': {'GO:1234', 'GO:5678'}}}
 }
 
 impl RustSemsimian {
@@ -18,15 +24,29 @@ impl RustSemsimian {
     // TODO: also, we should support loading 'custom' ic
     // TODO: also also, we should use str's instead of String
     pub fn new(spo: Vec<(String, String, String)>) -> RustSemsimian {
-        let (closure_map, ic_map) = convert_list_of_tuples_to_hashmap(spo);
+        // let (closure_map, ic_map) = convert_list_of_tuples_to_hashmap(spo);
 
         RustSemsimian {
-            ic_map,
-            closure_map
+            spo,
+            ic_map: HashMap::new(),
+            closure_map: HashMap::new(),
         }
     }
 
     pub fn jaccard_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
+        // TODO: add check to see if we have ic_map and closure_map for the given predicates
+        // if (!self.ic_map.get(&predicates).is_none()){
+        //     // go calculate ic_map for these predicates and put in self.ic_map
+        //     let ic_map_for_these_predicates = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
+        //
+        // }
+        // if (!self.closure_map.get(&predicates).is_none()) {
+        //     // go calculate closure_map for these predicates and put in self.closure_map
+        //     let closure_map_for_these_predicates = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
+        //
+        // }
+        // (closure_map, _) = self.get_closure_and_ic_map(&predicates);
+
         let term1_set = expand_term_using_closure(term1, &self.closure_map, &predicates);
         let term2_set = expand_term_using_closure(term2, &self.closure_map, &predicates);
         let intersection = term1_set.intersection(&term2_set).count() as f64;
@@ -35,6 +55,7 @@ impl RustSemsimian {
     }
 
     pub fn resnik_similarity(&self, term1: &String, term2: &String, predicates: Option<HashSet<String>>) -> f64 {
+        // TODO: add check to see if we have ic_map and closure_map for the given predicates
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, &predicates)
     }
 
