@@ -119,13 +119,13 @@ pub fn convert_list_of_tuples_to_hashmap(
 
 pub fn expand_term_using_closure(
     term: &String,
-    closure_table: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
+    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     predicates: &HashSet<String>,
 ) -> HashSet<String> {
     let mut ancestors: HashSet<String> = HashSet::new();
 
-    for (closure_predicates, closure_map) in closure_table.iter() {
-        if closure_predicates == predicates {
+    for (closure_predicate_key, closure_map) in closure_table.iter() {
+        if closure_predicate_key == predicate_set_to_key(predicates) {
             if let Some(ancestors_for_predicates) = closure_map.get(term) {
                 ancestors.extend(*ancestors_for_predicates);
             }
