@@ -100,19 +100,35 @@ pub fn convert_list_of_tuples_to_hashmap(
 }
 
 
-
 pub fn expand_term_using_closure(
     term: &String,
     closure_table: &HashMap<HashSet<String>, HashMap<String, HashSet<String>>>,
+    predicates: &HashSet<String>,
 ) -> HashSet<String> {
-    let mut closure: HashSet<String> = HashSet::new();
-    if let Some(term_closure) = closure_table.get(term) {
-        for (_, closure_terms) in term_closure {
-            closure.extend(closure_terms.iter().map(|s| s.to_owned()));
+    let mut ancestors: HashSet<String> = HashSet::new();
+
+    for (closure_predicates, closure_map) in closure_table.iter() {
+        if closure_predicates == predicates {
+            if let Some(ancestors_for_predicates) = closure_map.get(term) {
+                ancestors.extend(*ancestors_for_predicates);
+            }
         }
     }
-    closure
+    ancestors
 }
+
+
+// pub fn expand_term_using_closure(
+//     term: &String,
+//     closure_table: &HashMap<HashMap<String, HashSet<String>>>
+// ) -> HashSet<String> {
+//     let mut closure: HashSet<String> = HashSet::new();
+//     let mut ancestor = &[term].iter().cloned().collect();
+//     if let Some(term_closure) = closure_table.get(term) {
+//         closure = term_closure.unwrap().iter().map(|s| s.to_owned()).collect();
+//     }
+//     closure
+// }
 
 #[cfg(test)]
 
