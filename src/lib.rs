@@ -11,7 +11,7 @@ use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure};
 pub struct RustSemsimian {
     spo: Vec<(String, String, String)>,
 
-    // TODO: Let's change these Strings to something more descriptive, like CURIE or some such
+    // TODO: Let's change these Strings to something more descriptive, like PREDICATE and TERM_ID or some such
     ic_map: HashMap<HashSet<String>, HashMap<String, f64>>,
     // ic_map is something like {('is_a', 'part_of'), {'GO:1234': 1.234}}
 
@@ -24,7 +24,6 @@ impl RustSemsimian {
     // TODO: also, we should support loading 'custom' ic
     // TODO: also also, we should use str's instead of String
     pub fn new(spo: Vec<(String, String, String)>) -> RustSemsimian {
-        // let (closure_map, ic_map) = convert_list_of_tuples_to_hashmap(spo);
 
         RustSemsimian {
             spo,
@@ -106,3 +105,12 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 
 
 //TODO: Test the lib module.
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+
+    fn test_reality() {
+        assert_eq!(1, 1);
+    }
+}
