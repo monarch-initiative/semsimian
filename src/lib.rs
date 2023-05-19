@@ -63,7 +63,7 @@ impl RustSemsimian {
     }
 
     // get closure and ic map for a given set of predicates. if the closure and ic map for the given predicates doesn't exist, create them
-    fn get_closure_and_ic_map(&mut self, predicates: Option<HashSet<Predicate>>) ->
+    fn get_closure_and_ic_map(&mut self, predicates: &Option<HashSet<Predicate>>) ->
             (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
         let closure_and_ic_map = (HashMap::new(), HashMap::new());
         let predicate_set_key = predicate_set_to_key(&predicates);
