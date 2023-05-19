@@ -98,7 +98,7 @@ pub fn calculate_max_information_content(
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
     for ancestor in filtered_common_ancestors.iter() {
-        if let Some(ic) = ic_map.get(predicate_set_key).get(ancestor) {
+        if let Some(ic) = ic_map.get(&predicate_set_key).expect("Finding ancestor in ic map").get(ancestor) {
             if *ic > max_ic {
                 max_ic = *ic;
 
@@ -129,8 +129,8 @@ fn common_ancestors(
 ) -> Vec<String> {
 
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
-    let entity1_closure = expand_term_using_closure(entity1, closure_map);
-    let entity2_closure = expand_term_using_closure(entity2, closure_map);
+    let entity1_closure = expand_term_using_closure(entity1, closure_map, predicates);
+    let entity2_closure = expand_term_using_closure(entity2, closure_map, predicates);
 
     entity1_closure
         .into_iter()

@@ -66,7 +66,7 @@ impl RustSemsimian {
     fn get_closure_and_ic_map(&mut self, predicates: Option<HashSet<Predicate>>) ->
             (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
         let closure_and_ic_map = (HashMap::new(), HashMap::new());
-        let predicate_set_key = predicate_set_to_key(predicates);
+        let predicate_set_key = predicate_set_to_key(&predicates);
         if self.closure_map.contains_key(&predicate_set_key) && self.ic_map.contains_key(&predicate_set_key) {
             closure_and_ic_map = (self.closure_map.get(&predicate_set_key).unwrap(), self.ic_map.get(&predicate_set_key).unwrap());
         }
