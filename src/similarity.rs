@@ -398,23 +398,25 @@ mod tests {
         //                 'BFO:0000002':  {'BFO:0000002', 'BFO:0000003'},
         //                 'BFO:0000003':  {'BFO:0000003'}}}
 
+        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+
         let mut map: HashMap<PredicateSetKey, HashSet<TermID>> = HashMap::new();
         let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("CARO:0000000"));
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("CARO:0000000"), set);
+        map.insert(String::from("CARO:0000000"), set.clone());
         closure_map.insert(String::from("+subClassOf"), map.clone());
 
-        let mut set: HashSet<String> = HashSet::new();
+        set.clear();
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("BFO:0000002"), set);
+        map.insert(String::from("BFO:0000002"), set.clone());
         closure_map.insert(String::from("+subClassOf"), map.clone());
 
-        let mut set: HashSet<String> = HashSet::new();
+        set.clear();
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("BFO:0000003"), set);
+        map.insert(String::from("BFO:0000003"), set.clone());
         closure_map.insert(String::from("+subClassOf"), map);
 
         // Term frequencies:
@@ -433,7 +435,7 @@ mod tests {
         // Common ancestors: "BFO:0000002" and "BFO:0000003"
         // Max IC: 1.585 (IC of "BFO:0000002")
 
-        let predicates = Some(HashSet::from([String::from("+subClassOf")]));
+        let predicates = Some(HashSet::from([String::from("subClassOf")]));
         let result = calculate_max_information_content(
             &closure_map,
             &ic_map,
