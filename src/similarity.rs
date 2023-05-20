@@ -163,7 +163,7 @@ fn _filter_ancestors_by_predicates(
 }
 
 // scores: maps ancestors to corresponding IC scores
-fn mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
+fn _mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
     let mut max_ic = 0.0;
     let mut mrca = None;
 
@@ -178,7 +178,7 @@ fn mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
 
 // TODO: provide a way to specify 'bespoke' information contents for each term
 // for example, in a population of patients of interest
-fn calculate_information_content_scores(
+fn _calculate_information_content_scores(
     filtered_common_ancestors: &Vec<TermID>,
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     predicates: &Option<HashSet<String>>,
