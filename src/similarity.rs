@@ -384,16 +384,19 @@ mod tests {
 
     #[test]
     fn test_calculate_max_information_content() {
-        let mut closure_map: HashMap<HashSet<String>, HashMap<String, HashSet<String>>> = HashMap::new();
-        let mut ic_map: HashMap<HashSet<String>, HashMap<String, f64>> = HashMap::new();
-        ic_map.insert(String::from("CARO:0000000"), 2.585);
-        ic_map.insert(String::from("BFO:0000002"), 1.585);
-        ic_map.insert(String::from("BFO:0000003"), 1.0);
+        let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+
+        let ic_map: HashMap<String, HashMap<String, f64>> = [(
+            String::from("subClassOf"), [
+                (String::from("CARO:0000000"), 2.585),
+                (String::from("BFO:0000002"), 1.585),
+                (String::from("BFO:0000003"), 1.0),
+            ].iter().cloned().collect())].iter().cloned().collect();
 
         // closure table looks like this:
-        // CARO:0000000 -> subClassOf -> CARO:0000000, BFO:0000002, BFO:0000003
-        // BFO:0000002 -> subClassOf -> BFO:0000002, BFO:0000003
-        // BFO:0000003 -> subClassOf -> BFO:0000003
+        // {'subClassOf': {'CARO:0000000': {'CARO:0000000', 'BFO:0000002', 'BFO:0000003'},
+        //                 'BFO:0000002':  {'BFO:0000002', 'BFO:0000003'},
+        //                 'BFO:0000003':  {'BFO:0000003'}}}
 
         let mut map: HashMap<String, HashSet<String>> = HashMap::new();
         let mut set: HashSet<String> = HashSet::new();
@@ -436,6 +439,7 @@ mod tests {
             &ic_map,
             &String::from("CARO:0000000"),
             &String::from("BFO:0000002"),
+            &predicates,
         );
         println!("Max IC: {}", result);
         let expected_value = 1.585;

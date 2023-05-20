@@ -160,7 +160,6 @@ pub fn expand_term_using_closure(
 #[cfg(test)]
 
 mod tests {
-    use std::io::SeekFrom::Start;
     use super::*;
     #[test]
 
@@ -325,7 +324,7 @@ mod tests {
 
         assert_eq!(predicate_set_to_key(&predicates_is_a), "+is_a");
         assert_eq!(predicate_set_to_key(&predicates_is_a_part_of), "+is_a+part_of");
-        assert_eq!(predicate_set_to_key(&predicates_is_a_part_of), "+part_of+is_a");
+        assert_eq!(predicate_set_to_key(&predicates_part_of_is_a), "+part_of+is_a");
         assert_eq!(predicate_set_to_key(&predicates_empty), "_all");
     }
 
