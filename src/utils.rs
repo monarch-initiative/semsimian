@@ -78,7 +78,7 @@ pub fn convert_list_of_tuples_to_hashmap(
     let mut freq_map: HashMap<String, usize> = HashMap::new();
     let mut ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
     let mut total_count = 0;
-    let empty_string = "".to_string();
+    // let empty_string = "".to_string();
 
     let predicate_set_key = predicate_set_to_key(predicates);
 
