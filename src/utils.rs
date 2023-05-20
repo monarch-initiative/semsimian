@@ -2,10 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 type Predicate = String;
 type TermID = String;
-
 type PredicateSetKey = String;
 
-pub fn predicate_set_to_key(predicates: &Option<HashSet<String>>) -> PredicateSetKey {
+pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> PredicateSetKey {
     let mut result = String::new();
 
     if predicates.is_none() {
@@ -75,7 +74,7 @@ pub fn convert_list_of_tuples_to_hashmap(
     predicates: &Option<HashSet<Predicate>>
 ) -> (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
     let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
-    let mut freq_map: HashMap<String, usize> = HashMap::new();
+    let mut freq_map: HashMap<TermID, usize> = HashMap::new();
     let mut ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
     let mut total_count = 0;
     // let empty_string = "".to_string();
@@ -332,28 +331,28 @@ mod tests {
 
     #[test]
     fn test_expand_term_using_closure() {
-        let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
-        let mut set: HashSet<String> = HashSet::new();
+        let mut closure_table: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+        let mut map: HashMap<PredicateSetKey, HashSet<TermID>> = HashMap::new();
+        let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("CARO:0000000"));
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
         map.insert(String::from("subClassOf"), set);
         closure_table.insert(String::from("CARO:0000000"), map.clone());
 
-        let mut set: HashSet<String> = HashSet::new();
+        let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
         map.insert(String::from("subClassOf"), set);
         closure_table.insert(String::from("BFO:0000002"), map.clone());
 
-        let mut set: HashSet<String> = HashSet::new();
+        let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("BFO:0000003"));
         map.insert(String::from("subClassOf"), set);
         closure_table.insert(String::from("BFO:0000003"), map);
 
         let term = String::from("CARO:0000000");
-        let predicates: Option<HashSet<String>> = Some(HashSet::from(["subClassOf".to_string()]));
+        let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["subClassOf".to_string()]));
         let result = expand_term_using_closure(&term, &closure_table, &predicates);
 
         let expected_result = HashSet::from([
