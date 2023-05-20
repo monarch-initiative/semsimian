@@ -11,7 +11,7 @@ pub fn predicate_set_to_key(predicates: &Option<HashSet<String>>) -> PredicateSe
     if predicates.is_none() {
         result.push_str("_all");
     } else {
-        let mut vec_of_predicates: Vec<String> = predicates.unwrap().iter().map(|x| x.to_string()).collect();
+        let mut vec_of_predicates: Vec<String> = predicates.as_ref().unwrap().iter().map(|x| x.to_string()).collect();
         vec_of_predicates.sort();
 
         for predicate in vec_of_predicates {
@@ -71,7 +71,7 @@ pub fn _stringify_sets_using_map(
 }
 
 pub fn convert_list_of_tuples_to_hashmap(
-    list_of_tuples: Vec<(TermID, PredicateSetKey, TermID)>,
+    list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
     predicates: &Option<HashSet<Predicate>>
 ) -> (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
     let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
@@ -99,7 +99,7 @@ pub fn convert_list_of_tuples_to_hashmap(
     // }
 
     for (s, p, o) in list_of_tuples {
-        if predicates.is_some() && !predicates.as_ref().unwrap().contains(&p) {
+        if predicates.is_some() && !predicates.as_ref().unwrap().contains(&p.clone()) {
             continue;
         }
         *freq_map.entry(s.clone()).or_insert(0) += 1;
@@ -137,7 +137,7 @@ pub fn expand_term_using_closure(
     for (closure_predicate_key, closure_map) in closure_table.iter() {
         if *closure_predicate_key == predicate_set_to_key(predicates) {
             if let Some(ancestors_for_predicates) = closure_map.get(term) {
-                ancestors.extend(*ancestors_for_predicates);
+                ancestors.extend(ancestors_for_predicates.clone());
             }
         }
     }

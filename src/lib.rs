@@ -35,9 +35,9 @@ impl RustSemsimian {
         }
     }
 
-    pub fn jaccard_similarity(&self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
-
+    pub fn jaccard_similarity(&mut self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
         let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
+
         let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
         let term2_set = expand_term_using_closure(term2, &this_closure_map, predicates);
 
@@ -47,10 +47,7 @@ impl RustSemsimian {
     }
 
     pub fn resnik_similarity(&self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
-        let (this_closure_map, this_ic_map) = self.get_closure_and_ic_map(predicates);
-
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
-
     }
 
     // TODO: make this predicate aware, and make it work with the new closure map
@@ -66,16 +63,12 @@ impl RustSemsimian {
     fn get_closure_and_ic_map(&mut self, predicates: &Option<HashSet<Predicate>>) ->
             (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
         let predicate_set_key = predicate_set_to_key(&predicates);
-        if self.closure_map.contains_key(&predicate_set_key) && self.ic_map.contains_key(&predicate_set_key) {
-            let closure_and_ic_map = (*self.closure_map.get(&predicate_set_key).unwrap(), *self.ic_map.get(&predicate_set_key).unwrap());
-            return closure_and_ic_map;
+        if !self.closure_map.contains_key(&predicate_set_key) || !self.ic_map.contains_key(&predicate_set_key) {
+            let (this_closure_map, this_ic_map) = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
+            self.closure_map.insert(predicate_set_key.clone(), this_closure_map.get(&predicate_set_key).unwrap().clone());
+            self.ic_map.insert(predicate_set_key.clone(), this_ic_map.get(&predicate_set_key).unwrap().clone());
         }
-        else {
-            let closure_and_ic_map = convert_list_of_tuples_to_hashmap(self.spo, &predicates);
-            self.closure_map.insert(predicate_set_key, closure_and_ic_map.0);
-            self.ic_map.insert(predicate_set_key, closure_and_ic_map.1);
-            return closure_and_ic_map;
-        }
+        (self.closure_map.clone(), self.ic_map.clone())
     }
 }
 
@@ -92,11 +85,11 @@ impl Semsimian {
         Ok(Semsimian { ss })
     }
 
-    fn jaccard_similarity(&self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
+    fn jaccard_similarity(&mut self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
         Ok(self.ss.jaccard_similarity(&term1, &term2, &predicates))
     }
 
-    fn resnik_similarity(&self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
+    fn resnik_similarity(&mut self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
         Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
     }
 
