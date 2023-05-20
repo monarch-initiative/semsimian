@@ -119,7 +119,7 @@ pub fn convert_list_of_tuples_to_hashmap(
     for (k, v) in freq_map.iter() {
         ic_map.entry(predicate_set_key.clone())
             .or_insert_with(HashMap::new)
-            .insert(k.clone(), (*v as f64 / total_count as f64).log2());
+            .insert(k.clone(), -(*v as f64 / total_count as f64).log2());
     }
 
     (closure_map, ic_map)
@@ -323,7 +323,7 @@ mod tests {
 
         assert_eq!(predicate_set_to_key(&predicates_is_a), "+is_a");
         assert_eq!(predicate_set_to_key(&predicates_is_a_part_of), "+is_a+part_of");
-        assert_eq!(predicate_set_to_key(&predicates_part_of_is_a), "+part_of+is_a");
+        assert_eq!(predicate_set_to_key(&predicates_part_of_is_a), "+is_a+part_of");
         assert_eq!(predicate_set_to_key(&predicates_empty), "_all");
     }
 
