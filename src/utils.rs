@@ -160,6 +160,7 @@ pub fn expand_term_using_closure(
 #[cfg(test)]
 
 mod tests {
+    use std::io::SeekFrom::Start;
     use super::*;
     #[test]
 
@@ -237,35 +238,6 @@ mod tests {
 
     #[test]
     fn test_convert_list_of_tuples_to_hashmap() {
-        let expected_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::from([
-            (
-                String::from("ABCD:123"),
-                HashMap::from([
-                    (
-                        String::from("is_a"),
-                        HashSet::from([String::from("BCDE:234")]),
-                    ),
-                    (
-                        String::from("part_of"),
-                        HashSet::from([String::from("ABCDE:1234")]),
-                    ),
-                ]),
-            ),
-            (
-                String::from("XYZ:123"),
-                HashMap::from([
-                    (
-                        String::from("is_a"),
-                        HashSet::from([String::from("WXY:234")]),
-                    ),
-                    (
-                        String::from("part_of"),
-                        HashSet::from([String::from("WXYZ:1234")]),
-                    ),
-                ]),
-            ),
-        ]);
-        //{"ABCD:123": {"is_a": {"BCDE:234"}, "part_of": {"ABCDE:1234"}}, "XYZ:123": {"is_a": {"WXY:234"}, "part_of": {"WXYZ:1234"}}}
         let list_of_tuples: Vec<(String, String, String)> = vec![
             (
                 String::from("ABCD:123"),
@@ -289,47 +261,72 @@ mod tests {
             ),
         ];
 
-        let (subject_map, ic_map) = convert_list_of_tuples_to_hashmap(list_of_tuples);
-        // println!("{:?}",subject_map);
-        assert_eq!(expected_map, subject_map);
+        // test closure map for is_a predicates
+        let expected_closure_map_is_a: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::from([
+            (
+                String::from("+is_a"), HashMap::from([
+                    (String::from("ABCD:123"), [String::from("BCDE:234")].iter().cloned().collect::<HashSet<_>>()),
+                    (String::from("XYZ:123"), [String::from("WXY:234")].iter().cloned().collect::<HashSet<_>>()),
+                ]),
+            ),
+        ]);
 
-        let expected_ic_values: HashMap<String, f64> = {
-            let mut expected = HashMap::new();
+        let predicates_is_a: Option<HashSet<Predicate>> = Some(["is_a"].iter().map(|&s| s.to_string()).collect());
+        let (closure_map_is_a, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a);
+        assert_eq!(expected_closure_map_is_a, closure_map_is_a);
+
+        // test closure_map for is_a + part_of predicates
+        let expected_closure_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::from([
+            (
+                String::from("+is_a+part_of"),
+                HashMap::from([
+                    (
+                        String::from("ABCD:123"),
+                        HashSet::from([String::from("BCDE:234"), String::from("ABCDE:1234")].iter().cloned().collect::<HashSet<TermID>>()),
+                    ),
+                    (
+                        String::from("XYZ:123"),
+                        HashSet::from([String::from("WXY:234"), String::from("WXYZ:1234")].iter().cloned().collect::<HashSet<TermID>>()),
+                    ),
+                ]),
+            ),
+        ]);
+
+        let predicates_is_a_plus_part_of: Option<HashSet<Predicate>> = Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
+        let (closure_map_is_a_plus_part_of, ic_map) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a_plus_part_of);
+        assert_eq!(expected_closure_map_is_a_plus_part_of, closure_map_is_a_plus_part_of);
+
+        let expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = {
+            let mut expected: HashMap<TermID, f64> = HashMap::new();
             let total_count = 8;
-        
+
             expected.insert(String::from("ABCD:123"), -(2.0 / total_count as f64).log2());
             expected.insert(String::from("BCDE:234"), -(1.0 / total_count as f64).log2());
             expected.insert(String::from("ABCDE:1234"), -(1.0 / total_count as f64).log2());
             expected.insert(String::from("XYZ:123"), -(2.0 / total_count as f64).log2());
             expected.insert(String::from("WXY:234"), -(1.0 / total_count as f64).log2());
             expected.insert(String::from("WXYZ:1234"), -(1.0 / total_count as f64).log2());
-        
-            expected
+
+            let mut expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
+            expected_ic_map_is_a_plus_part_of.insert(String::from("+is_a+part_of"), expected);
+            expected_ic_map_is_a_plus_part_of
         };
 
-        assert_eq!(ic_map, expected_ic_values);
-
+        assert_eq!(ic_map, expected_ic_map_is_a_plus_part_of);
         
     }
 
     #[test]
     fn test_predicate_set_to_string(){
-        let mut predicate_set1: Option<HashSet<String>> = HashSet::new();
-        predicate_set1.insert(String::from("is_a"));
-        assert_eq!(predicate_set_to_key(&predicate_set1), "+is_a");
+        let predicates_is_a: Option<HashSet<Predicate>> = Some(["is_a"].iter().map(|&s| s.to_string()).collect());
+        let predicates_is_a_part_of: Option<HashSet<Predicate>> = Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
+        let predicates_part_of_is_a: Option<HashSet<Predicate>> = Some(["part_of", "is_a"].iter().map(|&s| s.to_string()).collect());
+        let predicates_empty: Option<HashSet<Predicate>> = None;
 
-        let mut predicate_set2: Option<HashSet<String>> = HashSet::new();
-        predicate_set2.insert(String::from("is_a"));
-        predicate_set2.insert(String::from("part_of"));
-        assert_eq!(predicate_set_to_key(&predicate_set2), "+is_a+part_of");
-
-        let mut predicate_set3: Option<HashSet<String>> = HashSet::new();
-        predicate_set3.insert(String::from("part_of"));
-        predicate_set3.insert(String::from("is_a"));
-        assert_eq!(predicate_set_to_key(&predicate_set3), "+is_a+part_of");
-
-        let mut predicate_set4: Option<HashSet<String>> = HashSet::new();
-        assert_eq!(predicate_set_to_key(&predicate_set3), "_all");
+        assert_eq!(predicate_set_to_key(&predicates_is_a), "+is_a");
+        assert_eq!(predicate_set_to_key(&predicates_is_a_part_of), "+is_a+part_of");
+        assert_eq!(predicate_set_to_key(&predicates_is_a_part_of), "+part_of+is_a");
+        assert_eq!(predicate_set_to_key(&predicates_empty), "_all");
     }
 
 
@@ -357,8 +354,8 @@ mod tests {
         closure_table.insert(String::from("BFO:0000003"), map);
 
         let term = String::from("CARO:0000000");
-        let predicates = HashSet::from(["subClassOf".to_string()]);
-        let result = expand_term_using_closure(&term, &closure_table);
+        let predicates: Option<HashSet<String>> = Some(HashSet::from(["subClassOf".to_string()]));
+        let result = expand_term_using_closure(&term, &closure_table, &predicates);
 
         let expected_result = HashSet::from([
             "BFO:0000002".to_string(),
