@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  
+  workflow_dispatch:
 
 jobs:
   build-mac:
@@ -24,7 +24,7 @@ jobs:
           target: x86_64
           command: build
           args: --release --out dist -i 3.7 3.8 3.9 '3.10' '3.11'
-      - name: Install built x86_64 wheel and run tests 
+      - name: Install built x86_64 wheel and run tests
         run: |
           pip install semsimian --no-index --find-links dist --force-reinstall
           pip install pytest
@@ -34,10 +34,12 @@ jobs:
         with:
           command: build
           args: --release --universal2 --out dist -i 3.7 3.8 3.9 '3.10' '3.11'
-      - name: Install built universal2 wheel and run tests 
+      - name: Install built universal2 wheel and run tests
         run: |
           pip install semsimian --no-index --find-links dist --force-reinstall
           # pytest
+      - name: Run cargo test
+        run: cargo test
       - name: Upload wheels for Mac
         uses: actions/upload-artifact@v3
         with:
@@ -69,6 +71,8 @@ jobs:
         pip install semsimian --no-index --find-links dist --force-reinstall
         pip install pytest
         # pytest
+    - name: Run cargo test
+      run: cargo test
     - name: Upload wheels for Linux
       uses: actions/upload-artifact@v3
       with:
@@ -98,6 +102,8 @@ jobs:
       run: |
         pip install semsimian --no-index --find-links dist --force-reinstall
         pip install pytest
+    - name: Run cargo test
+      run: cargo test
     - name: Upload wheels for Windows
       uses: actions/upload-artifact@v3
       with:
