@@ -233,7 +233,6 @@ mod tests {
         //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
         //             -> BFO:0000003 -> BFO:0000003
         //             -> BFO:0000004 -> BFO:0000004
-        // +partOf     -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
 
         let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
         let mut set: HashSet<TermID> = HashSet::new();
@@ -252,11 +251,14 @@ mod tests {
         map.insert(String::from("BFO:0000003"), set);
         closure_map.insert(String::from("+subClassOf"), map);
 
-        // let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
-        // let mut set2: HashSet<TermID> = HashSet::new();
-        // set2.insert(String::from("BFO:0000004"));
-        // map.insert(String::from("BFO:0000004"), set2);
-        // closure_map.insert(String::from("+partOf"), map);
+        // make another closure map for subclassof + partof
+        // +partOf+subClassOf -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
+        //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
+        //             -> BFO:0000003 -> BFO:0000003, BFO:0000004 <- +partOf
+        //             -> BFO:0000004 -> BFO:0000004
+        let mut closure_map2: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+        closure_map2.insert(String::from("+partOf+subClassOf"), closure_map.get("+subClassOf").unwrap().clone());
+        closure_map2.get_mut("+partOf+subClassOf").unwrap().get_mut(&String::from("BFO:0000003")).unwrap().insert(String::from("BFO:0000004"));
 
         let mut sco_predicate: HashSet<Predicate> = HashSet::new();
         sco_predicate.insert(String::from("subClassOf"));
@@ -283,8 +285,10 @@ mod tests {
         sco_po_predicate.insert(String::from("subClassOf"));
         sco_po_predicate.insert(String::from("partOf"));
 
+        // with the refactor of closure map, this test doesn't really test anything more than
+        // the previous tests
         let result3 = calculate_semantic_jaccard_similarity(
-            &closure_map,
+            &closure_map2,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
             &Some(sco_po_predicate.clone()),
