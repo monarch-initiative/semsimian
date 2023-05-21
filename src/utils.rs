@@ -325,19 +325,19 @@ mod tests {
         set.insert(String::from("CARO:0000000"));
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("CARO:0000000"), map.clone());
+        map.insert(String::from("CARO:0000000"), set);
+        closure_table.insert(String::from("+subClassOf"), map.clone());
 
         let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("BFO:0000002"), map.clone());
+        map.insert(String::from("BFO:0000002"), set);
+        closure_table.insert(String::from("+subClassOf"), map.clone());
 
         let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("BFO:0000003"), map);
+        map.insert(String::from("BFO:0000003"), set);
+        closure_table.insert(String::from("+subClassOf"), map);
 
         let term = String::from("CARO:0000000");
         let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["subClassOf".to_string()]));
