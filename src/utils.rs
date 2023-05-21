@@ -127,14 +127,18 @@ pub fn convert_list_of_tuples_to_hashmap(
 
 
 pub fn expand_term_using_closure(
-    term: &String,
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    predicates: &Option<HashSet<String>>,
-) -> HashSet<String> {
+    term: &TermID,
+    closure_table: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    predicates: &Option<HashSet<Predicate>>,
+) -> HashSet<TermID> {
     let mut ancestors: HashSet<String> = HashSet::new();
+    let this_predicate_set_key = predicate_set_to_key(predicates);
+    println!("this_predicate_set_key: {:?}", this_predicate_set_key);
 
     for (closure_predicate_key, closure_map) in closure_table.iter() {
-        if *closure_predicate_key == predicate_set_to_key(predicates) {
+        println!("checking closure_predicate_key: {:?} ", closure_predicate_key);
+        if *closure_predicate_key == this_predicate_set_key {
+            println!("match");
             if let Some(ancestors_for_predicates) = closure_map.get(term) {
                 ancestors.extend(ancestors_for_predicates.clone());
             }
@@ -144,20 +148,7 @@ pub fn expand_term_using_closure(
 }
 
 
-// pub fn expand_term_using_closure(
-//     term: &String,
-//     closure_table: &HashMap<HashMap<String, HashSet<String>>>
-// ) -> HashSet<String> {
-//     let mut closure: HashSet<String> = HashSet::new();
-//     let mut ancestor = &[term].iter().cloned().collect();
-//     if let Some(term_closure) = closure_table.get(term) {
-//         closure = term_closure.unwrap().iter().map(|s| s.to_owned()).collect();
-//     }
-//     closure
-// }
-
 #[cfg(test)]
-
 mod tests {
     use super::*;
     #[test]

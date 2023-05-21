@@ -1,4 +1,4 @@
-use crate::utils::{expand_term_using_closure, predicate_set_to_key};
+use crate::{utils::expand_term_using_closure, utils::predicate_set_to_key};
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 
@@ -226,43 +226,43 @@ mod tests {
 
     #[test]
     fn test_semantic_jaccard_similarity() {
-        let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
 
-        // closure table looks like this:
-        // CARO:0000000 -> subClassOf -> CARO:0000000, BFO:0000002, BFO:0000003
+        // closure map looks like this:
+        // +subClassOf -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
+        //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
+        //             -> BFO:0000003 -> BFO:0000003
+        //             -> BFO:0000004 -> BFO:0000004
+        // +partOf     -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
 
-        // BFO:0000002 -> subClassOf -> BFO:0000002, BFO:0000003
-
-        // BFO:0000003 -> subClassOf -> BFO:0000003
-        //             -> partOf -> BFO:0000004
-
-        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
-        let mut set: HashSet<String> = HashSet::new();
+        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+        let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("CARO:0000000"));
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("CARO:0000000"), map);
-        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        map.insert(String::from("CARO:0000000"), set);
+
         let mut set: HashSet<String> = HashSet::new();
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("BFO:0000002"), map);
-        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        map.insert(String::from("BFO:0000002"), set);
+
         let mut set: HashSet<String> = HashSet::new();
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
+        map.insert(String::from("BFO:0000003"), set);
+        closure_map.insert(String::from("+subClassOf"), map);
 
-        let mut set2: HashSet<String> = HashSet::new();
+        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+        let mut set2: HashSet<TermID> = HashSet::new();
         set2.insert(String::from("BFO:0000004"));
-        map.insert(String::from("partOf"), set2);
+        map.insert(String::from("BFO:0000004"), set2);
+        closure_map.insert(String::from("+partOf"), map);
 
-        closure_table.insert(String::from("BFO:0000003"), map);
-        let mut sco_predicate: HashSet<String> = HashSet::new();
+        let mut sco_predicate: HashSet<Predicate> = HashSet::new();
         sco_predicate.insert(String::from("subClassOf"));
+
         let result = calculate_semantic_jaccard_similarity(
-            &closure_table,
+            &closure_map,
             String::from("CARO:0000000"),
             String::from("BFO:0000002"),
             &Some(sco_predicate.clone()),
@@ -271,7 +271,7 @@ mod tests {
         assert_eq!(result, 2.0 / 3.0);
 
         let result2 = calculate_semantic_jaccard_similarity(
-            &closure_table,
+            &closure_map,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
             &Some(sco_predicate.clone()),
@@ -282,9 +282,9 @@ mod tests {
         let mut sco_po_predicate: HashSet<String> = HashSet::new();
         sco_po_predicate.insert(String::from("subClassOf"));
         sco_po_predicate.insert(String::from("partOf"));
-        // println!("{closure_table:?}");
+
         let result3 = calculate_semantic_jaccard_similarity(
-            &closure_table,
+            &closure_map,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
             &Some(sco_po_predicate.clone()),
