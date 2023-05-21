@@ -133,12 +133,9 @@ pub fn expand_term_using_closure(
 ) -> HashSet<TermID> {
     let mut ancestors: HashSet<String> = HashSet::new();
     let this_predicate_set_key = predicate_set_to_key(predicates);
-    println!("this_predicate_set_key: {:?}", this_predicate_set_key);
 
     for (closure_predicate_key, closure_map) in closure_table.iter() {
-        println!("checking closure_predicate_key: {:?} ", closure_predicate_key);
         if *closure_predicate_key == this_predicate_set_key {
-            println!("match");
             if let Some(ancestors_for_predicates) = closure_map.get(term) {
                 ancestors.extend(ancestors_for_predicates.clone());
             }

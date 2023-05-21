@@ -252,11 +252,11 @@ mod tests {
         map.insert(String::from("BFO:0000003"), set);
         closure_map.insert(String::from("+subClassOf"), map);
 
-        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
-        let mut set2: HashSet<TermID> = HashSet::new();
-        set2.insert(String::from("BFO:0000004"));
-        map.insert(String::from("BFO:0000004"), set2);
-        closure_map.insert(String::from("+partOf"), map);
+        // let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+        // let mut set2: HashSet<TermID> = HashSet::new();
+        // set2.insert(String::from("BFO:0000004"));
+        // map.insert(String::from("BFO:0000004"), set2);
+        // closure_map.insert(String::from("+partOf"), map);
 
         let mut sco_predicate: HashSet<Predicate> = HashSet::new();
         sco_predicate.insert(String::from("subClassOf"));
