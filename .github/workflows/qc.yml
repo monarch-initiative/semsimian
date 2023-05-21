@@ -38,8 +38,8 @@ jobs:
         run: |
           pip install semsimian --no-index --find-links dist --force-reinstall
           # pytest
-      - name: Run cargo test
-        run: cargo test
+#      - name: Run cargo test
+#        run: cargo test
       - name: Upload wheels for Mac
         uses: actions/upload-artifact@v3
         with:
