@@ -388,7 +388,6 @@ mod tests {
 
     #[test]
     fn test_calculate_max_information_content() {
-        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
 
         let ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = [(
             String::from("+subClassOf"), [
