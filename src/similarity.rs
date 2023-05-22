@@ -1,6 +1,10 @@
-use crate::utils::expand_term_using_closure;
+use crate::{utils::expand_term_using_closure, utils::predicate_set_to_key};
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
+
+type Predicate = String;
+type TermID = String;
+type PredicateSetKey = String;
 
 pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
@@ -9,8 +13,8 @@ pub fn calculate_semantic_jaccard_similarity(
     predicates: &Option<HashSet<String>>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
-    let entity1_closure = expand_term_using_closure(&entity1, &closure_table, &predicates);
-    let entity2_closure = expand_term_using_closure(&entity2, &closure_table, &predicates);
+    let entity1_closure = expand_term_using_closure(&entity1, closure_table, &predicates);
+    let entity2_closure = expand_term_using_closure(&entity2, closure_table, &predicates);
     let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
     jaccard
 }
@@ -79,50 +83,54 @@ pub fn pairwise_entity_resnik_score(
 }
 
 pub fn calculate_max_information_content(
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    entity1: &String,
-    entity2: &String,
-    predicates: &Option<HashSet<String>>,
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    entity1: &TermID,
+    entity2: &TermID,
+    predicates: &Option<HashSet<Predicate>>
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
-    let owl_thing = "owl:Thing".to_string();
     let filtered_common_ancestors: Vec<String> =
-        common_ancestors(&closure_table, &entity1, &entity2, &predicates)
-            .into_iter()
-            .filter(|ancestor| *ancestor != owl_thing) //removes owl:Thing from common ancestor, leaving only common ancestors
-            .collect();
+        common_ancestors(&closure_map, &entity1, &entity2, &predicates);
 
-    let information_content_scores =
-        calculate_information_content_scores(&filtered_common_ancestors, closure_table, predicates);
+    let predicate_set_key = predicate_set_to_key(predicates);
 
-    let (_ancestor, max_ic) = mrca_and_score(&information_content_scores);
+    // for each member of filtered_common_ancestors, find the entry for it in ic_map
+    let mut max_ic: f64 = 0.0;
+    for ancestor in filtered_common_ancestors.iter() {
+        if let Some(ic) = ic_map.get(&predicate_set_key).expect("Finding ancestor in ic map").get(ancestor) {
+            if *ic > max_ic {
+                max_ic = *ic;
+
+            }
+        }
+    }
+    // then return the String and f64 for the filtered_common_ancestors with the highest f64
     max_ic
+
 }
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
 
 fn common_ancestors(
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    entity1: &String,
-    entity2: &String,
-    predicates: &Option<HashSet<String>>,
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+
+    // {"GO:1234": {'is_a': {'GO:5678', 'GO:9012'}, 'part_of': {'GO:3456', 'GO:7890'}}}
+
+    // {"GO:5678": ('is_a', 'part_of'): {['GO:3456', 'GO:7890']}}\
+
+    // {"GO:5678": vec![('is_a', 'part_of')]: {['GO:3456', 'GO:7890']}}
+
+    // {"GO:5678": 'is_a_+_part_of': {['GO:3456', 'GO:7890']}}
+
+    entity1: &TermID,
+    entity2: &TermID,
+    predicates: &Option<HashSet<Predicate>>
 ) -> Vec<String> {
-    let all_predicates: Option<HashSet<String>>;
-    if predicates.is_none() {
-        // if predicates is None, then we need to use ALL
-        all_predicates = Some(
-            closure_table
-                .values()
-                .flat_map(|predicates_map| predicates_map.keys())
-                .cloned()
-                .collect::<HashSet<String>>(),
-        );
-    } else {
-        all_predicates = predicates.clone();
-    }
+
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
-    let entity1_closure = expand_term_using_closure(entity1, closure_table, &all_predicates);
-    let entity2_closure = expand_term_using_closure(entity2, closure_table, &all_predicates);
+    let entity1_closure = expand_term_using_closure(entity1, closure_map, predicates);
+    let entity2_closure = expand_term_using_closure(entity2, closure_map, predicates);
 
     entity1_closure
         .into_iter()
@@ -155,7 +163,7 @@ fn _filter_ancestors_by_predicates(
 }
 
 // scores: maps ancestors to corresponding IC scores
-fn mrca_and_score(scores: &HashMap<String, f64>) -> (Option<String>, f64) {
+fn _mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
     let mut max_ic = 0.0;
     let mut mrca = None;
 
@@ -170,8 +178,8 @@ fn mrca_and_score(scores: &HashMap<String, f64>) -> (Option<String>, f64) {
 
 // TODO: provide a way to specify 'bespoke' information contents for each term
 // for example, in a population of patients of interest
-fn calculate_information_content_scores(
-    filtered_common_ancestors: &Vec<String>,
+fn _calculate_information_content_scores(
+    filtered_common_ancestors: &Vec<TermID>,
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     predicates: &Option<HashSet<String>>,
 ) -> HashMap<String, f64> {
@@ -218,43 +226,45 @@ mod tests {
 
     #[test]
     fn test_semantic_jaccard_similarity() {
-        let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
 
-        // closure table looks like this:
-        // CARO:0000000 -> subClassOf -> CARO:0000000, BFO:0000002, BFO:0000003
+        // closure map looks like this:
+        // +subClassOf -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
+        //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
+        //             -> BFO:0000003 -> BFO:0000003
+        //             -> BFO:0000004 -> BFO:0000004
 
-        // BFO:0000002 -> subClassOf -> BFO:0000002, BFO:0000003
-
-        // BFO:0000003 -> subClassOf -> BFO:0000003
-        //             -> partOf -> BFO:0000004
-
-        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
-        let mut set: HashSet<String> = HashSet::new();
+        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+        let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("CARO:0000000"));
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("CARO:0000000"), map);
-        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        map.insert(String::from("CARO:0000000"), set);
+
         let mut set: HashSet<String> = HashSet::new();
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("BFO:0000002"), map);
-        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        map.insert(String::from("BFO:0000002"), set);
+
         let mut set: HashSet<String> = HashSet::new();
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
+        map.insert(String::from("BFO:0000003"), set);
+        closure_map.insert(String::from("+subClassOf"), map);
 
-        let mut set2: HashSet<String> = HashSet::new();
-        set2.insert(String::from("BFO:0000004"));
-        map.insert(String::from("partOf"), set2);
+        // make another closure map for subclassof + partof
+        // +partOf+subClassOf -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
+        //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
+        //             -> BFO:0000003 -> BFO:0000003, BFO:0000004 <- +partOf
+        //             -> BFO:0000004 -> BFO:0000004
+        let mut closure_map2: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+        closure_map2.insert(String::from("+partOf+subClassOf"), closure_map.get("+subClassOf").unwrap().clone());
+        closure_map2.get_mut("+partOf+subClassOf").unwrap().get_mut(&String::from("BFO:0000003")).unwrap().insert(String::from("BFO:0000004"));
 
-        closure_table.insert(String::from("BFO:0000003"), map);
-        let mut sco_predicate: HashSet<String> = HashSet::new();
+        let mut sco_predicate: HashSet<Predicate> = HashSet::new();
         sco_predicate.insert(String::from("subClassOf"));
+
         let result = calculate_semantic_jaccard_similarity(
-            &closure_table,
+            &closure_map,
             String::from("CARO:0000000"),
             String::from("BFO:0000002"),
             &Some(sco_predicate.clone()),
@@ -263,7 +273,7 @@ mod tests {
         assert_eq!(result, 2.0 / 3.0);
 
         let result2 = calculate_semantic_jaccard_similarity(
-            &closure_table,
+            &closure_map,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
             &Some(sco_predicate.clone()),
@@ -274,9 +284,11 @@ mod tests {
         let mut sco_po_predicate: HashSet<String> = HashSet::new();
         sco_po_predicate.insert(String::from("subClassOf"));
         sco_po_predicate.insert(String::from("partOf"));
-        // println!("{closure_table:?}");
+
+        // with the refactor of closure map, this test doesn't really test anything more than
+        // the previous tests
         let result3 = calculate_semantic_jaccard_similarity(
-            &closure_table,
+            &closure_map2,
             String::from("BFO:0000002"),
             String::from("BFO:0000003"),
             &Some(sco_po_predicate.clone()),
@@ -371,33 +383,44 @@ mod tests {
         assert_eq!(result, expected);
     }
 
+    // TODO: test that closure map in Semsimian object is correct
+    // TODO: test that ic map in Semsimian object is correct
+
     #[test]
     fn test_calculate_max_information_content() {
-        let mut closure_table: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
 
-        // closure table looks like this:
-        // CARO:0000000 -> subClassOf -> CARO:0000000, BFO:0000002, BFO:0000003
-        // BFO:0000002 -> subClassOf -> BFO:0000002, BFO:0000003
-        // BFO:0000003 -> subClassOf -> BFO:0000003
+        let ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = [(
+            String::from("+subClassOf"), [
+                (String::from("CARO:0000000"), 2.585),
+                (String::from("BFO:0000002"), 1.585),
+                (String::from("BFO:0000003"), 1.0),
+            ].iter().cloned().collect())].iter().cloned().collect();
 
-        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
-        let mut set: HashSet<String> = HashSet::new();
+        // closure map looks like this:
+        // {'subClassOf': {'CARO:0000000': {'CARO:0000000', 'BFO:0000002', 'BFO:0000003'},
+        //                 'BFO:0000002':  {'BFO:0000002', 'BFO:0000003'},
+        //                 'BFO:0000003':  {'BFO:0000003'}}}
+
+        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+
+        let mut map: HashMap<PredicateSetKey, HashSet<TermID>> = HashMap::new();
+        let mut set: HashSet<TermID> = HashSet::new();
         set.insert(String::from("CARO:0000000"));
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("CARO:0000000"), map.clone());
+        map.insert(String::from("CARO:0000000"), set.clone());
+        closure_map.insert(String::from("+subClassOf"), map.clone());
 
-        let mut set: HashSet<String> = HashSet::new();
+        set.clear();
         set.insert(String::from("BFO:0000002"));
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("BFO:0000002"), map.clone());
+        map.insert(String::from("BFO:0000002"), set.clone());
+        closure_map.insert(String::from("+subClassOf"), map.clone());
 
-        let mut set: HashSet<String> = HashSet::new();
+        set.clear();
         set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("subClassOf"), set);
-        closure_table.insert(String::from("BFO:0000003"), map);
+        map.insert(String::from("BFO:0000003"), set.clone());
+        closure_map.insert(String::from("+subClassOf"), map);
 
         // Term frequencies:
         // "CARO:0000000": 1
@@ -417,7 +440,8 @@ mod tests {
 
         let predicates = Some(HashSet::from([String::from("subClassOf")]));
         let result = calculate_max_information_content(
-            &closure_table,
+            &closure_map,
+            &ic_map,
             &String::from("CARO:0000000"),
             &String::from("BFO:0000002"),
             &predicates,

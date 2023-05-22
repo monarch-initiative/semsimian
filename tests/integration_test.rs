@@ -33,7 +33,8 @@ fn integration_test_semantic_jaccard_similarity() {
             "fruit".to_string(),
         ),
     ];
-    let closure_table = convert_list_of_tuples_to_hashmap(list_of_tuples);
+    let predicate_set = Some(HashSet::from(["is_a".to_string()]));
+    let (closure_table, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicate_set);
     let sem_jaccard = calculate_semantic_jaccard_similarity(
         &closure_table,
         "apple".to_string(),
