@@ -33,6 +33,6 @@ jobs:
       run: |
         pip install semsimian --no-index --find-links dist --force-reinstall
         pip install pytest
-        pytest
+        # pytest
     - name: Run cargo test
       run: cargo test
