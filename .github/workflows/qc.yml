@@ -14,25 +14,24 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64]
+        python-version: [ '3.8', '3.9', '3.10' ]
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
       with:
         python-version: '3.10'
         architecture: x64
-    - name: Build wheels for Linux
+    - name: Build wheel
       uses: PyO3/maturin-action@v1
       with:
         rust-toolchain: stable
-        target: ${{ matrix.target }}
+        target: 'x86_64'
         manylinux: auto
-        args: --release --out dist -i 3.8 3.9 '3.10'
-    - name: Install built wheel
-      if: matrix.target == 'x86_64'
+        args: --release --out dist -i ${{ matrix.python-version }}
+    - name: Install built wheel and run Python tests
       run: |
         pip install semsimian --no-index --find-links dist --force-reinstall
         pip install pytest
         # pytest
-    - name: Run cargo test
+    - name: Run Rust tests (cargo test)
       run: cargo test
