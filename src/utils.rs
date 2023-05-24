@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use indicatif::{ProgressBar, ProgressIterator};
+use indicatif::{ProgressBar, ProgressStyle};
 
 type Predicate = String;
 type TermID = String;
@@ -81,8 +81,14 @@ pub fn convert_list_of_tuples_to_hashmap(
 
     let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
 
-    for (s, p, o) in list_of_tuples.iter().progress() {
+    let progress_bar = ProgressBar::new(list_of_tuples.len() as u64);
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] Building closure and IC map: {bar:40.cyan/blue} {percent}%")
+            .unwrap()
+    );
 
+    for (s, p, o) in list_of_tuples.iter() {
         if predicates.is_some() && !predicates.as_ref().unwrap().contains(p) {
             continue;
         }
@@ -99,7 +105,11 @@ pub fn convert_list_of_tuples_to_hashmap(
             .entry(s.clone())
             .or_insert_with(HashSet::new)
             .insert(o.clone());
+
+        progress_bar.inc(1);
     }
+
+    progress_bar.finish();
 
     for (k, v) in freq_map.iter() {
         ic_map
