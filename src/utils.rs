@@ -71,7 +71,7 @@ pub fn _stringify_sets_using_map(
 }
 
 pub fn convert_list_of_tuples_to_hashmap(
-    list_of_tuples: &Vec<(String, String, String)>,
+    list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
     predicates: &Option<HashSet<String>>,
 ) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, HashMap<String, f64>>) {
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
