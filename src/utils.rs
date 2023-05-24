@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-type Predicate = String;
-type TermID = String;
+// type Predicate = String;
+// type TermID = String;
 type PredicateSetKey = String;
 
-pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> PredicateSetKey {
+pub fn predicate_set_to_key(predicates: &Option<HashSet<&str>>) -> PredicateSetKey {
     let mut result = String::new();
 
     if predicates.is_none() {
@@ -21,18 +21,18 @@ pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> Predicat
     result
 }
 
-pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
+pub fn convert_set_to_hashmap<'a>(set1: &'a HashSet<&'a str>) -> HashMap<i32, &'a str> {
     let mut result = HashMap::new();
     for (idx, item) in set1.iter().enumerate() {
-        result.insert(idx as i32 + 1, String::from(item));
+        result.insert(idx as i32 + 1, *item);
     }
     result
 }
 
-pub fn numericize_sets(
-    set1: &HashSet<String>,
-    set2: &HashSet<String>,
-) -> (HashSet<i32>, HashSet<i32>, HashMap<i32, String>) {
+pub fn numericize_sets<'a>(
+    set1: &'a HashSet<&'a str>,
+    set2: &'a HashSet<&'a str>,
+) -> (HashSet<i32>, HashSet<i32>, HashMap<i32, &'a str>) {
     let mut union_set = set1.clone();
     union_set.extend(set2.clone());
     let union_set_hashmap = convert_set_to_hashmap(&union_set);
@@ -50,32 +50,32 @@ pub fn numericize_sets(
     (num_set1, num_set2, union_set_hashmap)
 }
 
-pub fn _stringify_sets_using_map(
+pub fn _stringify_sets_using_map<'a>(
     set1: &HashSet<i32>,
     set2: &HashSet<i32>,
-    map: &HashMap<i32, String>,
-) -> (HashSet<String>, HashSet<String>) {
+    map: &'a HashMap<i32, &'a str>,
+) -> (HashSet<&'a str>, HashSet<&'a str>) {
     let mut str_set1 = HashSet::new();
     let mut str_set2 = HashSet::new();
 
     for (k, v) in map.iter() {
         if set1.contains(k) {
-            str_set1.insert(v.clone());
+            str_set1.insert(*v);
         }
         if set2.contains(k) {
-            str_set2.insert(v.clone());
+            str_set2.insert(*v);
         }
     }
     (str_set1, str_set2)
 }
 
-pub fn convert_list_of_tuples_to_hashmap(
-    list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
-    predicates: &Option<HashSet<Predicate>>
-) -> (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
-    let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
-    let mut freq_map: HashMap<TermID, usize> = HashMap::new();
-    let mut ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
+pub fn convert_list_of_tuples_to_hashmap<'a>(
+    list_of_tuples: &'a Vec<&'a str>,
+    predicates: &'a Option<HashSet<&'a str>>
+) -> (HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>, HashMap<&'a str, HashMap<&'a str, f64>>) {
+    let mut closure_map: HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>> = HashMap::new();
+    let mut freq_map: HashMap<&'a str, usize> = HashMap::new();
+    let mut ic_map: HashMap<&'a str, HashMap<&'a str, f64>> = HashMap::new();
     let mut total_count = 0;
     // let empty_string = "".to_string();
 
@@ -109,7 +109,7 @@ pub fn convert_list_of_tuples_to_hashmap(
         // get_term_frequencies(&s, &p, &mut subject_map, &mut freq_map, &empty_string);
         // get_term_frequencies(&o, &p, &mut subject_map, &mut freq_map, &empty_string);
 
-        closure_map.entry(predicate_set_key.clone())
+        closure_map.entry(&predicate_set_key)
             .or_insert_with(HashMap::new)
             .entry(s.clone())
             .or_insert_with(HashSet::new)
@@ -117,7 +117,7 @@ pub fn convert_list_of_tuples_to_hashmap(
     }
 
     for (k, v) in freq_map.iter() {
-        ic_map.entry(predicate_set_key.clone())
+        ic_map.entry(&predicate_set_key)
             .or_insert_with(HashMap::new)
             .insert(k.clone(), -(*v as f64 / total_count as f64).log2());
     }
@@ -126,18 +126,18 @@ pub fn convert_list_of_tuples_to_hashmap(
 }
 
 
-pub fn expand_term_using_closure(
-    term: &TermID,
-    closure_table: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    predicates: &Option<HashSet<Predicate>>,
-) -> HashSet<TermID> {
-    let mut ancestors: HashSet<String> = HashSet::new();
+pub fn expand_term_using_closure<'a>(
+    term: &'a str,
+    closure_table: &'a HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>,
+    predicates: &'a Option<HashSet<&'a str>>,
+) -> HashSet<&'a str> {
+    let mut ancestors: HashSet<&str> = HashSet::new();
     let this_predicate_set_key = predicate_set_to_key(predicates);
 
     for (closure_predicate_key, closure_map) in closure_table.iter() {
         if *closure_predicate_key == this_predicate_set_key {
             if let Some(ancestors_for_predicates) = closure_map.get(term) {
-                ancestors.extend(ancestors_for_predicates.clone());
+                ancestors.extend(ancestors_for_predicates);
             }
         }
     }
@@ -151,11 +151,11 @@ mod tests {
     #[test]
 
     fn test_convert_set_to_hashmap() {
-        let set: HashSet<String> = HashSet::from([
-            String::from("apple"),
-            String::from("banana"),
-            String::from("mango"),
-            String::from("grapes"),
+        let set: HashSet<&str> = HashSet::from([
+            "apple",
+            "banana",
+            "mango",
+            "grapes",
         ]);
 
         assert_eq!(set.len(), convert_set_to_hashmap(&set).len());
@@ -163,17 +163,17 @@ mod tests {
 
     #[test]
     fn test_numericize_set() {
-        let set1: HashSet<String> = HashSet::from([
-            String::from("grapes"),
-            String::from("blueberry"),
-            String::from("fruit"),
-            String::from("blackberry"),
+        let set1: HashSet<&str> = HashSet::from([
+            "grapes",
+            "blueberry",
+            "fruit",
+            "blackberry",
         ]);
-        let set2: HashSet<String> = HashSet::from([
-            String::from("apple"),
-            String::from("banana"),
-            String::from("fruit"),
-            String::from("tropical"),
+        let set2: HashSet<&str> = HashSet::from([
+            "apple",
+            "banana",
+            "fruit",
+            "tropical",
         ]);
 
         let (num_set1, num_set2, _) = numericize_sets(&set1, &set2);
@@ -187,13 +187,13 @@ mod tests {
         let set1: HashSet<i32> = HashSet::from([1, 2, 3, 4, 5]);
         let set2: HashSet<i32> = HashSet::from([3, 4, 5, 6, 7]);
         let map = HashMap::from([
-            (1 as i32, String::from("apple")),
-            (2 as i32, String::from("banana")),
-            (3 as i32, String::from("orange")),
-            (4 as i32, String::from("blueberry")),
-            (5 as i32, String::from("blackberry")),
-            (6 as i32, String::from("grapes")),
-            (7 as i32, String::from("fruits")),
+            (1 as i32, "apple"),
+            (2 as i32, "banana"),
+            (3 as i32, "orange"),
+            (4 as i32, "blueberry"),
+            (5 as i32, "blackberry"),
+            (6 as i32, "grapes"),
+            (7 as i32, "fruits"),
         ]);
         let (str_set1, str_set2) = _stringify_sets_using_map(&set1, &set2, &map);
         assert_eq!(set1.len(), str_set1.len());
@@ -202,17 +202,17 @@ mod tests {
 
     #[test]
     fn test_str_to_int_to_back() {
-        let set1: HashSet<String> = HashSet::from([
-            String::from("grapes"),
-            String::from("blueberry"),
-            String::from("fruit"),
-            String::from("blackberry"),
+        let set1: HashSet<&str> = HashSet::from([
+            "grapes",
+            "blueberry",
+            "fruit",
+            "blackberry",
         ]);
-        let set2: HashSet<String> = HashSet::from([
-            String::from("apple"),
-            String::from("banana"),
-            String::from("fruit"),
-            String::from("tropical"),
+        let set2: HashSet<&str> = HashSet::from([
+            "apple",
+            "banana",
+            "fruit",
+            "tropical",
         ]);
 
         let (num_set1, num_set2, map) = numericize_sets(&set1, &set2);
@@ -224,77 +224,77 @@ mod tests {
 
     #[test]
     fn test_convert_list_of_tuples_to_hashmap() {
-        let list_of_tuples: Vec<(String, String, String)> = vec![
+        let list_of_tuples: Vec<(&str, &str, &str)> = vec![
             (
-                String::from("ABCD:123"),
-                String::from("is_a"),
-                String::from("BCDE:234"),
+                "ABCD:123",
+                "is_a",
+                "BCDE:234",
             ),
             (
-                String::from("ABCD:123"),
-                String::from("part_of"),
-                String::from("ABCDE:1234"),
+                "ABCD:123",
+                "part_of",
+                "ABCDE:1234",
             ),
             (
-                String::from("XYZ:123"),
-                String::from("is_a"),
-                String::from("WXY:234"),
+                "XYZ:123",
+                "is_a",
+                "WXY:234",
             ),
             (
-                String::from("XYZ:123"),
-                String::from("part_of"),
-                String::from("WXYZ:1234"),
+                "XYZ:123",
+                "part_of",
+                "WXYZ:1234",
             ),
         ];
 
         // test closure map for is_a predicates
-        let expected_closure_map_is_a: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::from([
+        let expected_closure_map_is_a: HashMap<&str, HashMap<&str, HashSet<&str>>> = HashMap::from([
             (
-                String::from("+is_a"), HashMap::from([
-                    (String::from("ABCD:123"), [String::from("BCDE:234")].iter().cloned().collect::<HashSet<_>>()),
-                    (String::from("XYZ:123"), [String::from("WXY:234")].iter().cloned().collect::<HashSet<_>>()),
+                "+is_a", HashMap::from([
+                    ("ABCD:123", ["BCDE:234"].iter().cloned().collect::<HashSet<_>>()),
+                    ("XYZ:123", ["WXY:234"].iter().cloned().collect::<HashSet<_>>()),
                 ]),
             ),
         ]);
 
-        let predicates_is_a: Option<HashSet<Predicate>> = Some(["is_a"].iter().map(|&s| s.to_string()).collect());
+        let predicates_is_a: Option<HashSet<&str>> = Some(["is_a"].iter().map(|&s| s).collect());
         let (closure_map_is_a, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a);
         assert_eq!(expected_closure_map_is_a, closure_map_is_a);
 
         // test closure_map for is_a + part_of predicates
-        let expected_closure_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::from([
+        let expected_closure_map_is_a_plus_part_of: HashMap<&str, HashMap<&str, HashSet<&str>>> = HashMap::from([
             (
-                String::from("+is_a+part_of"),
+                "+is_a+part_of",
                 HashMap::from([
                     (
-                        String::from("ABCD:123"),
-                        HashSet::from([String::from("BCDE:234"), String::from("ABCDE:1234")].iter().cloned().collect::<HashSet<TermID>>()),
+                        "ABCD:123",
+                        HashSet::from(["BCDE:234", "ABCDE:1234"].iter().cloned().collect::<HashSet<&str>>()),
                     ),
                     (
-                        String::from("XYZ:123"),
-                        HashSet::from([String::from("WXY:234"), String::from("WXYZ:1234")].iter().cloned().collect::<HashSet<TermID>>()),
+                        "XYZ:123",
+                        HashSet::from(["WXY:234", "WXYZ:1234"].iter().cloned().collect::<HashSet<&str>>()),
                     ),
                 ]),
             ),
         ]);
 
-        let predicates_is_a_plus_part_of: Option<HashSet<Predicate>> = Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
+        let predicates_is_a_plus_part_of: Option<HashSet<&str>> = Some(["is_a", "part_of"].iter().map(|&s| s).collect());
         let (closure_map_is_a_plus_part_of, ic_map) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a_plus_part_of);
         assert_eq!(expected_closure_map_is_a_plus_part_of, closure_map_is_a_plus_part_of);
 
-        let expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = {
-            let mut expected: HashMap<TermID, f64> = HashMap::new();
+        let expected_ic_map_is_a_plus_part_of: HashMap<&str, HashMap<&str, f64>> = {
+            let mut expected: HashMap<&str, f64> = HashMap::new();
             let total_count = 8;
 
-            expected.insert(String::from("ABCD:123"), -(2.0 / total_count as f64).log2());
-            expected.insert(String::from("BCDE:234"), -(1.0 / total_count as f64).log2());
-            expected.insert(String::from("ABCDE:1234"), -(1.0 / total_count as f64).log2());
-            expected.insert(String::from("XYZ:123"), -(2.0 / total_count as f64).log2());
-            expected.insert(String::from("WXY:234"), -(1.0 / total_count as f64).log2());
-            expected.insert(String::from("WXYZ:1234"), -(1.0 / total_count as f64).log2());
+            expected.insert("ABCD:123", -(2.0 / total_count as f64).log2());
+            expected.insert("BCDE:234", -(1.0 / total_count as f64).log2());
+            expected.insert("ABCDE:1234", -(1.0 / total_count as f64).log2());
+            expected.insert("XYZ:123", -(2.0 / total_count as f64).log2());
+            expected.insert("WXY:234", -(1.0 / total_count as f64).log2());
+            expected.insert("WXYZ:1234", -(1.0 / total_count as f64).log2());
 
-            let mut expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
-            expected_ic_map_is_a_plus_part_of.insert(String::from("+is_a+part_of"), expected);
+            let mut expected_ic_map_is_a_plus_part_of: HashMap<&str, HashMap<&str, f64>> = HashMap::new();
+            expected_ic_map_is_a_plus_part_of.insert("+is_a+part_of", expected);
             expected_ic_map_is_a_plus_part_of
         };
 
@@ -304,10 +304,10 @@ mod tests {
 
     #[test]
     fn test_predicate_set_to_string(){
-        let predicates_is_a: Option<HashSet<Predicate>> = Some(["is_a"].iter().map(|&s| s.to_string()).collect());
-        let predicates_is_a_part_of: Option<HashSet<Predicate>> = Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
-        let predicates_part_of_is_a: Option<HashSet<Predicate>> = Some(["part_of", "is_a"].iter().map(|&s| s.to_string()).collect());
-        let predicates_empty: Option<HashSet<Predicate>> = None;
+        let predicates_is_a: Option<HashSet<&str>> = Some(["is_a"].iter().map(|&s| s).collect());
+        let predicates_is_a_part_of: Option<HashSet<&str>> = Some(["is_a", "part_of"].iter().map(|&s| s).collect());
+        let predicates_part_of_is_a: Option<HashSet<&str>> = Some(["part_of", "is_a"].iter().map(|&s| s).collect());
+        let predicates_empty: Option<HashSet<&str>> = None;
 
         assert_eq!(predicate_set_to_key(&predicates_is_a), "+is_a");
         assert_eq!(predicate_set_to_key(&predicates_is_a_part_of), "+is_a+part_of");
@@ -319,34 +319,34 @@ mod tests {
 
     #[test]
     fn test_expand_term_using_closure() {
-        let mut closure_table: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
-        let mut map: HashMap<PredicateSetKey, HashSet<TermID>> = HashMap::new();
-        let mut set: HashSet<TermID> = HashSet::new();
-        set.insert(String::from("CARO:0000000"));
-        set.insert(String::from("BFO:0000002"));
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("CARO:0000000"), set);
-        closure_table.insert(String::from("+subClassOf"), map.clone());
+        let mut closure_table: HashMap<&str, HashMap<&str, HashSet<&str>>> = HashMap::new();
+        let mut map: HashMap<&str, HashSet<&str>> = HashMap::new();
+        let mut set: HashSet<&str> = HashSet::new();
+        set.insert("CARO:0000000");
+        set.insert("BFO:0000002");
+        set.insert("BFO:0000003");
+        map.insert("CARO:0000000", set);
+        closure_table.insert("+subClassOf", map.clone());
 
-        let mut set: HashSet<TermID> = HashSet::new();
-        set.insert(String::from("BFO:0000002"));
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("BFO:0000002"), set);
-        closure_table.insert(String::from("+subClassOf"), map.clone());
+        let mut set: HashSet<&str> = HashSet::new();
+        set.insert("BFO:0000002");
+        set.insert("BFO:0000003");
+        map.insert("BFO:0000002", set);
+        closure_table.insert("+subClassOf", map.clone());
 
-        let mut set: HashSet<TermID> = HashSet::new();
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("BFO:0000003"), set);
-        closure_table.insert(String::from("+subClassOf"), map);
+        let mut set: HashSet<&str> = HashSet::new();
+        set.insert("BFO:0000003");
+        map.insert("BFO:0000003", set);
+        closure_table.insert("+subClassOf", map);
 
-        let term = String::from("CARO:0000000");
-        let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["subClassOf".to_string()]));
+        let term = "CARO:0000000";
+        let predicates: Option<HashSet<&str>> = Some(HashSet::from(["subClassOf"]));
         let result = expand_term_using_closure(&term, &closure_table, &predicates);
 
         let expected_result = HashSet::from([
-            "BFO:0000002".to_string(),
-            "BFO:0000003".to_string(),
-            "CARO:0000000".to_string(),
+            "BFO:0000002",
+            "BFO:0000003",
+            "CARO:0000000",
         ]);
         assert_eq!(result, expected_result);
     }

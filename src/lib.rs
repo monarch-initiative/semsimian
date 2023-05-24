@@ -8,17 +8,17 @@ pub mod similarity;
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
 use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure, predicate_set_to_key};
 
-type Predicate = String;
-type TermID = String;
-type PredicateSetKey = String;
+// type Predicate = String;
+// type TermID = String;
+// type PredicateSetKey = String;
 
 pub struct RustSemsimian {
-    spo: Vec<(TermID, Predicate, TermID)>,
+    spo: Vec<(String, String, String)>,
 
-    ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    ic_map: HashMap<String, HashMap<String, f64>>,
     // ic_map is something like {('is_a_+_part_of'), {'GO:1234': 1.234}}
 
-    closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    closure_map: HashMap<String, HashMap<String, HashSet<String>>>,
     // closure_map is something like {('is_a_+_part_of'), {'GO:1234': {'GO:1234', 'GO:5678'}}}
 }
 
@@ -26,16 +26,17 @@ impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
     // TODO: also, we should support loading 'custom' ic
     // TODO: also also, we should use str's instead of String
-    pub fn new(spo: Vec<(TermID, Predicate, TermID)>) -> RustSemsimian {
-
+    pub fn new(spo: Vec<(String, String, String)>) -> RustSemsimian {
+        // The line below converts Vec<String> to Vec<&str>
+        // let new_spo:Vec<&str> = spo.iter().map(|s| s.as_ref()).collect();
         RustSemsimian {
-            spo,
+            spo: spo,
             ic_map: HashMap::new(),
             closure_map: HashMap::new(),
         }
     }
 
-    pub fn jaccard_similarity(&mut self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
+    pub fn jaccard_similarity(&mut self, term1: &str, term2: &str, predicates: &Option<HashSet<&str>>) -> f64 {
         let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
 
         let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
@@ -46,26 +47,27 @@ impl RustSemsimian {
         intersection / union
     }
 
-    pub fn resnik_similarity(&self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
+    pub fn resnik_similarity(&self, term1: &str, term2: &str, predicates: &Option<HashSet<&str>>) -> f64 {
+
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
     }
 
     // TODO: make this predicate aware, and make it work with the new closure map
     pub fn phenomizer_score(
-        map: HashMap<String, HashMap<String, f64>>,
-        entity1: HashSet<String>,
-        entity2: HashSet<String>,
+        map: HashMap<&str, HashMap<&str, f64>>,
+        entity1: HashSet<&str>,
+        entity2: HashSet<&str>,
     ) -> PyResult<f64> {
         Ok(calculate_phenomizer_score(map, entity1, entity2))
     }
 
     // get closure and ic map for a given set of predicates. if the closure and ic map for the given predicates doesn't exist, create them
-    fn get_closure_and_ic_map(&mut self, predicates: &Option<HashSet<Predicate>>) ->
-            (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
-        let predicate_set_key = predicate_set_to_key(&predicates);
-        if !self.closure_map.contains_key(&predicate_set_key) || !self.ic_map.contains_key(&predicate_set_key) {
+    fn get_closure_and_ic_map<'a>(&'a mut self, predicates: &'a Option<HashSet<&'a str>>) ->
+            (HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>, HashMap<&'a str, HashMap<&'a str, f64>>) {
+        let predicate_set_key = &*predicate_set_to_key(predicates);
+        if !self.closure_map.contains_key(predicate_set_key) || !self.ic_map.contains_key(predicate_set_key) {
             let (this_closure_map, this_ic_map) = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
-            self.closure_map.insert(predicate_set_key.clone(), this_closure_map.get(&predicate_set_key).unwrap().clone());
+            self.closure_map.insert(predicate_set_key.to_string(), this_closure_map.get(&predicate_set_key).unwrap().clone());
             self.ic_map.insert(predicate_set_key.clone(), this_ic_map.get(&predicate_set_key).unwrap().clone());
         }
         (self.closure_map.clone(), self.ic_map.clone())
@@ -80,16 +82,16 @@ pub struct Semsimian {
 #[pymethods]
 impl Semsimian {
     #[new]
-    fn new(spo: Vec<(TermID, Predicate, TermID)>) -> PyResult<Self> {
+    fn new(spo: Vec<&str>) -> PyResult<Self> {
         let ss = RustSemsimian::new(spo);
         Ok(Semsimian { ss })
     }
 
-    fn jaccard_similarity(&mut self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
+    fn jaccard_similarity(&mut self, term1: &str, term2: &str, predicates: Option<HashSet<&str>>) -> PyResult<f64> {
         Ok(self.ss.jaccard_similarity(&term1, &term2, &predicates))
     }
 
-    fn resnik_similarity(&mut self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
+    fn resnik_similarity(&mut self, term1: &str, term2: &str, predicates: Option<HashSet<&str>>) -> PyResult<f64> {
         Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
     }
 
