@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 // type Predicate = String;
 // type TermID = String;
-type PredicateSetKey = String;
+// type PredicateSetKey = String;
 
-pub fn predicate_set_to_key(predicates: &Option<HashSet<&str>>) -> PredicateSetKey {
+pub fn predicate_set_to_key<'a>(predicates: &'a Option<HashSet<&'a str>>) -> &'static str {
     let mut result = String::new();
 
     if predicates.is_none() {
@@ -23,10 +23,10 @@ pub fn predicate_set_to_key(predicates: &Option<HashSet<&str>>) -> PredicateSetK
             result.push_str(&predicate);
         }
     }
-    result
+    Box::leak(result.into_boxed_str())
 }
 
-pub fn convert_set_to_hashmap<'a>(set1: &'a HashSet<&'a str>) -> HashMap<i32, &'a str> {
+pub fn convert_set_to_hashmap<'a>(set1: HashSet<&'a str>) -> HashMap<i32, &'a str> {
     let mut result = HashMap::new();
     for (idx, item) in set1.iter().enumerate() {
         result.insert(idx as i32 + 1, *item);
@@ -40,16 +40,16 @@ pub fn numericize_sets<'a>(
 ) -> (HashSet<i32>, HashSet<i32>, HashMap<i32, &'a str>) {
     let mut union_set = set1.clone();
     union_set.extend(set2.clone());
-    let union_set_hashmap = convert_set_to_hashmap(&union_set);
+    let union_set_hashmap = convert_set_to_hashmap(union_set);
     let mut num_set1 = HashSet::new();
     let mut num_set2 = HashSet::new();
 
     for (k, v) in union_set_hashmap.iter() {
-        if set1.contains(v) {
-            num_set1.insert(k.clone());
+        if set1.contains(*v) {
+            num_set1.insert(*k);
         }
-        if set2.contains(v) {
-            num_set2.insert(k.clone());
+        if set2.contains(*v) {
+            num_set2.insert(*k);
         }
     }
     (num_set1, num_set2, union_set_hashmap)
@@ -154,7 +154,7 @@ pub fn expand_term_using_closure<'a>(
 }
 
 pub fn convert_map_of_map_of_set<'a>(
-    original: HashMap<String, HashMap<String, HashSet<String>>>,
+    original: &'a HashMap<String, HashMap<String, HashSet<String>>>,
 ) -> HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>> {
     let mut new_map = HashMap::new();
 
@@ -173,7 +173,7 @@ pub fn convert_map_of_map_of_set<'a>(
 }
 
 pub fn convert_map_of_map<'a>(
-    original: HashMap<String, HashMap<String, f64>>,
+    original: &'a HashMap<String, HashMap<String, f64>>,
 ) -> HashMap<&'a str, HashMap<&'a str, f64>> {
     let mut new_map = HashMap::new();
 
@@ -198,6 +198,20 @@ pub fn convert_map_of_map<'a>(
     new_map
 }
 
+pub fn convert_vector_of_string_object_to_references(
+    vector: &Vec<(String, String, String)>,
+) -> Vec<(&str, &str, &str)> {
+    let mut result = Vec::with_capacity(vector.len());
+    for tuple in vector {
+        // We can create string slice references '&' from owned strings 'String'
+        // by using the '&' operator followed by the variable name.
+        // For example, '&tuple.0' will give us an immutable reference to the first element of the tuple.
+        let reference_tuple: (&str, &str, &str) = (&tuple.0, &tuple.1, &tuple.2);
+        result.push(reference_tuple);
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -206,7 +220,7 @@ mod tests {
     fn test_convert_set_to_hashmap() {
         let set: HashSet<&str> = HashSet::from(["apple", "banana", "mango", "grapes"]);
 
-        assert_eq!(set.len(), convert_set_to_hashmap(&set).len());
+        assert_eq!(set.len(), convert_set_to_hashmap(set).len());
     }
 
     #[test]
