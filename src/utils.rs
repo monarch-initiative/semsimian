@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use indicatif::{ProgressBar, ProgressIterator};
 
 type Predicate = String;
 type TermID = String;
@@ -70,46 +71,30 @@ pub fn _stringify_sets_using_map(
 }
 
 pub fn convert_list_of_tuples_to_hashmap(
-    list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
-    predicates: &Option<HashSet<Predicate>>
-) -> (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
-    let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
-    let mut freq_map: HashMap<TermID, usize> = HashMap::new();
-    let mut ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
+    list_of_tuples: &Vec<(String, String, String)>,
+    predicates: &Option<HashSet<String>>,
+) -> (HashMap<String, HashMap<String, HashSet<String>>>, HashMap<String, HashMap<String, f64>>) {
+    let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+    let mut freq_map: HashMap<String, usize> = HashMap::new();
+    let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
     let mut total_count = 0;
-    // let empty_string = "".to_string();
 
-    let predicate_set_key = predicate_set_to_key(predicates);
+    let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
 
-    // fn get_term_frequencies(
-    //     term: &String,
-    //     predicate: &str,
-    //     // subject_map: &mut HashMap<String, HashMap<String, HashSet<String>>>,
-    //     subject_map: &mut HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    //     freq_map: &mut HashMap<String, usize>,
-    //     empty_string: &String,
-    // ) {
-    //     let mut ancestor = term;
-    //     while let Some(predicate_map) = subject_map.get(ancestor) {
-    //         *freq_map.entry(ancestor.clone()).or_insert(0) += 1;
-    //         //
-    //         ancestor = predicate_map.get(predicate).and_then(|set| set.iter().next()).unwrap_or(empty_string);
-    //     }
-    // }
+    for (s, p, o) in list_of_tuples.iter().progress() {
 
-    for (s, p, o) in list_of_tuples {
-        if predicates.is_some() && !predicates.as_ref().unwrap().contains(&p.clone()) {
+        if predicates.is_some() && !predicates.as_ref().unwrap().contains(p) {
             continue;
         }
+
         *freq_map.entry(s.clone()).or_insert(0) += 1;
         total_count += 1;
+
         *freq_map.entry(o.clone()).or_insert(0) += 1;
         total_count += 1;
 
-        // get_term_frequencies(&s, &p, &mut subject_map, &mut freq_map, &empty_string);
-        // get_term_frequencies(&o, &p, &mut subject_map, &mut freq_map, &empty_string);
-
-        closure_map.entry(predicate_set_key.clone())
+        closure_map
+            .entry(predicate_set_key.clone())
             .or_insert_with(HashMap::new)
             .entry(s.clone())
             .or_insert_with(HashSet::new)
@@ -117,13 +102,15 @@ pub fn convert_list_of_tuples_to_hashmap(
     }
 
     for (k, v) in freq_map.iter() {
-        ic_map.entry(predicate_set_key.clone())
+        ic_map
+            .entry(predicate_set_key.clone())
             .or_insert_with(HashMap::new)
             .insert(k.clone(), -(*v as f64 / total_count as f64).log2());
     }
 
     (closure_map, ic_map)
 }
+
 
 
 pub fn expand_term_using_closure(
