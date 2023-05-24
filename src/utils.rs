@@ -70,7 +70,7 @@ pub fn _stringify_sets_using_map<'a>(
 }
 
 pub fn convert_list_of_tuples_to_hashmap<'a>(
-    list_of_tuples: &'a Vec<&'a str>,
+    list_of_tuples: &'a Vec<(&'a str, &'a str, &'a str)>,
     predicates: &'a Option<HashSet<&'a str>>
 ) -> (HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>, HashMap<&'a str, HashMap<&'a str, f64>>) {
     let mut closure_map: HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>> = HashMap::new();
@@ -142,6 +142,47 @@ pub fn expand_term_using_closure<'a>(
         }
     }
     ancestors
+}
+
+pub fn convert_map_of_map_of_set<'a>(original: HashMap<String, HashMap<String, HashSet<String>>>) -> HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>> {
+    let mut new_map = HashMap::new();
+    
+    for (key, inner_map) in original.into_iter() {
+        let mut new_inner_map = HashMap::new();
+        
+        for (inner_key, inner_set) in inner_map.into_iter() {
+            let new_inner_set: HashSet<&str> = inner_set.iter().map(|s| s.as_str()).collect();
+            new_inner_map.insert(inner_key.as_str(), new_inner_set);
+        }
+        
+        new_map.insert(key.as_str(), new_inner_map);
+    }
+    
+    new_map
+}
+
+pub fn convert_map_of_map<'a>(original: HashMap<String, HashMap<String, f64>>) -> HashMap<&'a str, HashMap<&'a str, f64>> {
+    let mut new_map = HashMap::new();
+
+    for (key, inner_map) in original.iter() {
+        let mut new_inner_map = HashMap::new();
+
+        for (inner_key, value) in inner_map.iter() {
+            // Convert the inner key to a &str reference
+            let inner_key_ref: &str = inner_key.as_str();
+
+            // Insert the &str reference as the new key in the new inner map
+            new_inner_map.insert(inner_key_ref, *value);
+        }
+
+        // Convert the outer key to a &str reference
+        let key_ref: &str = key.as_str();
+
+        // Insert the new inner map with &str references as keys into the new map
+        new_map.insert(key_ref, new_inner_map);
+    }
+
+    new_map
 }
 
 
