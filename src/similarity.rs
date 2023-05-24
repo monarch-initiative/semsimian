@@ -87,7 +87,7 @@ pub fn calculate_max_information_content(
     ic_map: &HashMap<&str, HashMap<&str, f64>>,
     entity1: &str,
     entity2: &str,
-    predicates: &Option<HashSet<&str>>
+    predicates: &Option<HashSet<&str>>,
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
     let filtered_common_ancestors: Vec<&str> =
@@ -98,16 +98,18 @@ pub fn calculate_max_information_content(
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
     for ancestor in filtered_common_ancestors.iter() {
-        if let Some(ic) = ic_map.get(&*predicate_set_key).expect("Finding ancestor in ic map").get(ancestor) {
+        if let Some(ic) = ic_map
+            .get(&*predicate_set_key)
+            .expect("Finding ancestor in ic map")
+            .get(ancestor)
+        {
             if *ic > max_ic {
                 max_ic = *ic;
-
             }
         }
     }
     // then return the String and f64 for the filtered_common_ancestors with the highest f64
     max_ic
-
 }
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
@@ -122,12 +124,10 @@ fn common_ancestors<'a>(
     // {"GO:5678": vec![('is_a', 'part_of')]: {['GO:3456', 'GO:7890']}}
 
     // {"GO:5678": 'is_a_+_part_of': {['GO:3456', 'GO:7890']}}
-
     entity1: &'a str,
     entity2: &'a str,
-    predicates: &'a Option<HashSet<&'a str>>
+    predicates: &'a Option<HashSet<&'a str>>,
 ) -> Vec<&'a str> {
-
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
     let entity1_closure = expand_term_using_closure(entity1, closure_map, predicates);
     let entity2_closure = expand_term_using_closure(entity2, closure_map, predicates);
@@ -136,7 +136,6 @@ fn common_ancestors<'a>(
         .into_iter()
         .filter(|ancestor| entity2_closure.contains(ancestor))
         .collect()
-
 }
 
 fn _filter_ancestors_by_predicates(
@@ -258,8 +257,16 @@ mod tests {
         //             -> BFO:0000003 -> BFO:0000003, BFO:0000004 <- +partOf
         //             -> BFO:0000004 -> BFO:0000004
         let mut closure_map2: HashMap<&str, HashMap<&str, HashSet<&str>>> = HashMap::new();
-        closure_map2.insert("+partOf+subClassOf", closure_map.get("+subClassOf").unwrap().clone());
-        closure_map2.get_mut("+partOf+subClassOf").unwrap().get_mut("BFO:0000003").unwrap().insert("BFO:0000004");
+        closure_map2.insert(
+            "+partOf+subClassOf",
+            closure_map.get("+subClassOf").unwrap().clone(),
+        );
+        closure_map2
+            .get_mut("+partOf+subClassOf")
+            .unwrap()
+            .get_mut("BFO:0000003")
+            .unwrap()
+            .insert("BFO:0000004");
 
         let mut sco_predicate: HashSet<&str> = HashSet::new();
         sco_predicate.insert("subClassOf");
@@ -301,12 +308,7 @@ mod tests {
     #[test]
     fn test_calculate_jaccard_similarity() {
         let set1: HashSet<&str> = HashSet::from(["apple", "banana"]);
-        let set2: HashSet<&str> = HashSet::from([
-            "apple",
-            "banana",
-            "fruit",
-            "tropical",
-        ]);
+        let set2: HashSet<&str> = HashSet::from(["apple", "banana", "fruit", "tropical"]);
         let (num_set1, num_set2, _) = numericize_sets(&set1, &set2);
         let result = calculate_jaccard_similarity(&num_set1, &num_set2);
         println!("{result}");
@@ -316,12 +318,7 @@ mod tests {
     #[test]
     fn test_calculate_jaccard_similarity_str() {
         let set1: HashSet<&str> = HashSet::from(["apple", "banana"]);
-        let set2: HashSet<&str> = HashSet::from([
-            "apple",
-            "banana",
-            "fruit",
-            "tropical",
-        ]);
+        let set2: HashSet<&str> = HashSet::from(["apple", "banana", "fruit", "tropical"]);
         let result = calculate_jaccard_similarity_str(&set1, &set2);
         println!("{result}");
         assert_eq!(result, 0.5);
@@ -389,13 +386,20 @@ mod tests {
 
     #[test]
     fn test_calculate_max_information_content() {
-
         let ic_map: HashMap<&str, HashMap<&str, f64>> = [(
-            "+subClassOf", [
+            "+subClassOf",
+            [
                 ("CARO:0000000", 2.585),
                 ("BFO:0000002", 1.585),
                 ("BFO:0000003", 1.0),
-            ].iter().cloned().collect())].iter().cloned().collect();
+            ]
+            .iter()
+            .cloned()
+            .collect(),
+        )]
+        .iter()
+        .cloned()
+        .collect();
 
         // closure map looks like this:
         // {'subClassOf': {'CARO:0000000': {'CARO:0000000', 'BFO:0000002', 'BFO:0000003'},
