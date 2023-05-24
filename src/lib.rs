@@ -50,6 +50,27 @@ impl RustSemsimian {
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
     }
 
+    pub fn all_by_all_pairwise_similarity(
+        &mut self,
+        subject_terms: &HashSet<TermID>,
+        object_terms: &HashSet<TermID>,
+        predicates: &Option<HashSet<Predicate>>,
+    ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
+        let mut similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64)>> = HashMap::new();
+
+        for subject in subject_terms {
+            let mut subject_similarities: HashMap<TermID, (f64, f64)> = HashMap::new();
+            for object in object_terms {
+                let jaccard_sim = self.jaccard_similarity(subject, object, predicates);
+                let resnik_sim = self.resnik_similarity(subject, object, predicates);
+                subject_similarities.insert(object.clone(), (resnik_sim, jaccard_sim));
+            }
+            similarity_map.insert(subject.clone(), subject_similarities);
+        }
+
+        similarity_map
+    }
+
     // TODO: make this predicate aware, and make it work with the new closure map
     pub fn phenomizer_score(
         map: HashMap<String, HashMap<String, f64>>,
@@ -91,6 +112,15 @@ impl Semsimian {
 
     fn resnik_similarity(&mut self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
         Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
+    }
+
+    fn all_by_all_pairwise_similarity(
+        &mut self,
+        subject_terms: HashSet<TermID>,
+        object_terms: HashSet<TermID>,
+        predicates: Option<HashSet<Predicate>>,
+    ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
+        self.ss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
     }
 
 }
