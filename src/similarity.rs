@@ -299,8 +299,8 @@ mod tests {
         // the previous tests
         let result3 = calculate_semantic_jaccard_similarity(
             &closure_map2,
-            String::from("BFO:0000002"),
-            String::from("BFO:0000003"),
+            "BFO:0000002",
+            "BFO:0000003",
             &Some(sco_po_predicate.clone()),
         );
         println!("{result3}");
