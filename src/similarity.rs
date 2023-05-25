@@ -8,13 +8,13 @@ type PredicateSetKey = String;
 
 pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    entity1: String,
-    entity2: String,
+    entity1: &str,
+    entity2: &str,
     predicates: &Option<HashSet<String>>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
-    let entity1_closure = expand_term_using_closure(&entity1, closure_table, &predicates);
-    let entity2_closure = expand_term_using_closure(&entity2, closure_table, &predicates);
+    let entity1_closure = expand_term_using_closure(entity1, closure_table, &predicates);
+    let entity2_closure = expand_term_using_closure(entity2, closure_table, &predicates);
     let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
     jaccard
 }
@@ -85,13 +85,13 @@ pub fn pairwise_entity_resnik_score(
 pub fn calculate_max_information_content(
     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-    entity1: &TermID,
-    entity2: &TermID,
+    entity1: &str,
+    entity2: &str,
     predicates: &Option<HashSet<Predicate>>,
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
     let filtered_common_ancestors: Vec<String> =
-        common_ancestors(&closure_map, &entity1, &entity2, &predicates);
+        common_ancestors(closure_map, &entity1, &entity2, &predicates);
 
     let predicate_set_key = predicate_set_to_key(predicates);
 
@@ -124,8 +124,8 @@ fn common_ancestors(
     // {"GO:5678": vec![('is_a', 'part_of')]: {['GO:3456', 'GO:7890']}}
 
     // {"GO:5678": 'is_a_+_part_of': {['GO:3456', 'GO:7890']}}
-    entity1: &TermID,
-    entity2: &TermID,
+    entity1: &str,
+    entity2: &str,
     predicates: &Option<HashSet<Predicate>>,
 ) -> Vec<String> {
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
@@ -184,7 +184,7 @@ fn _calculate_information_content_scores(
     predicates: &Option<HashSet<String>>,
 ) -> HashMap<String, f64> {
     let (term_frequencies, corpus_size) =
-        calculate_term_frequencies_and_corpus_size(closure_table, predicates);
+        _calculate_term_frequencies_and_corpus_size(closure_table, predicates);
 
     let mut ic_scores = HashMap::new();
     for ancestor in filtered_common_ancestors {
@@ -197,7 +197,7 @@ fn _calculate_information_content_scores(
     ic_scores
 }
 
-fn calculate_term_frequencies_and_corpus_size(
+fn _calculate_term_frequencies_and_corpus_size(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     predicates: &Option<HashSet<String>>,
 ) -> (HashMap<String, usize>, usize) {

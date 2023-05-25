@@ -33,8 +33,8 @@ impl RustSemsimian {
 
     pub fn jaccard_similarity(
         &mut self,
-        term1: &TermID,
-        term2: &TermID,
+        term1: &str,
+        term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> f64 {
         let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
@@ -49,8 +49,8 @@ impl RustSemsimian {
 
     pub fn resnik_similarity(
         &self,
-        term1: &TermID,
-        term2: &TermID,
+        term1: &str,
+        term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> f64 {
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)

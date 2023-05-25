@@ -132,7 +132,7 @@ pub fn convert_list_of_tuples_to_hashmap(
 }
 
 pub fn expand_term_using_closure(
-    term: &TermID,
+    term: &str,
     closure_table: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     predicates: &Option<HashSet<Predicate>>,
 ) -> HashSet<TermID> {
