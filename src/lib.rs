@@ -27,8 +27,6 @@ impl RustSemsimian {
     // TODO: also, we should support loading 'custom' ic
     // TODO: also also, we should use str's instead of String
     pub fn new(spo: Vec<(String, String, String)>) -> RustSemsimian {
-        // The line below converts Vec<String> to Vec<&str>
-        // let new_spo:Vec<&str> = spo.iter().map(|s| s.as_ref()).collect();
         RustSemsimian {
             spo,
             ic_map: HashMap::new(),
@@ -36,26 +34,31 @@ impl RustSemsimian {
         }
     }
 
-    pub fn create_string_reference_object(&self) -> RustSemsimianWithStringReferences {
-        RustSemsimianWithStringReferences {
-            spo: convert_vector_of_string_object_to_references(&self.spo),
-            ic_map: convert_map_of_map(&self.ic_map),
-            closure_map: convert_map_of_map_of_set(&self.closure_map),
-        }
-    }
-
+    // pub fn create_string_reference_object(&self) -> RustSemsimianWithStringReferences {
+    //     RustSemsimianWithStringReferences {
+    //         spo: convert_vector_of_string_object_to_references(&self.spo),
+    //         ic_map: convert_map_of_map(&self.ic_map),
+    //         closure_map: convert_map_of_map_of_set(&self.closure_map),
+    //     }
+    // }
     pub fn jaccard_similarity(
         self,
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<&str>>,
     ) -> f64 {
-        self.create_string_reference_object()
-            .jaccard_similarity(term1, term2, predicates)
+        let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
+
+        let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
+        let term2_set = expand_term_using_closure(term2, &this_closure_map, predicates);
+
+        let intersection = term1_set.intersection(&term2_set).count() as f64;
+        let union = term1_set.union(&term2_set).count() as f64;
+        intersection / union
     }
 
     pub fn resnik_similarity(
-        &self,
+        self,
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<&str>>,
@@ -67,6 +70,36 @@ impl RustSemsimian {
             term2,
             predicates,
         )
+    }
+
+    // get closure and ic map for a given set of predicates.
+    // if the closure and ic map for the given predicates doesn't exist, create them
+    fn get_closure_and_ic_map<'a>(
+        self,
+        predicates: &'a Option<HashSet<&'a str>>,
+    ) -> (
+        HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>,
+        HashMap<&'a str, HashMap<&'a str, f64>>,
+    ) {
+        let predicate_set_key = predicate_set_to_key(predicates);
+        let mut rswsr: RustSemsimianWithStringReferences =
+            RustSemsimianWithStringReferences::from(self);
+
+        if !rswsr.closure_map.contains_key(predicate_set_key)
+            || !rswsr.ic_map.contains_key(predicate_set_key)
+        {
+            let (this_closure_map, this_ic_map) =
+                convert_list_of_tuples_to_hashmap(&rswsr.spo, &predicates);
+            rswsr.closure_map.insert(
+                &*predicate_set_key,
+                this_closure_map.get(predicate_set_key).unwrap().clone(),
+            );
+            rswsr.ic_map.insert(
+                &*predicate_set_key,
+                this_ic_map.get(&predicate_set_key).unwrap().clone(),
+            );
+        }
+        (rswsr.closure_map, rswsr.ic_map)
     }
 
     // TODO: make this predicate aware, and make it work with the new closure map
@@ -85,49 +118,30 @@ pub struct RustSemsimianWithStringReferences<'a> {
     closure_map: HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>,
 }
 
-impl RustSemsimianWithStringReferences<'_> {
-    pub fn jaccard_similarity(
-        &mut self,
-        term1: &str,
-        term2: &str,
-        predicates: &Option<HashSet<&str>>,
-    ) -> f64 {
-        let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
-
-        let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
-        let term2_set = expand_term_using_closure(term2, &this_closure_map, predicates);
-
-        let intersection = term1_set.intersection(&term2_set).count() as f64;
-        let union = term1_set.union(&term2_set).count() as f64;
-        intersection / union
-    }
-
-    // get closure and ic map for a given set of predicates.
-    // if the closure and ic map for the given predicates doesn't exist, create them
-    fn get_closure_and_ic_map<'a>(
-        &'a mut self,
-        predicates: &'a Option<HashSet<&'a str>>,
-    ) -> (
-        HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>,
-        HashMap<&'a str, HashMap<&'a str, f64>>,
-    ) {
-        let predicate_set_key = predicate_set_to_key(predicates);
-        if !self.closure_map.contains_key(predicate_set_key)
-            || !self.ic_map.contains_key(predicate_set_key)
-        {
-            let (this_closure_map, this_ic_map) =
-                convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
-            self.closure_map.insert(
-                &*predicate_set_key,
-                this_closure_map.get(predicate_set_key).unwrap().clone(),
-            );
-            self.ic_map.insert(
-                &*predicate_set_key,
-                this_ic_map.get(&predicate_set_key).unwrap().clone(),
-            );
+impl From<RustSemsimian> for RustSemsimianWithStringReferences<'static> {
+    fn from(rss: RustSemsimian) -> Self {
+        Self {
+            spo: convert_vector_of_string_object_to_references(rss.spo),
+            ic_map: convert_map_of_map(&rss.ic_map),
+            closure_map: convert_map_of_map_of_set(&rss.closure_map),
         }
-        (self.closure_map.clone(), self.ic_map.clone())
     }
+
+    // fn jaccard_similarity(
+    //     &mut self,
+    //     term1: &str,
+    //     term2: &str,
+    //     predicates: &Option<HashSet<&str>>,
+    // ) -> f64 {
+    //     let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
+
+    //     let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
+    //     let term2_set = expand_term_using_closure(term2, &this_closure_map, predicates);
+
+    //     let intersection = term1_set.intersection(&term2_set).count() as f64;
+    //     let union = term1_set.union(&term2_set).count() as f64;
+    //     intersection / union
+    // }
 }
 
 #[pyclass]

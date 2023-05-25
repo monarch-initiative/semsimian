@@ -198,9 +198,9 @@ pub fn convert_map_of_map<'a>(
     new_map
 }
 
-pub fn convert_vector_of_string_object_to_references(
-    vector: &Vec<(String, String, String)>,
-) -> Vec<(&str, &str, &str)> {
+pub fn convert_vector_of_string_object_to_references<'a>(
+    vector: Vec<(String, String, String)>,
+) -> Vec<(&'a str, &'a str, &'a str)> {
     let mut result = Vec::with_capacity(vector.len());
     for tuple in vector {
         // We can create string slice references '&' from owned strings 'String'
