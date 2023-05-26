@@ -138,6 +138,19 @@ fn common_ancestors(
         .collect()
 }
 
+// scores: maps ancestors to corresponding IC scores
+fn _mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
+    let mut max_ic = 0.0;
+    let mut mrca = None;
+
+    for (ancestor, ic) in scores.iter() {
+        if *ic > max_ic {
+            max_ic = *ic;
+            mrca = Some(ancestor.clone());
+        }
+    }
+    (mrca, max_ic)
+}
 
 #[cfg(test)]
 mod tests {
