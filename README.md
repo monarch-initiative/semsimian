@@ -122,4 +122,21 @@ $ conda activate myenv
 and then proceed as above.
 
 
+### Code Coverage via Docker
 
+Build a docker image:
+
+```
+docker build -t my-rust-app .
+```
+
+Run your tests inside a Docker container and generate coverage:
+```
+docker run -v "$(pwd)":/usr/src/app -t my-rust-app bash -c "CARGO_INCREMENTAL=0 RUSTFLAGS='-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort' cargo test && grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage/"
+```
+
+Get Coverage report from:
+```
+open ./target/debug/coverage/index.html
+
+```
