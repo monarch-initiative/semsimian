@@ -150,9 +150,9 @@ impl Semsimian {
         object_terms: HashSet<TermID>,
         predicates: Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
-        self.ss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
+        self.ss
+            .all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
     }
-
 }
 
 #[pymodule]
