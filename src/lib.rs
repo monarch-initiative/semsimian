@@ -1,9 +1,7 @@
-use std::{
-    collections::{HashMap, HashSet},
-};
 use pyo3::prelude::*;
-pub mod utils;
+use std::collections::{HashMap, HashSet};
 pub mod similarity;
+pub mod utils;
 
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
 use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure, predicate_set_to_key};
@@ -17,7 +15,6 @@ pub struct RustSemsimian {
 
     ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     // ic_map is something like {('is_a_+_part_of'), {'GO:1234': 1.234}}
-
     closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     // closure_map is something like {('is_a_+_part_of'), {'GO:1234': {'GO:1234', 'GO:5678'}}}
 }
@@ -27,7 +24,6 @@ impl RustSemsimian {
     // TODO: also, we should support loading 'custom' ic
     // TODO: also also, we should use str's instead of String
     pub fn new(spo: Vec<(TermID, Predicate, TermID)>) -> RustSemsimian {
-
         RustSemsimian {
             spo,
             ic_map: HashMap::new(),
@@ -35,7 +31,12 @@ impl RustSemsimian {
         }
     }
 
-    pub fn jaccard_similarity(&mut self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
+    pub fn jaccard_similarity(
+        &mut self,
+        term1: &str,
+        term2: &str,
+        predicates: &Option<HashSet<Predicate>>,
+    ) -> f64 {
         let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
 
         let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
@@ -46,7 +47,12 @@ impl RustSemsimian {
         intersection / union
     }
 
-    pub fn resnik_similarity(&self, term1: &TermID, term2: &TermID, predicates: &Option<HashSet<Predicate>>) -> f64 {
+    pub fn resnik_similarity(
+        &self,
+        term1: &str,
+        term2: &str,
+        predicates: &Option<HashSet<Predicate>>,
+    ) -> f64 {
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
     }
 
@@ -81,13 +87,27 @@ impl RustSemsimian {
     }
 
     // get closure and ic map for a given set of predicates. if the closure and ic map for the given predicates doesn't exist, create them
-    fn get_closure_and_ic_map(&mut self, predicates: &Option<HashSet<Predicate>>) ->
-            (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
+    fn get_closure_and_ic_map(
+        &mut self,
+        predicates: &Option<HashSet<Predicate>>,
+    ) -> (
+        HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+        HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    ) {
         let predicate_set_key = predicate_set_to_key(&predicates);
-        if !self.closure_map.contains_key(&predicate_set_key) || !self.ic_map.contains_key(&predicate_set_key) {
-            let (this_closure_map, this_ic_map) = convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
-            self.closure_map.insert(predicate_set_key.clone(), this_closure_map.get(&predicate_set_key).unwrap().clone());
-            self.ic_map.insert(predicate_set_key.clone(), this_ic_map.get(&predicate_set_key).unwrap().clone());
+        if !self.closure_map.contains_key(&predicate_set_key)
+            || !self.ic_map.contains_key(&predicate_set_key)
+        {
+            let (this_closure_map, this_ic_map) =
+                convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
+            self.closure_map.insert(
+                predicate_set_key.clone(),
+                this_closure_map.get(&predicate_set_key).unwrap().clone(),
+            );
+            self.ic_map.insert(
+                predicate_set_key.clone(),
+                this_ic_map.get(&predicate_set_key).unwrap().clone(),
+            );
         }
         (self.closure_map.clone(), self.ic_map.clone())
     }
@@ -106,11 +126,21 @@ impl Semsimian {
         Ok(Semsimian { ss })
     }
 
-    fn jaccard_similarity(&mut self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
+    fn jaccard_similarity(
+        &mut self,
+        term1: TermID,
+        term2: TermID,
+        predicates: Option<HashSet<Predicate>>,
+    ) -> PyResult<f64> {
         Ok(self.ss.jaccard_similarity(&term1, &term2, &predicates))
     }
 
-    fn resnik_similarity(&mut self, term1: TermID, term2: TermID, predicates: Option<HashSet<Predicate>>) -> PyResult<f64> {
+    fn resnik_similarity(
+        &mut self,
+        term1: TermID,
+        term2: TermID,
+        predicates: Option<HashSet<Predicate>>,
+    ) -> PyResult<f64> {
         Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
     }
 
@@ -130,7 +160,6 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Semsimian>()?;
     Ok(())
 }
-
 
 //TODO: Test the lib module.
 #[cfg(test)]
