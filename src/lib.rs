@@ -58,11 +58,13 @@ impl RustSemsimian {
 
     // TODO: make this predicate aware, and make it work with the new closure map
     pub fn phenomizer_score(
-        map: HashMap<String, HashMap<String, f64>>,
+        closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+        ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
         entity1: HashSet<String>,
         entity2: HashSet<String>,
+        predicates: &Option<HashSet<Predicate>>,
     ) -> PyResult<f64> {
-        Ok(calculate_phenomizer_score(map, entity1, entity2))
+        Ok(calculate_phenomizer_score(closure_map, ic_map, entity1, entity2, predicates))
     }
 
     // get closure and ic map for a given set of predicates. if the closure and ic map for the given predicates doesn't exist, create them
