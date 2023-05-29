@@ -146,27 +146,6 @@ pub fn expand_term_using_closure(
     ancestors
 }
 
-// pub fn expand_term_using_closure(
-//     term: &TermID,
-//     closure_table: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-//     predicates: &Option<HashSet<Predicate>>,
-// ) -> HashSet<TermID> {
-//     let mut ancestors: HashSet<String> = HashSet::new();
-//     ancestors.insert(term.clone()); // Insert the term itself to the set
-//     let this_predicate_set_key = predicate_set_to_key(predicates);
-
-//     for (closure_predicate_key, closure_map) in closure_table.iter() {
-//         if *closure_predicate_key == this_predicate_set_key {
-//             if let Some(ancestors_for_predicates) = closure_map.get(term) {
-//                 ancestors.extend(ancestors_for_predicates.clone());
-//             }
-//         }
-//     }
-//     ancestors
-// }
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

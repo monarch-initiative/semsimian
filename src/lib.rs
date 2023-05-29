@@ -4,6 +4,9 @@ use std::{
 
 use pyo3::prelude::*;
 pub mod utils;
+
+mod test_utils;
+
 pub mod similarity;
 use std::fmt;
 
@@ -11,9 +14,10 @@ use std::fmt;
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
 use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure, predicate_set_to_key};
 
-pub type Predicate = String; // change to pub cause of integration test, can be reverted if needed
-type TermID = String;
-type PredicateSetKey = String;
+// change to "pub" because it is easier for testing
+pub type Predicate = String; 
+pub type TermID = String;
+pub type PredicateSetKey = String;
 
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
@@ -128,108 +132,52 @@ mod tests {
 
     #[test]
     fn test_jaccard_similarity_jaha() {
-            let spo = vec![
-        ("apple".to_string(), "related_to".to_string(), "apple".to_string()),
-        ("apple".to_string(), "related_to".to_string(), "banana".to_string()),
-        ("banana".to_string(), "related_to".to_string(), "banana".to_string()),
-        ("banana".to_string(), "related_to".to_string(), "orange".to_string()),
-        ("orange".to_string(), "related_to".to_string(), "orange".to_string()),
-        ("orange".to_string(), "related_to".to_string(), "pear".to_string()),
-        ("pear".to_string(), "related_to".to_string(), "pear".to_string()),
-        ("pear".to_string(), "related_to".to_string(), "kiwi".to_string()),
-    ];
-
+        let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
         let predicates: Option<HashSet<Predicate>> = Some(
             vec!["related_to"].into_iter().map(|s| s.to_string()).collect()
         );
-
-
-        let mut ss = RustSemsimian::new(spo);
-
-
+        let mut ss = RustSemsimian::new(spo_cloned);
         let (closure_table3, _) = ss.get_closure_and_ic_map(&predicates);
         println!("Closure table for ss  {:?}", closure_table3);
-
-        // closure table equals the one in similarity.rs
-
-        //Closure table for ss2 {"+related_to": {"apple": {"banana", "apple"}, "banana": {"orange", "banana"}, "pear": {"kiwi", "pear"}, "orange": {"orange", "pear"}}}
-        
-
+        //Closure table: {"+related_to": {"apple": {"banana", "apple"}, "banana": {"orange", "banana"}, "pear": {"kiwi", "pear"}, "orange": {"orange", "pear"}}}
         let term1 = "apple".to_string();
         let term2 = "banana".to_string();
-
         let sim = ss.jaccard_similarity(&term1, &term2, &predicates);
-
         assert_eq!(sim, 1.0 / 3.0);
     }
 
 
     #[test]
     fn test_get_closure_and_ic_map() {
-        let spo = vec![
-        ("apple".to_string(), "related_to".to_string(), "apple".to_string()),
-        ("apple".to_string(), "related_to".to_string(), "banana".to_string()),
-        ("banana".to_string(), "related_to".to_string(), "banana".to_string()),
-        ("banana".to_string(), "related_to".to_string(), "orange".to_string()),
-        ("orange".to_string(), "related_to".to_string(), "orange".to_string()),
-        ("orange".to_string(), "related_to".to_string(), "pear".to_string()),
-        ("pear".to_string(), "related_to".to_string(), "pear".to_string()),
-        ("pear".to_string(), "related_to".to_string(), "kiwi".to_string()),
-    ];
-
-
-        let mut semsimian = RustSemsimian::new(spo);
+        let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
+        let mut semsimian = RustSemsimian::new(spo_cloned);
         println!("semsimian after initialization: {:?}", semsimian);
-
-
         let test_predicates: Option<HashSet<Predicate>> = Some(
             vec!["related_to"].into_iter().map(|s| s.to_string()).collect()
         );
-
         let (closure_map, ic_map) = semsimian.get_closure_and_ic_map(&test_predicates);
         println!("Closure_map from semsimian {:?}", closure_map);
-        // Closure_map from semsimian {"+related_to": {"orange": {"orange", "pear"}, "pear": {"pear", "kiwi"}, "apple": {"apple", "banana"}, "banana": {"banana", "orange"}}}
-
-
+        // Closure_table: {"+related_to": {"orange": {"orange", "pear"}, "pear": {"pear", "kiwi"}, "apple": {"apple", "banana"}, "banana": {"banana", "orange"}}}
         println!("ic_map from semsimian  {:?}", ic_map);
-        // ic_map from semsimian  {"+related_to": {"apple": 2.415037499278844, "banana": 2.0, "orange": 2.0, "kiwi": 4.0, "pear": 2.0}}
-
-
+        // ic_map:  {"+related_to": {"apple": 2.415037499278844, "banana": 2.0, "orange": 2.0, "kiwi": 4.0, "pear": 2.0}}
         assert!(!closure_map.is_empty());
         assert!(!ic_map.is_empty());
     }
 
     #[test]
     fn test_resnik_similarity() {
-        let triples = vec![
-        ("apple".to_string(), "related_to".to_string(), "apple".to_string()),
-        ("apple".to_string(), "related_to".to_string(), "banana".to_string()),
-        ("banana".to_string(), "related_to".to_string(), "banana".to_string()),
-        ("banana".to_string(), "related_to".to_string(), "orange".to_string()),
-        ("orange".to_string(), "related_to".to_string(), "orange".to_string()),
-        ("orange".to_string(), "related_to".to_string(), "pear".to_string()),
-        ("pear".to_string(), "related_to".to_string(), "pear".to_string()),
-        ("pear".to_string(), "related_to".to_string(), "kiwi".to_string()),
-    ];
-        let mut rs = RustSemsimian::new(triples);
-
-
+        let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
+        let mut rs = RustSemsimian::new(spo_cloned);
         let predicates: Option<HashSet<String>> = Some(
             vec!["related_to".to_string()]
             .into_iter()
             .collect()
         );
-
         let (closure_map, ic_map) = rs.get_closure_and_ic_map(&predicates);
         println!("Closure_map from semsimian {:?}", closure_map);
-
-
-        // Resnik similarity between apple and banana should be non-zero as they are related
         let sim = rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
         println!("Do the print{}", sim);
         assert!(sim > 0.0);
-
-        // Resnik similarity between apple and itself should be 1
         let sim2 = rs.resnik_similarity(&"apple".to_string(), &"apple".to_string(), &predicates);
         println!("DO THE print{}", sim2);
         assert_eq!(sim2, 2.415037499278844);
