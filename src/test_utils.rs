@@ -85,6 +85,42 @@ pub mod test_constants {
         closure_map
       };
 
+      pub static ref ALL_NO_PRED_MAP: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = {
+        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+
+              // closure map looks like this:
+        // _all -> apple -> apple, banana
+        //             -> banana -> banana, orange
+        //             -> orange -> orange, pear
+        //             -> pear -> pear, kiwi
+
+        
+        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+        let mut set: HashSet<TermID> = HashSet::new();
+        set.insert(String::from("apple"));
+        set.insert(String::from("banana"));
+        map.insert(String::from("apple"), set);
+
+        let mut set: HashSet<TermID> = HashSet::new();
+        set.insert(String::from("banana"));
+        set.insert(String::from("orange"));
+        map.insert(String::from("banana"), set);
+
+        let mut set: HashSet<TermID> = HashSet::new();
+        set.insert(String::from("orange"));
+        set.insert(String::from("pear"));
+        map.insert(String::from("orange"), set);
+
+        let mut set: HashSet<TermID> = HashSet::new();
+        set.insert(String::from("pear"));
+        set.insert(String::from("kiwi"));
+        map.insert(String::from("pear"), set);
+
+        closure_map.insert(String::from("_all"), map);
+        closure_map
+      };
+
       pub static ref SPO_FRUITS: Vec<(TermID, Predicate, TermID)> = {
                    // turns into closure map like this:
         // +related_to -> apple -> apple, banana

@@ -1,7 +1,6 @@
 use crate::{utils::expand_term_using_closure, utils::predicate_set_to_key};
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
-
 use crate::PredicateSetKey;
 use crate::TermID;
 use crate::Predicate;
@@ -279,7 +278,7 @@ mod tests {
         let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
         let mut related_to_predicate: HashSet<Predicate> = HashSet::new();
         related_to_predicate.insert(String::from("related_to"));
-        // the closure set for "apple" includes both "apple" and "banana", and the closure set for "banana" includes "banana" and "orange". The intersection of these two sets is {"banana"}, and the union is {"apple", "banana", "orange"}, so the Jaccard similarity would be 1 / 3 ≈ 0.33.
+        // the closure set for "apple" includes both "apple" and "banana", and the closure set for "banana" includes "banana" and "orange". The intersection of these two sets is {"banana"}, and the union is {"apple", "banana", "orange"}, so the Jaccard similarity would be 1 / 3 ≈ 0.33
         let result = calculate_semantic_jaccard_similarity(
             &FRUIT_CLOSURE_MAP,
             String::from("apple"),
@@ -301,7 +300,7 @@ mod tests {
         // NO predicates (should be the same as above)
         let no_predicate: Option<HashSet<Predicate>> = None;
         let result2 = calculate_semantic_jaccard_similarity(
-            &FRUIT_CLOSURE_MAP,
+            &ALL_NO_PRED_MAP,
             String::from("banana"),
             String::from("orange"),
             &no_predicate);

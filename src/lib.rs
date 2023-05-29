@@ -131,11 +131,12 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn test_jaccard_similarity_jaha() {
+    fn test_jaccard_similarity() {
         let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
         let predicates: Option<HashSet<Predicate>> = Some(
             vec!["related_to"].into_iter().map(|s| s.to_string()).collect()
         );
+        let no_predicates: Option<HashSet<Predicate>> = None;
         let mut ss = RustSemsimian::new(spo_cloned);
         let (closure_table3, _) = ss.get_closure_and_ic_map(&predicates);
         println!("Closure table for ss  {:?}", closure_table3);
@@ -143,7 +144,11 @@ mod tests {
         let term1 = "apple".to_string();
         let term2 = "banana".to_string();
         let sim = ss.jaccard_similarity(&term1, &term2, &predicates);
+        let sim2 = ss.jaccard_similarity(&term1, &term2, &no_predicates);
+
         assert_eq!(sim, 1.0 / 3.0);
+        assert_eq!(sim2, 1.0 / 3.0);
+
     }
 
 
