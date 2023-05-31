@@ -1,5 +1,6 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::{HashMap, HashSet};
+use crate::ClosureAndICMap;
 
 type Predicate = String;
 type TermID = String;
@@ -78,10 +79,7 @@ pub fn _stringify_sets_using_map(
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
     predicates: &Option<HashSet<String>>,
-) -> (
-    HashMap<String, HashMap<String, HashSet<String>>>,
-    HashMap<String, HashMap<String, f64>>,
-) {
+) -> ClosureAndICMap {
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
     let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
@@ -128,7 +126,10 @@ pub fn convert_list_of_tuples_to_hashmap(
             .insert(k.clone(), -(*v as f64 / total_count as f64).log2());
     }
 
-    (closure_map, ic_map)
+    ClosureAndICMap {
+        closure_map,
+        ic_map,
+    }
 }
 
 pub fn expand_term_using_closure(
@@ -275,9 +276,9 @@ mod tests {
 
         let predicates_is_a: Option<HashSet<Predicate>> =
             Some(["is_a"].iter().map(|&s| s.to_string()).collect());
-        let (closure_map_is_a, _) =
+        let closure_and_ic_map_is_a =
             convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a);
-        assert_eq!(expected_closure_map_is_a, closure_map_is_a);
+        assert_eq!(expected_closure_map_is_a, closure_and_ic_map_is_a.closure_map);
 
         // test closure_map for is_a + part_of predicates
         let expected_closure_map_is_a_plus_part_of: HashMap<
@@ -309,11 +310,11 @@ mod tests {
 
         let predicates_is_a_plus_part_of: Option<HashSet<Predicate>> =
             Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
-        let (closure_map_is_a_plus_part_of, ic_map) =
+        let closure_ic_map_is_a_plus_part_of: ClosureAndICMap =
             convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a_plus_part_of);
         assert_eq!(
             expected_closure_map_is_a_plus_part_of,
-            closure_map_is_a_plus_part_of
+            closure_ic_map_is_a_plus_part_of.closure_map
         );
 
         let expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = {
@@ -341,7 +342,7 @@ mod tests {
             expected_ic_map_is_a_plus_part_of
         };
 
-        assert_eq!(ic_map, expected_ic_map_is_a_plus_part_of);
+        assert_eq!(closure_ic_map_is_a_plus_part_of.ic_map, expected_ic_map_is_a_plus_part_of);
     }
 
     #[test]

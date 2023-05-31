@@ -79,15 +79,15 @@ impl RustSemsimian {
         if !self.closure_map.contains_key(&predicate_set_key)
             || !self.ic_map.contains_key(&predicate_set_key)
         {
-            let (this_closure_map, this_ic_map) =
-                convert_list_of_tuples_to_hashmap(&self.spo, predicates);
+            // let (this_closure_map, this_ic_map) =
+            let closure_and_ic_map: ClosureAndICMap = convert_list_of_tuples_to_hashmap(&self.spo, predicates);
             self.closure_map.insert(
                 predicate_set_key.clone(),
-                this_closure_map.get(&predicate_set_key).unwrap().clone(),
+                closure_and_ic_map.closure_map.get(&predicate_set_key).unwrap().clone(),
             );
             self.ic_map.insert(
                 predicate_set_key.clone(),
-                this_ic_map.get(&predicate_set_key).unwrap().clone(),
+                closure_and_ic_map.ic_map.get(&predicate_set_key).unwrap().clone(),
             );
         }
 
