@@ -28,10 +28,16 @@ jobs:
         target: 'x86_64'
         manylinux: auto
         args: --release --out dist -i ${{ matrix.python-version }}
-    - name: Install built wheel and run Python tests
+    - name: Install built wheel and run all tests (Rust and Python)
       run: |
         pip install semsimian --no-index --find-links dist --force-reinstall
-        pip install pytest
-        # pytest
-    - name: Run Rust tests (cargo test)
-      run: cargo test
+        pip install pytest pytest-cov
+        cargo install cargo-llvm-cov
+        maturin develop
+        cargo llvm-cov show-env --export-prefix
+        cargo llvm-cov clean --workspace
+        
+        cargo test
+        cargo llvm-cov --lcov --output-path coverage.lcov
+        genhtml -o output-dir coverage.lcov
+        pytest python/tests --cov-report xml
