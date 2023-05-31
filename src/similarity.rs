@@ -71,10 +71,13 @@ pub fn pairwise_entity_resnik_score(
     let mut entity1_to_entity2_sum_resnik_sim = 0.0;
 
     for e1_term in entity1.clone().into_iter() {
-        let max_resnik_sim_e1_e2 = 0.0;
+        let mut max_resnik_sim_e1_e2 = 0.0;
         for e2_term in entity2.clone().into_iter() {
             // NB: this will definitely fail if the term is not in the map
-            calculate_max_information_content(closure_map, ic_map, &e1_term, &e2_term, &predicates);
+            let this_resnik = calculate_max_information_content(closure_map, ic_map, &e1_term, &e2_term, &predicates);
+            if this_resnik > max_resnik_sim_e1_e2 {
+                max_resnik_sim_e1_e2 = this_resnik;
+            }
         }
         entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
     }
