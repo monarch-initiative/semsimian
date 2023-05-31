@@ -13,26 +13,26 @@ pub fn calculate_semantic_jaccard_similarity(
     predicates: &Option<HashSet<String>>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
-    let entity1_closure = expand_term_using_closure(entity1, closure_table, &predicates);
-    let entity2_closure = expand_term_using_closure(entity2, closure_table, &predicates);
-    let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
-    jaccard
+    let entity1_closure = expand_term_using_closure(entity1, closure_table, predicates);
+    let entity2_closure = expand_term_using_closure(entity2, closure_table, predicates);
+    
+    calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure)
 }
 
 pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
-    let intersection = set1.intersection(&set2).count();
-    let union_measure = set1.union(&set2).count();
-    let jaccard = intersection as f64 / union_measure as f64;
-    jaccard
+    let intersection = set1.intersection(set2).count();
+    let union_measure = set1.union(set2).count();
+    
+    intersection as f64 / union_measure as f64
 }
 
 pub fn calculate_jaccard_similarity(set1: &HashSet<i32>, set2: &HashSet<i32>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
-    let intersection = set1.intersection(&set2).count();
-    let union_measure = set1.union(&set2).count();
-    let jaccard = intersection as f64 / union_measure as f64;
-    jaccard
+    let intersection = set1.intersection(set2).count();
+    let union_measure = set1.union(set2).count();
+    
+    intersection as f64 / union_measure as f64
 }
 
 pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> (String, f64) {
@@ -56,7 +56,7 @@ pub fn calculate_phenomizer_score(
     let entity2_to_entity1_average_resnik_sim: f64 =
         pairwise_entity_resnik_score(&map, &entity2, &entity1);
     // return the average of the two
-    return (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0;
+    (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0
 }
 
 pub fn pairwise_entity_resnik_score(
@@ -79,7 +79,7 @@ pub fn pairwise_entity_resnik_score(
     }
     let entity1_to_entity2_average_resnik_sim =
         entity1_to_entity2_sum_resnik_sim / entity1.len() as f64;
-    return entity1_to_entity2_average_resnik_sim;
+    entity1_to_entity2_average_resnik_sim
 }
 
 pub fn calculate_max_information_content(
@@ -91,7 +91,7 @@ pub fn calculate_max_information_content(
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
     let filtered_common_ancestors: Vec<String> =
-        common_ancestors(closure_map, &entity1, &entity2, &predicates);
+        common_ancestors(closure_map, entity1, entity2, predicates);
 
     let predicate_set_key = predicate_set_to_key(predicates);
 

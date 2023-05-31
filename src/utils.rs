@@ -20,7 +20,7 @@ pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> Predicat
         vec_of_predicates.sort();
 
         for predicate in vec_of_predicates {
-            result.push_str("+");
+            result.push('+');
             result.push_str(&predicate);
         }
     }
@@ -47,10 +47,10 @@ pub fn numericize_sets(
 
     for (k, v) in union_set_hashmap.iter() {
         if set1.contains(v) {
-            num_set1.insert(k.clone());
+            num_set1.insert(*k);
         }
         if set2.contains(v) {
-            num_set2.insert(k.clone());
+            num_set2.insert(*k);
         }
     }
     (num_set1, num_set2, union_set_hashmap)
