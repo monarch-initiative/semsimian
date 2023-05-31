@@ -22,7 +22,6 @@ pub struct RustSemsimian {
 impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
     // TODO: also, we should support loading 'custom' ic
-    // TODO: also also, we should use str's instead of String
     pub fn new(spo: Vec<(TermID, Predicate, TermID)>) -> RustSemsimian {
         RustSemsimian {
             spo,
