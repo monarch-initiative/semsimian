@@ -30,16 +30,23 @@ jobs:
         args: --release --out dist -i ${{ matrix.python-version }}
     - name: Install built wheel and run all tests (Rust and Python)
       run: |
+        # Set up
         pip install semsimian --no-index --find-links dist --force-reinstall
         pip install pytest pytest-cov
         cargo install cargo-llvm-cov
         cargo llvm-cov show-env --export-prefix
         cargo llvm-cov clean --workspace
+        sudo apt-get install -y lcov
         
-        cargo test
+        # the following command runs all rust tests, just like cargo test
         cargo llvm-cov --lcov --output-path coverage.lcov
+
+        # convert the coverage report to more readable html
         genhtml -o output coverage.lcov
+
+        # run python tests
         pytest python/tests --cov-report xml
+        
     - name: Archive coverage reports
       uses: actions/upload-artifact@v3
       with:
