@@ -259,8 +259,8 @@ mod tests {
         // the closure set for "apple" includes both "apple" and "banana", and the closure set for "banana" includes "banana" and "orange". The intersection of these two sets is {"banana"}, and the union is {"apple", "banana", "orange"}, so the Jaccard similarity would be 1 / 3 ≈ 0.33
         let result = calculate_semantic_jaccard_similarity(
             &FRUIT_CLOSURE_MAP,
-            String::from("apple"),
-            String::from("banana"),
+            "apple",
+            "banana",
             &Some(related_to_predicate.clone()),
         );
         println!("{result}");
@@ -268,8 +268,8 @@ mod tests {
 
         let result2 = calculate_semantic_jaccard_similarity(
             &FRUIT_CLOSURE_MAP,
-            String::from("banana"),
-            String::from("orange"),
+            "banana",
+            "orange",
             &Some(related_to_predicate.clone()),
         );
         println!("{result2}");
@@ -279,8 +279,8 @@ mod tests {
         let no_predicate: Option<HashSet<Predicate>> = None;
         let result2 = calculate_semantic_jaccard_similarity(
             &ALL_NO_PRED_MAP,
-            String::from("banana"),
-            String::from("orange"),
+            "banana",
+            "orange",
             &no_predicate);
         println!("{result2}");
         assert_eq!(result2, 1.0 / 3.0);
