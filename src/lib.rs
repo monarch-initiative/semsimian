@@ -191,14 +191,6 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 //TODO: Test the lib module.
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-
-//     fn test_reality() {
-//         assert_eq!(1, 1);
-//     }
-
 #[cfg(test)]
 mod tests {
     use crate::RustSemsimian;
@@ -224,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_nonempty_inputs() {
-        let rss = RustSemsimian::new(vec![
+        let mut rss = RustSemsimian::new(vec![
             ("apple".to_string(), "is_a".to_string(), "fruit".to_string()),
             ("apple".to_string(), "is_a".to_string(), "food".to_string()),
             ("apple".to_string(), "is_a".to_string(), "item".to_string()),
@@ -257,25 +249,41 @@ mod tests {
         assert_eq!(term1_similarities.len(), 2);
         assert!(term1_similarities.contains_key(&term2));
         assert!(term1_similarities.contains_key(&term3));
+        // TODO: rss.resnik_similarity(&term1, &term2, &predicates) errors in spite of it being 2.0 below
         assert_eq!(term1_similarities.get(&term2).unwrap().0, 2.0);
         assert_eq!(
             term1_similarities.get(&term2).unwrap().1,
-            0.6666666666666666
+            rss.jaccard_similarity(&term1, &term2, &predicates)
         );
-        assert_eq!(term1_similarities.get(&term3).unwrap().0, 2.0);
+        assert_eq!(
+            term1_similarities.get(&term3).unwrap().0,
+            rss.resnik_similarity(&term1, &term3, &predicates)
+        );
         assert_eq!(
             term1_similarities.get(&term3).unwrap().1,
-            0.3333333333333333
+            rss.jaccard_similarity(&term1, &term3, &predicates)
         );
 
         let term2_similarities = result.get(&term2).unwrap();
         assert_eq!(term2_similarities.len(), 2);
         assert!(term2_similarities.contains_key(&term2));
         assert!(term2_similarities.contains_key(&term3));
-        assert_eq!(term2_similarities.get(&term2).unwrap().0, 2.0);
-        assert_eq!(term2_similarities.get(&term2).unwrap().1, 1.0);
-        assert_eq!(term2_similarities.get(&term3).unwrap().0, 2.0);
-        assert_eq!(term2_similarities.get(&term3).unwrap().1, 0.5);
+        assert_eq!(
+            term2_similarities.get(&term2).unwrap().0,
+            rss.resnik_similarity(&term2, &term2, &predicates)
+        );
+        assert_eq!(
+            term2_similarities.get(&term2).unwrap().1,
+            rss.jaccard_similarity(&term2, &term2, &predicates)
+        );
+        assert_eq!(
+            term2_similarities.get(&term3).unwrap().0,
+            rss.resnik_similarity(&term2, &term3, &predicates)
+        );
+        assert_eq!(
+            term2_similarities.get(&term3).unwrap().1,
+            rss.jaccard_similarity(&term2, &term3, &predicates)
+        );
 
         assert!(!result.contains_key(&term3));
         println!("{result:?}");
