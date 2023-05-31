@@ -39,5 +39,12 @@ jobs:
         
         cargo test
         cargo llvm-cov --lcov --output-path coverage.lcov
-        genhtml -o output-dir coverage.lcov
+        genhtml -o output coverage.lcov
         pytest python/tests --cov-report xml
+    - name: Archive coverage reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-reports
+        path: |
+          output
+          coverage.lcov
