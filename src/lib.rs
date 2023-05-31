@@ -123,12 +123,12 @@ impl RustSemsimian {
         HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
         HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     ) {
-        let predicate_set_key = predicate_set_to_key(&predicates);
+        let predicate_set_key = predicate_set_to_key(predicates);
         if !self.closure_map.contains_key(&predicate_set_key)
             || !self.ic_map.contains_key(&predicate_set_key)
         {
             let (this_closure_map, this_ic_map) =
-                convert_list_of_tuples_to_hashmap(&self.spo, &predicates);
+                convert_list_of_tuples_to_hashmap(&self.spo, predicates);
             self.closure_map.insert(
                 predicate_set_key.clone(),
                 this_closure_map.get(&predicate_set_key).unwrap().clone(),
