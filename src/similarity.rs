@@ -164,91 +164,47 @@ mod tests {
     use std::collections::{HashMap, HashSet};
     use crate::test_utils::test_constants::*;
 
-    
+
+
     #[test]
-    fn test_semantic_jaccard_similarity() {
-        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
-            HashMap::new();
-
-        // closure map looks like this:
-        // +subClassOf -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
-        //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
-        //             -> BFO:0000003 -> BFO:0000003
-        //             -> BFO:0000004 -> BFO:0000004
-
-        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
-        let mut set: HashSet<TermID> = HashSet::new();
-        set.insert(String::from("CARO:0000000"));
-        set.insert(String::from("BFO:0000002"));
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("CARO:0000000"), set);
-
-        let mut set: HashSet<String> = HashSet::new();
-        set.insert(String::from("BFO:0000002"));
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("BFO:0000002"), set);
-
-        let mut set: HashSet<String> = HashSet::new();
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("BFO:0000003"), set);
-        closure_map.insert(String::from("+subClassOf"), map);
-
-        // make another closure map for subclassof + partof
-        // +partOf+subClassOf -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
-        //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
-        //             -> BFO:0000003 -> BFO:0000003, BFO:0000004 <- +partOf
-        //             -> BFO:0000004 -> BFO:0000004
-        let mut closure_map2: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
-            HashMap::new();
-        closure_map2.insert(
-            String::from("+partOf+subClassOf"),
-            closure_map.get("+subClassOf").unwrap().clone(),
-        );
-        closure_map2
-            .get_mut("+partOf+subClassOf")
-            .unwrap()
-            .get_mut(&String::from("BFO:0000003"))
-            .unwrap()
-            .insert(String::from("BFO:0000004"));
-      
+    fn test_semantic_jaccard_similarity_new() {
         let mut sco_predicate: HashSet<Predicate> = HashSet::new();
         sco_predicate.insert(String::from("subClassOf"));
-    
+
         let result = calculate_semantic_jaccard_similarity(
-            &closure_map,
+            &*CLOSURE_MAP,
             "CARO:0000000",
             "BFO:0000002",
             &Some(sco_predicate.clone()),
         );
-    
-        println!("{result}");
+
+        println!("{:?}", result);
         assert_eq!(result, 2.0 / 3.0);
         
         // NO Predicate
         // let mut sco_no_predicate: HashSet<Predicate> = HashSet::new();
         let result2 = calculate_semantic_jaccard_similarity(
-            &closure_map,
+            &*CLOSURE_MAP,
             "BFO:0000002",
             "BFO:0000003",
             &Some(sco_predicate.clone()),
         );
-        println!("{result2}");
+        println!("{:?}", result2);
         assert_eq!(result2, 1.0 / 3.0);
-    
+
         let mut sco_po_predicate: HashSet<String> = HashSet::new();
         sco_po_predicate.insert(String::from("subClassOf"));
         sco_po_predicate.insert(String::from("partOf"));
-    
+
         let result3 = calculate_semantic_jaccard_similarity(
-            &closure_map2,
+            &*CLOSURE_MAP2,
             "BFO:0000002",
             "BFO:0000003",
             &Some(sco_po_predicate.clone()),
         );
-        println!("{result3}");
+        println!("{:?}", result3);
         assert_eq!(result3, 1.0 / 3.0);
     }
-
 
 
     #[test]
