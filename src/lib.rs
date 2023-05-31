@@ -83,22 +83,24 @@ impl RustSemsimian {
     // }
 
     pub fn all_by_all_pairwise_similarity(
-        &mut self,
+        &self,
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
         predicates: &Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
+        let self_shared = Arc::new(Mutex::new(self.clone()));
+
         let similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64)>> = subject_terms
             .par_iter() // parallelize computations
             .map(|subject| {
                 let mut subject_similarities: HashMap<TermID, (f64, f64)> = HashMap::new();
                 for object in object_terms.iter() {
-                    let mut self_clone = self.clone();
+                    let mut self_locked = self_shared.lock().unwrap();
                     let jaccard_sim = Arc::new(Mutex::new(
-                        self_clone.jaccard_similarity(subject, object, predicates),
+                        self_locked.jaccard_similarity(subject, object, predicates),
                     ));
                     let resnik_sim = Arc::new(Mutex::new(
-                        self_clone.resnik_similarity(subject, object, predicates),
+                        self_locked.resnik_similarity(subject, object, predicates),
                     ));
                     subject_similarities.insert(
                         object.clone(),
@@ -216,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_empty_inputs() {
-        let mut rss = RustSemsimian::new(vec![(
+        let rss = RustSemsimian::new(vec![(
             "apple".to_string(),
             "is_a".to_string(),
             "fruit".to_string(),
@@ -233,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_nonempty_inputs() {
-        let mut rss = RustSemsimian::new(vec![
+        let rss = RustSemsimian::new(vec![
             ("apple".to_string(), "is_a".to_string(), "fruit".to_string()),
             ("apple".to_string(), "is_a".to_string(), "food".to_string()),
             ("apple".to_string(), "is_a".to_string(), "item".to_string()),
