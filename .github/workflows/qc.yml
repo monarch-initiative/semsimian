@@ -11,8 +11,6 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 
 jobs:
 
@@ -55,6 +53,9 @@ jobs:
         pytest python/tests --cov-report xml
 
     - name: Store coverage reports on working branch
+      env:
+        BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
       run: |
         git add output/ coverage.lcov
         git commit -m "Update coverage report"
