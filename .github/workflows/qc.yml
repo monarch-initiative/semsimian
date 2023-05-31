@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
 
