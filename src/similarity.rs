@@ -77,9 +77,8 @@ pub fn pairwise_entity_resnik_score(
         }
         entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
     }
-    let entity1_to_entity2_average_resnik_sim =
-        entity1_to_entity2_sum_resnik_sim / entity1.len() as f64;
-    entity1_to_entity2_average_resnik_sim
+    
+    entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
 }
 
 pub fn calculate_max_information_content(
