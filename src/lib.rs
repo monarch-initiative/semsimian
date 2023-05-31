@@ -10,6 +10,11 @@ type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
 
+pub struct ClosureAndICMap {
+    pub closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    pub ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+}
+
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
 
@@ -37,10 +42,10 @@ impl RustSemsimian {
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> f64 {
-        let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
+        let closure_and_ic_map = self.get_closure_and_ic_map(predicates);
 
-        let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
-        let term2_set = expand_term_using_closure(term2, &this_closure_map, predicates);
+        let term1_set = expand_term_using_closure(term1, &closure_and_ic_map.closure_map, predicates);
+        let term2_set = expand_term_using_closure(term2, &closure_and_ic_map.closure_map, predicates);
 
         let intersection = term1_set.intersection(&term2_set).count() as f64;
         let union = term1_set.union(&term2_set).count() as f64;
@@ -69,10 +74,7 @@ impl RustSemsimian {
     fn get_closure_and_ic_map(
         &mut self,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> (
-        HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-        HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-    ) {
+    ) -> ClosureAndICMap {
         let predicate_set_key = predicate_set_to_key(predicates);
         if !self.closure_map.contains_key(&predicate_set_key)
             || !self.ic_map.contains_key(&predicate_set_key)
@@ -88,8 +90,13 @@ impl RustSemsimian {
                 this_ic_map.get(&predicate_set_key).unwrap().clone(),
             );
         }
-        (self.closure_map.clone(), self.ic_map.clone())
+
+        ClosureAndICMap {
+            closure_map: self.closure_map.clone(),
+            ic_map: self.ic_map.clone(),
+        }
     }
+
 }
 
 #[pyclass]
