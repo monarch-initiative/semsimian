@@ -351,15 +351,28 @@ mod tests {
         entity_one.insert(String::from("BFO:0000002")); // resnik of best match = 4
 
         let mut entity_two = HashSet::new();
-        entity_two.insert(String::from("BFO:0000003")); // resnik of best match = 3
+        entity_two.insert(String::from("BFO:0000003")); // resnik of best match = 3 (for subClassOf only, best match = 0)
         entity_two.insert(String::from("BFO:0000002")); // resnik of best match = 4
         entity_two.insert(String::from("CARO:0000000")); // resnik of best match = 5
 
-        let expected = ((5.0 + 4.0) / 2.0 + (3.0 + 4.0 + 5.0) / 3.0) / 2.0;
-
+        // test with just subClassOf predicate
+        let expected = ((5.0 + 4.0) / 2.0 + (0.0 + 4.0 + 5.0) / 3.0) / 2.0;
         let predicate_set = Some(HashSet::from([String::from("subClassOf")]));
-        let result = calculate_phenomizer_score(&closure_map, &ic_map, entity_one, entity_two, &predicate_set);
+        let result = calculate_phenomizer_score(&closure_map, &ic_map, entity_one.clone(), entity_two.clone(), &predicate_set);
         assert_eq!(result, expected);
+
+        // test with just partOf predicate
+        // TODO
+
+        // test with both subClassOf and partOf predicates
+        // TODO
+        let expected = ((5.0 + 4.0) / 2.0 + (3.0 + 4.0 + 5.0) / 3.0) / 2.0;
+        let predicate_set = Some(HashSet::from([String::from("subClassOf")]));
+        let result = calculate_phenomizer_score(&closure_map, &ic_map, entity_one.clone(), entity_two.clone(), &predicate_set);
+        assert_eq!(result, expected);
+
+        // test with no predicates set (that is, all predicates should be used)
+        // TODO
     }
 
     // TODO: test that closure map in Semsimian object is correct
