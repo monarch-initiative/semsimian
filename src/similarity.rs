@@ -8,13 +8,13 @@ use crate::Predicate;
 
 pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    entity1: String,
-    entity2: String,
+    entity1: &str,
+    entity2: &str,
     predicates: &Option<HashSet<String>>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
-    let entity1_closure = expand_term_using_closure(&entity1, closure_table, &predicates);
-    let entity2_closure = expand_term_using_closure(&entity2, closure_table, &predicates);
+    let entity1_closure = expand_term_using_closure(entity1, closure_table, &predicates);
+    let entity2_closure = expand_term_using_closure(entity2, closure_table, &predicates);
     let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
 
     println!("SIM: entity1_closure: {:?}", entity1_closure);
@@ -90,29 +90,31 @@ pub fn pairwise_entity_resnik_score(
 pub fn calculate_max_information_content(
     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-    entity1: &TermID,
-    entity2: &TermID,
-    predicates: &Option<HashSet<Predicate>>
+    entity1: &str,
+    entity2: &str,
+    predicates: &Option<HashSet<Predicate>>,
 ) -> f64 {
     // CODE TO CALCULATE MAX IC
     let filtered_common_ancestors: Vec<String> =
-        common_ancestors(&closure_map, &entity1, &entity2, &predicates);
+        common_ancestors(closure_map, &entity1, &entity2, &predicates);
 
     let predicate_set_key = predicate_set_to_key(predicates);
 
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
     for ancestor in filtered_common_ancestors.iter() {
-        if let Some(ic) = ic_map.get(&predicate_set_key).expect("Finding ancestor in ic map").get(ancestor) {
+        if let Some(ic) = ic_map
+            .get(&predicate_set_key)
+            .expect("Finding ancestor in ic map")
+            .get(ancestor)
+        {
             if *ic > max_ic {
                 max_ic = *ic;
-
             }
         }
     }
     // then return the String and f64 for the filtered_common_ancestors with the highest f64
     max_ic
-
 }
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
@@ -127,12 +129,10 @@ fn common_ancestors(
     // {"GO:5678": vec![('is_a', 'part_of')]: {['GO:3456', 'GO:7890']}}
 
     // {"GO:5678": 'is_a_+_part_of': {['GO:3456', 'GO:7890']}}
-
-    entity1: &TermID,
-    entity2: &TermID,
-    predicates: &Option<HashSet<Predicate>>
+    entity1: &str,
+    entity2: &str,
+    predicates: &Option<HashSet<Predicate>>,
 ) -> Vec<String> {
-
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
     let entity1_closure = expand_term_using_closure(entity1, closure_map, predicates);
     let entity2_closure = expand_term_using_closure(entity2, closure_map, predicates);
@@ -141,30 +141,6 @@ fn common_ancestors(
         .into_iter()
         .filter(|ancestor| entity2_closure.contains(ancestor))
         .collect()
-}
-
-fn _filter_ancestors_by_predicates(
-    // currently this is not used, but it might be useful in the future
-    ancestors: &HashMap<String, HashSet<String>>,
-    predicates: &Option<HashSet<String>>,
-) -> HashSet<String> {
-    match predicates {
-        Some(preds) => {
-            let mut filtered = HashSet::new();
-            for (predicate, entities) in ancestors {
-                if preds.contains(predicate) {
-                    for entity in entities {
-                        filtered.insert(entity.clone());
-                    }
-                }
-            }
-            filtered
-        }
-        None => ancestors
-            .values()
-            .flat_map(|entities| entities.iter().cloned())
-            .collect(),
-    }
 }
 
 // scores: maps ancestors to corresponding IC scores
@@ -181,48 +157,6 @@ fn _mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
     (mrca, max_ic)
 }
 
-// TODO: provide a way to specify 'bespoke' information contents for each term
-// for example, in a population of patients of interest
-fn _calculate_information_content_scores(
-    filtered_common_ancestors: &Vec<TermID>,
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    predicates: &Option<HashSet<String>>,
-) -> HashMap<String, f64> {
-    let (term_frequencies, corpus_size) =
-        calculate_term_frequencies_and_corpus_size(closure_table, predicates);
-
-    let mut ic_scores = HashMap::new();
-    for ancestor in filtered_common_ancestors {
-        if let Some(freq) = term_frequencies.get(ancestor) {
-            let probability = *freq as f64 / corpus_size as f64;
-            let ic = -probability.log2();
-            ic_scores.insert(ancestor.clone(), ic);
-        }
-    }
-    ic_scores
-}
-
-fn calculate_term_frequencies_and_corpus_size(
-    closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
-    predicates: &Option<HashSet<String>>,
-) -> (HashMap<String, usize>, usize) {
-    let mut term_frequencies = HashMap::new();
-    let mut corpus_size = 0;
-
-    for (_entity, predicate_map) in closure_table {
-        for (predicate, terms) in predicate_map {
-            if predicates.is_none() || predicates.as_ref().unwrap().contains(predicate) {
-                for term in terms {
-                    *term_frequencies.entry(term.clone()).or_insert(0) += 1;
-                }
-                corpus_size += terms.len();
-            }
-        }
-    }
-
-    (term_frequencies, corpus_size)
-}
-
 #[cfg(test)]
 mod tests {
     use crate::utils::numericize_sets;
@@ -233,13 +167,57 @@ mod tests {
     
     #[test]
     fn test_semantic_jaccard_similarity() {
+        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
+            HashMap::new();
+
+        // closure map looks like this:
+        // +subClassOf -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
+        //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
+        //             -> BFO:0000003 -> BFO:0000003
+        //             -> BFO:0000004 -> BFO:0000004
+
+        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+        let mut set: HashSet<TermID> = HashSet::new();
+        set.insert(String::from("CARO:0000000"));
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("CARO:0000000"), set);
+
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("BFO:0000002"), set);
+
+        let mut set: HashSet<String> = HashSet::new();
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("BFO:0000003"), set);
+        closure_map.insert(String::from("+subClassOf"), map);
+
+        // make another closure map for subclassof + partof
+        // +partOf+subClassOf -> CARO:0000000 -> CARO:0000000, BFO:0000002, BFO:0000003
+        //             -> BFO:0000002 -> BFO:0000002, BFO:0000003
+        //             -> BFO:0000003 -> BFO:0000003, BFO:0000004 <- +partOf
+        //             -> BFO:0000004 -> BFO:0000004
+        let mut closure_map2: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
+            HashMap::new();
+        closure_map2.insert(
+            String::from("+partOf+subClassOf"),
+            closure_map.get("+subClassOf").unwrap().clone(),
+        );
+        closure_map2
+            .get_mut("+partOf+subClassOf")
+            .unwrap()
+            .get_mut(&String::from("BFO:0000003"))
+            .unwrap()
+            .insert(String::from("BFO:0000004"));
+      
         let mut sco_predicate: HashSet<Predicate> = HashSet::new();
         sco_predicate.insert(String::from("subClassOf"));
     
         let result = calculate_semantic_jaccard_similarity(
-            &CLOSURE_MAP,
-            String::from("CARO:0000000"),
-            String::from("BFO:0000002"),
+            &closure_map,
+            "CARO:0000000",
+            "BFO:0000002",
             &Some(sco_predicate.clone()),
         );
     
@@ -249,9 +227,9 @@ mod tests {
         // NO Predicate
         // let mut sco_no_predicate: HashSet<Predicate> = HashSet::new();
         let result2 = calculate_semantic_jaccard_similarity(
-            &CLOSURE_MAP,
-            String::from("BFO:0000002"),
-            String::from("BFO:0000003"),
+            &closure_map,
+            "BFO:0000002",
+            "BFO:0000003",
             &Some(sco_predicate.clone()),
         );
         println!("{result2}");
@@ -262,9 +240,9 @@ mod tests {
         sco_po_predicate.insert(String::from("partOf"));
     
         let result3 = calculate_semantic_jaccard_similarity(
-            &CLOSURE_MAP2,
-            String::from("BFO:0000002"),
-            String::from("BFO:0000003"),
+            &closure_map2,
+            "BFO:0000002",
+            "BFO:0000003",
             &Some(sco_po_predicate.clone()),
         );
         println!("{result3}");
@@ -372,6 +350,48 @@ mod tests {
 
     #[test]
     fn test_calculate_max_information_content() {
+        let ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = [(
+            String::from("+subClassOf"),
+            [
+                (String::from("CARO:0000000"), 2.585),
+                (String::from("BFO:0000002"), 1.585),
+                (String::from("BFO:0000003"), 1.0),
+            ]
+            .iter()
+            .cloned()
+            .collect(),
+        )]
+        .iter()
+        .cloned()
+        .collect();
+
+        // closure map looks like this:
+        // {'subClassOf': {'CARO:0000000': {'CARO:0000000', 'BFO:0000002', 'BFO:0000003'},
+        //                 'BFO:0000002':  {'BFO:0000002', 'BFO:0000003'},
+        //                 'BFO:0000003':  {'BFO:0000003'}}}
+
+        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
+            HashMap::new();
+
+        let mut map: HashMap<PredicateSetKey, HashSet<TermID>> = HashMap::new();
+        let mut set: HashSet<TermID> = HashSet::new();
+        set.insert(String::from("CARO:0000000"));
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("CARO:0000000"), set.clone());
+        closure_map.insert(String::from("+subClassOf"), map.clone());
+
+        set.clear();
+        set.insert(String::from("BFO:0000002"));
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("BFO:0000002"), set.clone());
+        closure_map.insert(String::from("+subClassOf"), map.clone());
+
+        set.clear();
+        set.insert(String::from("BFO:0000003"));
+        map.insert(String::from("BFO:0000003"), set.clone());
+        closure_map.insert(String::from("+subClassOf"), map);
+
         // Term frequencies:
 
         // "CARO:0000000": 1

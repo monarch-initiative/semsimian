@@ -1,6 +1,8 @@
 # semsimian
 
-- Setup your virtual environment of choice.
+## Installation
+
+- Set up your virtual environment of choice.
 - cd `semsimian` (home directory of this project)
 - `pip install maturin`
 - `maturin develop`
@@ -9,102 +11,26 @@
 Python 3.9.16 (main, Jan 11 2023, 10:02:19) 
 [Clang 14.0.6 ] :: Anaconda, Inc. on darwin
 Type "help", "copyright", "credits" or "license" for more information.
->>> import semsimian
->>> semsimian.run("tests/data/test_set.tsv", "tests/data/closures.tsv")
+>>> from semsimian import Semsimian
+>>> s = Semsimian([('banana', 'is_a', 'fruit'), ('cherry', 'is_a', 'fruit')])
+>>> s.jaccard_similarity('banana', 'cherry')
 ```
-should yield
-```
-TermSetPairwiseSimilarity {
-    set_id: "set3",
-    original_subject_termset: {
-        "apple",
-        "orange",
-        "banana",
-    },
-    subject_termset: {
-        "fruit",
-        "orange",
-        "apple",
-        "tropical",
-        "banana",
-    },
-    original_object_termset: {
-        "mango",
-        "banana",
-        "cheese",
-        "papaya",
-        "beef",
-    },
-    object_termset: {
-        "mango",
-        "fruit",
-        "papaya",
-        "banana",
-        "cheese",
-        "beef",
-        "meat",
-        "dairy",
-        "tropical",
-    },
-    jaccard_similarity: 0.2727272727272727,
-}
-TermSetPairwiseSimilarity {
-    set_id: "set1",
-    original_subject_termset: {
-        "apple",
-        "orange",
-        "banana",
-    },
-    subject_termset: {
-        "fruit",
-        "orange",
-        "apple",
-        "tropical",
-        "banana",
-    },
-    original_object_termset: {
-        "apple",
-        "orange",
-        "banana",
-    },
-    object_termset: {
-        "orange",
-        "banana",
-        "apple",
-        "tropical",
-        "fruit",
-    },
-    jaccard_similarity: 1.0,
-}
-TermSetPairwiseSimilarity {
-    set_id: "set2",
-    original_subject_termset: {
-        "apple",
-        "orange",
-        "banana",
-    },
-    subject_termset: {
-        "fruit",
-        "orange",
-        "apple",
-        "tropical",
-        "banana",
-    },
-    original_object_termset: {
-        "mango",
-        "apple",
-        "papaya",
-    },
-    object_termset: {
-        "apple",
-        "fruit",
-        "papaya",
-        "mango",
-        "tropical",
-    },
-    jaccard_similarity: 0.42857142857142855,
-}
-```
+This should yield a value of 1.0.
+
+
+## Releases
+
+As of version 0.1.14, the semsimian source is released on GitHub, with a corresponding set of Python wheels released to Pypi.
+
+To trigger a new set of builds, first update the version number in `Cargo.toml`, then [create a new release](https://github.com/monarch-initiative/semsimian/releases/new).
+
+Wheels are prepared for the following environments and architectures:
+
+| OS      | Architectures                                                                            | Python Versions           |
+|---------|------------------------------------------------------------------------------------------|---------------------------|
+| Linux   | x86_64, x86_64-unknown-linux-musl, aarch64-unknown-linux-gnu, aarch64-unknown-linux-musl | 3.7, 3.8, 3.9, 3.10, 3.11 |
+| MacOS   | x86_64, universal2                                                                       | 3.7, 3.8, 3.9, 3.10, 3.11 |
+| Windows | x86_64                                                                                   | 3.7, 3.8, 3.9, 3.10, 3.11 |
 
 ## Troubleshooting
 
