@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
-    ops::Deref,
     sync::{Arc, Mutex},
 };
 pub mod similarity;
@@ -96,19 +95,9 @@ impl RustSemsimian {
                 let mut subject_similarities: HashMap<TermID, (f64, f64)> = HashMap::new();
                 for object in object_terms.iter() {
                     let mut self_locked = self_shared.lock().unwrap();
-                    let jaccard_sim = Arc::new(Mutex::new(
-                        self_locked.jaccard_similarity(subject, object, predicates),
-                    ));
-                    let resnik_sim = Arc::new(Mutex::new(
-                        self_locked.resnik_similarity(subject, object, predicates),
-                    ));
-                    subject_similarities.insert(
-                        object.clone(),
-                        (
-                            *resnik_sim.lock().unwrap().deref(),
-                            *jaccard_sim.lock().unwrap().deref(),
-                        ),
-                    );
+                    let jaccard_sim = self_locked.jaccard_similarity(subject, object, predicates);
+                    let resnik_sim = self_locked.resnik_similarity(subject, object, predicates);
+                    subject_similarities.insert(object.clone(), (resnik_sim, jaccard_sim));
                 }
                 (subject.clone(), subject_similarities)
             })
