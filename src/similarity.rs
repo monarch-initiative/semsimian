@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_semantic_jaccard_similarity_fruits() {
-        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+        let _closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
         let mut related_to_predicate: HashSet<Predicate> = HashSet::new();
         related_to_predicate.insert(String::from("related_to"));
         // the closure set for "apple" includes both "apple" and "banana", and the closure set for "banana" includes "banana" and "orange". The intersection of these two sets is {"banana"}, and the union is {"apple", "banana", "orange"}, so the Jaccard similarity would be 1 / 3 ≈ 0.33
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_calculate_max_information_content() {
-        let ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = [(
+        let _ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = [(
             String::from("+subClassOf"),
             [
                 (String::from("CARO:0000000"), 2.585),

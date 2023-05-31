@@ -196,7 +196,7 @@ mod tests {
             .into_iter()
             .collect()
         );
-        let (closure_map, ic_map) = rs.get_closure_and_ic_map(&predicates);
+        let (closure_map, _ic_map) = rs.get_closure_and_ic_map(&predicates);
         println!("Closure_map from semsimian {:?}", closure_map);
         let sim = rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
         println!("Do the print{}", sim);

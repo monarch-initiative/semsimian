@@ -51,7 +51,7 @@ pub mod test_constants {
 
       pub static ref FRUIT_CLOSURE_MAP: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = {
         let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
-        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+        let _map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
 
               // closure map looks like this:
         // +related_to -> apple -> apple, banana
@@ -87,7 +87,7 @@ pub mod test_constants {
 
       pub static ref ALL_NO_PRED_MAP: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = {
         let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
-        let mut map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
+        let _map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
 
               // closure map looks like this:
         // _all -> apple -> apple, banana

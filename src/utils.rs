@@ -346,7 +346,7 @@ mod tests {
         assert_eq!(ic_map, expected_ic_map_is_a_plus_part_of);
 
                 // Test closure map for None predicates
-        let expected_closure_map_none: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::from([
+        let _expected_closure_map_none: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::from([
             (
                 String::from("+is_a+part_of"),
                 HashMap::from([
