@@ -61,6 +61,4 @@ jobs:
         git config user.name "GitHub Action"
         git add output/ coverage.lcov
         git commit -m "Update coverage report"
-        git push origin/$BRANCH_NAME
-        
-
+        git push origin/$BRANCH_NAME HEAD:$BRANCH_NAME
