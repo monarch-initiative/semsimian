@@ -1,7 +1,7 @@
 import unittest
 from semsimian import Semsimian
 
-class testSemsimianWithPyhon(unittest.TestCase):
+class testSemsimianWithPython(unittest.TestCase):
     
   def setUp(self):
      spo = [
