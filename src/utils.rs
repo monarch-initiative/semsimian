@@ -20,7 +20,7 @@ pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> Predicat
         vec_of_predicates.sort();
 
         for predicate in vec_of_predicates {
-            result.push_str("+");
+            result.push('+');
             result.push_str(&predicate);
         }
     }
@@ -47,10 +47,10 @@ pub fn numericize_sets(
 
     for (k, v) in union_set_hashmap.iter() {
         if set1.contains(v) {
-            num_set1.insert(k.clone());
+            num_set1.insert(*k);
         }
         if set2.contains(v) {
-            num_set2.insert(k.clone());
+            num_set2.insert(*k);
         }
     }
     (num_set1, num_set2, union_set_hashmap)
@@ -191,13 +191,13 @@ mod tests {
         let set1: HashSet<i32> = HashSet::from([1, 2, 3, 4, 5]);
         let set2: HashSet<i32> = HashSet::from([3, 4, 5, 6, 7]);
         let map = HashMap::from([
-            (1 as i32, String::from("apple")),
-            (2 as i32, String::from("banana")),
-            (3 as i32, String::from("orange")),
-            (4 as i32, String::from("blueberry")),
-            (5 as i32, String::from("blackberry")),
-            (6 as i32, String::from("grapes")),
-            (7 as i32, String::from("fruits")),
+            (1_i32, String::from("apple")),
+            (2_i32, String::from("banana")),
+            (3_i32, String::from("orange")),
+            (4_i32, String::from("blueberry")),
+            (5_i32, String::from("blackberry")),
+            (6_i32, String::from("grapes")),
+            (7_i32, String::from("fruits")),
         ]);
         let (str_set1, str_set2) = _stringify_sets_using_map(&set1, &set2, &map);
         assert_eq!(set1.len(), str_set1.len());
@@ -288,21 +288,17 @@ mod tests {
             HashMap::from([
                 (
                     String::from("ABCD:123"),
-                    HashSet::from(
-                        [String::from("BCDE:234"), String::from("ABCDE:1234")]
-                            .iter()
-                            .cloned()
-                            .collect::<HashSet<TermID>>(),
-                    ),
+                    [String::from("BCDE:234"), String::from("ABCDE:1234")]
+                        .iter()
+                        .cloned()
+                        .collect::<HashSet<TermID>>(),
                 ),
                 (
                     String::from("XYZ:123"),
-                    HashSet::from(
-                        [String::from("WXY:234"), String::from("WXYZ:1234")]
-                            .iter()
-                            .cloned()
-                            .collect::<HashSet<TermID>>(),
-                    ),
+                    [String::from("WXY:234"), String::from("WXYZ:1234")]
+                        .iter()
+                        .cloned()
+                        .collect::<HashSet<TermID>>(),
                 ),
             ]),
         )]);
