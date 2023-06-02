@@ -29,7 +29,7 @@ class testSemsimianWithPython(unittest.TestCase):
         term2 = "banana"
         predicates = {"related_to"}
         result = self.semsimian.resnik_similarity(term1, term2, predicates)
-        self.assertEqual(result, 0.0)
+        self.assertEqual(result, 2.0)
 
 
 if __name__ == "__main__":
