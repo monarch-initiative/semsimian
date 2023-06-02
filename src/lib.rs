@@ -27,6 +27,7 @@ pub struct RustSemsimian {
 impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
     // TODO: also, we should support loading 'custom' ic
+    // TODO: generate ic map and closure map using (spo).
     pub fn new(spo: Vec<(TermID, Predicate, TermID)>) -> RustSemsimian {
         RustSemsimian {
             spo,
@@ -64,27 +65,6 @@ impl RustSemsimian {
             .get_closure_and_ic_map(predicates);
         calculate_max_information_content(&closure_map, &ic_map, term1, term2, predicates)
     }
-
-    // pub fn all_by_all_pairwise_similarity(
-    //     &mut self,
-    //     subject_terms: &HashSet<TermID>,
-    //     object_terms: &HashSet<TermID>,
-    //     predicates: &Option<HashSet<Predicate>>,
-    // ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
-    //     let mut similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64)>> = HashMap::new();
-
-    //     for subject in subject_terms {
-    //         let mut subject_similarities: HashMap<TermID, (f64, f64)> = HashMap::new();
-    //         for object in object_terms {
-    //             let jaccard_sim = self.jaccard_similarity(subject, object, predicates);
-    //             let resnik_sim = self.resnik_similarity(subject, object, predicates);
-    //             subject_similarities.insert(object.clone(), (resnik_sim, jaccard_sim));
-    //         }
-    //         similarity_map.insert(subject.clone(), subject_similarities);
-    //     }
-
-    //     similarity_map
-    // }
 
     pub fn all_by_all_pairwise_similarity(
         &self,
