@@ -82,7 +82,10 @@ impl RustSemsimian {
                     let mut self_locked = self_shared.lock().unwrap();
                     let jaccard_sim = self_locked.jaccard_similarity(subject, object, predicates);
                     let resnik_sim = self_locked.resnik_similarity(subject, object, predicates);
-                    subject_similarities.insert(object.clone(), (resnik_sim, jaccard_sim, (resnik_sim * jaccard_sim).sqrt()));
+                    subject_similarities.insert(
+                        object.clone(),
+                        (resnik_sim, jaccard_sim, (resnik_sim * jaccard_sim).sqrt()),
+                    );
                 }
                 (subject.clone(), subject_similarities)
             })
@@ -244,7 +247,9 @@ mod tests {
         );
         assert_eq!(
             term1_similarities.get(&term2).unwrap().2,
-            (rss.resnik_similarity(&term1, &term2, &predicates) * rss.jaccard_similarity(&term1, &term2, &predicates)).sqrt()
+            (rss.resnik_similarity(&term1, &term2, &predicates)
+                * rss.jaccard_similarity(&term1, &term2, &predicates))
+            .sqrt()
         );
 
         assert_eq!(
@@ -257,7 +262,9 @@ mod tests {
         );
         assert_eq!(
             term1_similarities.get(&term3).unwrap().2,
-            (rss.resnik_similarity(&term1, &term3, &predicates) * rss.jaccard_similarity(&term1, &term3, &predicates)).sqrt()
+            (rss.resnik_similarity(&term1, &term3, &predicates)
+                * rss.jaccard_similarity(&term1, &term3, &predicates))
+            .sqrt()
         );
 
         let term2_similarities = result.get(&term2).unwrap();
@@ -274,7 +281,9 @@ mod tests {
         );
         assert_eq!(
             term2_similarities.get(&term2).unwrap().2,
-            (rss.resnik_similarity(&term2, &term2, &predicates) * rss.jaccard_similarity(&term2, &term2, &predicates)).sqrt()
+            (rss.resnik_similarity(&term2, &term2, &predicates)
+                * rss.jaccard_similarity(&term2, &term2, &predicates))
+            .sqrt()
         );
         assert_eq!(
             term2_similarities.get(&term3).unwrap().0,
@@ -286,7 +295,9 @@ mod tests {
         );
         assert_eq!(
             term2_similarities.get(&term3).unwrap().2,
-            (rss.resnik_similarity(&term2, &term3, &predicates) * rss.jaccard_similarity(&term2, &term3, &predicates)).sqrt()
+            (rss.resnik_similarity(&term2, &term3, &predicates)
+                * rss.jaccard_similarity(&term2, &term3, &predicates))
+            .sqrt()
         );
 
         assert!(!result.contains_key(&term3));
