@@ -48,7 +48,7 @@ jobs:
         # The second provides a plain-text report to the stdout
         # cargo llvm-cov --lcov --output-path coverage.lcov
 
-        cargo llvm-cov report
+        cargo llvm-cov
 
         # Convert the coverage report to more readable html
         
