@@ -1,8 +1,4 @@
 
-use std::{
-    collections::{HashMap, HashSet},
-};
-
 use pyo3::prelude::*;
 
 use std::{
@@ -16,7 +12,6 @@ use rayon::prelude::*;
 
 mod test_utils;
 
-pub mod similarity;
 use std::fmt;
 
 
@@ -28,7 +23,7 @@ pub type Predicate = String;
 pub type TermID = String;
 pub type PredicateSetKey = String;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
 
