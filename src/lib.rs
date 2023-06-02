@@ -265,6 +265,7 @@ mod tests {
         let sim2 = rs.resnik_similarity(&"apple".to_string(), &"apple".to_string(), &predicates);
         println!("DO THE print{}", sim2);
         assert_eq!(sim2, 2.415037499278844);
+    }
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_empty_inputs() {
@@ -363,6 +364,4 @@ mod tests {
 
     }
 
-
 }
-
