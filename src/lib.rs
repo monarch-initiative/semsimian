@@ -14,7 +14,7 @@ type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
 
@@ -57,7 +57,12 @@ impl RustSemsimian {
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> f64 {
-        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
+        let self_shared = Arc::new(Mutex::new(self.clone()));
+        let (closure_map, ic_map) = self_shared
+            .lock()
+            .unwrap()
+            .get_closure_and_ic_map(predicates);
+        calculate_max_information_content(&closure_map, &ic_map, term1, term2, predicates)
     }
 
     // pub fn all_by_all_pairwise_similarity(
@@ -249,12 +254,16 @@ mod tests {
         assert_eq!(term1_similarities.len(), 2);
         assert!(term1_similarities.contains_key(&term2));
         assert!(term1_similarities.contains_key(&term3));
-        // TODO: rss.resnik_similarity(&term1, &term2, &predicates) errors in spite of it being 2.0 below
-        assert_eq!(term1_similarities.get(&term2).unwrap().0, 2.0);
+
+        assert_eq!(
+            term1_similarities.get(&term2).unwrap().0,
+            rss.resnik_similarity(&term1, &term2, &predicates)
+        );
         assert_eq!(
             term1_similarities.get(&term2).unwrap().1,
             rss.jaccard_similarity(&term1, &term2, &predicates)
         );
+
         assert_eq!(
             term1_similarities.get(&term3).unwrap().0,
             rss.resnik_similarity(&term1, &term3, &predicates)
@@ -286,6 +295,6 @@ mod tests {
         );
 
         assert!(!result.contains_key(&term3));
-        println!("{result:?}");
+        // println!("{result:?}");
     }
 }
