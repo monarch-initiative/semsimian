@@ -175,7 +175,6 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-//TODO: Test the lib module.
 #[cfg(test)]
 mod tests {
     use crate::RustSemsimian;
