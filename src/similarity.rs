@@ -87,7 +87,7 @@ pub fn calculate_max_information_content(
     entity1: &str,
     entity2: &str,
     predicates: &Option<HashSet<Predicate>>,
-) -> f64 {
+) -> (TermID, f64) {
     // CODE TO CALCULATE MAX IC
     let filtered_common_ancestors: Vec<String> =
         common_ancestors(closure_map, entity1, entity2, predicates);
@@ -96,6 +96,7 @@ pub fn calculate_max_information_content(
 
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
+    let mut mrca: Option<TermID> = None;
     for ancestor in filtered_common_ancestors.iter() {
         if let Some(ic) = ic_map
             .get(&predicate_set_key)
@@ -104,11 +105,12 @@ pub fn calculate_max_information_content(
         {
             if *ic > max_ic {
                 max_ic = *ic;
+                mrca = Some(ancestor.clone());
             }
         }
     }
     // then return the String and f64 for the filtered_common_ancestors with the highest f64
-    max_ic
+    (mrca.unwrap(), max_ic)
 }
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
@@ -138,18 +140,18 @@ fn common_ancestors(
 }
 
 // scores: maps ancestors to corresponding IC scores
-fn _mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
-    let mut max_ic = 0.0;
-    let mut mrca = None;
+// fn _mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
+//     let mut max_ic = 0.0;
+//     let mut mrca = None;
 
-    for (ancestor, ic) in scores.iter() {
-        if *ic > max_ic {
-            max_ic = *ic;
-            mrca = Some(ancestor.clone());
-        }
-    }
-    (mrca, max_ic)
-}
+//     for (ancestor, ic) in scores.iter() {
+//         if *ic > max_ic {
+//             max_ic = *ic;
+//             mrca = Some(ancestor.clone());
+//         }
+//     }
+//     (mrca, max_ic)
+// }
 
 #[cfg(test)]
 mod tests {
@@ -390,18 +392,19 @@ mod tests {
         // Max IC: 1.585 (IC of "BFO:0000002")
 
         let predicates = Some(HashSet::from([String::from("subClassOf")]));
-        let result = calculate_max_information_content(
+        let (max_ic_anc, max_ic) = calculate_max_information_content(
             &closure_map,
             &ic_map,
             &String::from("CARO:0000000"),
             &String::from("BFO:0000002"),
             &predicates,
         );
-        println!("Max IC: {result}");
+        println!("Max IC Ancestor: {max_ic_anc}");
+        println!("Max IC: {max_ic}");
         let expected_value = 1.585;
         assert!(
-            (result - expected_value).abs() < 1e-3,
-            "Expected value: {expected_value}, got: {result}"
+            (max_ic - expected_value).abs() < 1e-3,
+            "Expected value: {expected_value}, got: {max_ic}"
         );
     }
 }

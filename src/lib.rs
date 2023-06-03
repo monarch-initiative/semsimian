@@ -42,27 +42,23 @@ impl RustSemsimian {
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> f64 {
-        let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
+        let (closure_map, _) = self.get_closure_and_ic_map(predicates);
 
-        let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
-        let term2_set = expand_term_using_closure(term2, &this_closure_map, predicates);
+        let apple_set = expand_term_using_closure(term1, &closure_map, predicates);
+        let fruit_set = expand_term_using_closure(term2, &closure_map, predicates);
 
-        let intersection = term1_set.intersection(&term2_set).count() as f64;
-        let union = term1_set.union(&term2_set).count() as f64;
+        let intersection = apple_set.intersection(&fruit_set).count() as f64;
+        let union = apple_set.union(&fruit_set).count() as f64;
         intersection / union
     }
 
     pub fn resnik_similarity(
-        &self,
+        &mut self,
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> f64 {
-        let self_shared = Arc::new(Mutex::new(self.clone()));
-        let (closure_map, ic_map) = self_shared
-            .lock()
-            .unwrap()
-            .get_closure_and_ic_map(predicates);
+    ) -> (String, f64) {
+        let (closure_map, ic_map) = self.get_closure_and_ic_map(predicates);
         calculate_max_information_content(&closure_map, &ic_map, term1, term2, predicates)
     }
 
@@ -71,25 +67,34 @@ impl RustSemsimian {
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64)>> {
+    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, String)>> {
         let self_shared = Arc::new(Mutex::new(self.clone()));
 
-        let similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64, f64)>> = subject_terms
-            .par_iter() // parallelize computations
-            .map(|subject| {
-                let mut subject_similarities: HashMap<TermID, (f64, f64, f64)> = HashMap::new();
-                for object in object_terms.iter() {
-                    let mut self_locked = self_shared.lock().unwrap();
-                    let jaccard_sim = self_locked.jaccard_similarity(subject, object, predicates);
-                    let resnik_sim = self_locked.resnik_similarity(subject, object, predicates);
-                    subject_similarities.insert(
-                        object.clone(),
-                        (resnik_sim, jaccard_sim, (resnik_sim * jaccard_sim).sqrt()),
-                    );
-                }
-                (subject.clone(), subject_similarities)
-            })
-            .collect();
+        let similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64, f64, String)>> =
+            subject_terms
+                .par_iter() // parallelize computations
+                .map(|subject| {
+                    let mut subject_similarities: HashMap<TermID, (f64, f64, f64, String)> =
+                        HashMap::new();
+                    for object in object_terms.iter() {
+                        let mut self_locked = self_shared.lock().unwrap();
+                        let jaccard_sim =
+                            self_locked.jaccard_similarity(subject, object, predicates);
+                        let (max_ic_ancestor, resnik_sim) =
+                            self_locked.resnik_similarity(subject, object, predicates);
+                        subject_similarities.insert(
+                            object.clone(),
+                            (
+                                resnik_sim,
+                                jaccard_sim,
+                                (resnik_sim * jaccard_sim).sqrt(),
+                                max_ic_ancestor,
+                            ),
+                        );
+                    }
+                    (subject.clone(), subject_similarities)
+                })
+                .collect();
 
         similarity_map
     }
@@ -157,7 +162,7 @@ impl Semsimian {
         term1: TermID,
         term2: TermID,
         predicates: Option<HashSet<Predicate>>,
-    ) -> PyResult<f64> {
+    ) -> PyResult<(String, f64)> {
         Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
     }
 
@@ -166,7 +171,7 @@ impl Semsimian {
         subject_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
         predicates: Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64)>> {
+    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, String)>> {
         self.ss
             .all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
     }
@@ -212,95 +217,120 @@ mod tests {
             ("food".to_string(), "is_a".to_string(), "item".to_string()),
         ]);
 
-        let term1 = "apple".to_string();
-        let term2 = "fruit".to_string();
-        let term3 = "food".to_string();
+        let apple = "apple".to_string();
+        let fruit = "fruit".to_string();
+        let food = "food".to_string();
 
         let mut subject_terms: HashSet<String> = HashSet::new();
-        subject_terms.insert(term1.clone());
-        subject_terms.insert(term2.clone());
+        subject_terms.insert(apple.clone());
+        subject_terms.insert(fruit.clone());
 
         let mut object_terms: HashSet<TermID> = HashSet::new();
-        object_terms.insert(term2.clone());
-        object_terms.insert(term3.clone());
+        object_terms.insert(fruit.clone());
+        object_terms.insert(food.clone());
 
         let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["is_a".to_string()]));
 
         let result = rss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates);
 
         assert_eq!(result.len(), 2);
-        assert!(result.contains_key(&term1));
-        assert!(result.contains_key(&term2));
+        assert!(result.contains_key(&apple));
+        assert!(result.contains_key(&fruit));
 
-        let term1_similarities = result.get(&term1).unwrap();
-        assert_eq!(term1_similarities.len(), 2);
-        assert!(term1_similarities.contains_key(&term2));
-        assert!(term1_similarities.contains_key(&term3));
+        // Apple
+        let apple_similarities = result.get(&apple).unwrap();
 
-        assert_eq!(
-            term1_similarities.get(&term2).unwrap().0,
-            rss.resnik_similarity(&term1, &term2, &predicates)
-        );
-        assert_eq!(
-            term1_similarities.get(&term2).unwrap().1,
-            rss.jaccard_similarity(&term1, &term2, &predicates)
-        );
-        assert_eq!(
-            term1_similarities.get(&term2).unwrap().2,
-            (rss.resnik_similarity(&term1, &term2, &predicates)
-                * rss.jaccard_similarity(&term1, &term2, &predicates))
-            .sqrt()
-        );
+        assert_eq!(apple_similarities.len(), 2);
+        assert!(apple_similarities.contains_key(&fruit));
+        assert!(apple_similarities.contains_key(&food));
 
-        assert_eq!(
-            term1_similarities.get(&term3).unwrap().0,
-            rss.resnik_similarity(&term1, &term3, &predicates)
-        );
-        assert_eq!(
-            term1_similarities.get(&term3).unwrap().1,
-            rss.jaccard_similarity(&term1, &term3, &predicates)
-        );
-        assert_eq!(
-            term1_similarities.get(&term3).unwrap().2,
-            (rss.resnik_similarity(&term1, &term3, &predicates)
-                * rss.jaccard_similarity(&term1, &term3, &predicates))
-            .sqrt()
-        );
+        // Apple, fruit tests
+        let apple_fruit_jaccard = rss.jaccard_similarity(&apple, &fruit, &predicates);
+        let (apple_fruit_mrca, apple_fruit_resnik) =
+            rss.resnik_similarity(&apple, &fruit, &predicates);
+        let (
+            apple_fruit_resnik_from_similarity,
+            apple_fruit_jaccard_from_similarity,
+            apple_fruit_phenodigm_from_similarity,
+            apple_fruit_mrca_from_similarity,
+        ) = apple_similarities.get(&fruit).unwrap();
 
-        let term2_similarities = result.get(&term2).unwrap();
-        assert_eq!(term2_similarities.len(), 2);
-        assert!(term2_similarities.contains_key(&term2));
-        assert!(term2_similarities.contains_key(&term3));
+        assert_eq!(*apple_fruit_resnik_from_similarity, apple_fruit_resnik);
+        assert_eq!(*apple_fruit_jaccard_from_similarity, apple_fruit_jaccard);
         assert_eq!(
-            term2_similarities.get(&term2).unwrap().0,
-            rss.resnik_similarity(&term2, &term2, &predicates)
+            *apple_fruit_phenodigm_from_similarity,
+            (apple_fruit_jaccard * apple_fruit_resnik).sqrt()
         );
-        assert_eq!(
-            term2_similarities.get(&term2).unwrap().1,
-            rss.jaccard_similarity(&term2, &term2, &predicates)
-        );
-        assert_eq!(
-            term2_similarities.get(&term2).unwrap().2,
-            (rss.resnik_similarity(&term2, &term2, &predicates)
-                * rss.jaccard_similarity(&term2, &term2, &predicates))
-            .sqrt()
-        );
-        assert_eq!(
-            term2_similarities.get(&term3).unwrap().0,
-            rss.resnik_similarity(&term2, &term3, &predicates)
-        );
-        assert_eq!(
-            term2_similarities.get(&term3).unwrap().1,
-            rss.jaccard_similarity(&term2, &term3, &predicates)
-        );
-        assert_eq!(
-            term2_similarities.get(&term3).unwrap().2,
-            (rss.resnik_similarity(&term2, &term3, &predicates)
-                * rss.jaccard_similarity(&term2, &term3, &predicates))
-            .sqrt()
-        );
+        println!("-->{apple_similarities:?}<--");
+        println!("-->{apple_fruit_mrca:?}<-");
 
-        assert!(!result.contains_key(&term3));
+        assert_eq!(*apple_fruit_mrca_from_similarity, apple_fruit_mrca);
+
+        //Apple, food tests
+        let apple_food_jaccard = rss.jaccard_similarity(&apple, &food, &predicates);
+        let (apple_food_mcra, apple_food_resnik) =
+            rss.resnik_similarity(&apple, &food, &predicates);
+        let (
+            apple_food_resnik_from_similarity,
+            apple_food_jaccard_from_similarity,
+            apple_food_phenodigm_from_similarity,
+            apple_food_mrca_from_similarity,
+        ) = apple_similarities.get(&food).unwrap();
+
+        assert_eq!(*apple_food_resnik_from_similarity, apple_food_resnik);
+        assert_eq!(*apple_food_jaccard_from_similarity, apple_food_jaccard);
+        assert_eq!(
+            *apple_food_phenodigm_from_similarity,
+            (apple_food_resnik * apple_food_jaccard).sqrt()
+        );
+        assert_eq!(*apple_food_mrca_from_similarity, apple_food_mcra);
+
+        // Fruit
+        let fruit_similarities = result.get(&fruit).unwrap();
+        let fruit_fruit_jaccard = rss.jaccard_similarity(&fruit, &fruit, &predicates);
+        let (fruit_fruit_mrca, fruit_fruit_resnik) =
+            rss.resnik_similarity(&fruit, &fruit, &predicates);
+        let (
+            fruit_fruit_resnik_from_similarity,
+            fruit_fruit_jaccard_from_similarity,
+            fruit_fruit_phenodigm_from_similarity,
+            fruit_fruit_mrca_from_similarity,
+        ) = fruit_similarities.get(&fruit).unwrap();
+
+        println!("{fruit_similarities:?}");
+        println!("{fruit_fruit_mrca:?}");
+
+        assert_eq!(fruit_similarities.len(), 2);
+        assert!(fruit_similarities.contains_key(&fruit));
+        assert!(fruit_similarities.contains_key(&food));
+        // Fruit, fruit tests
+        assert_eq!(*fruit_fruit_resnik_from_similarity, fruit_fruit_resnik);
+        assert_eq!(*fruit_fruit_jaccard_from_similarity, fruit_fruit_jaccard);
+        assert_eq!(
+            *fruit_fruit_phenodigm_from_similarity,
+            (fruit_fruit_resnik * fruit_fruit_jaccard).sqrt()
+        );
+        assert_eq!(*fruit_fruit_mrca_from_similarity, fruit_fruit_mrca);
+
+        // Fruit, food tests
+        let fruit_food_jaccard = rss.jaccard_similarity(&fruit, &food, &predicates);
+        let (fruit_food_mrca, fruit_food_resnik) =
+            rss.resnik_similarity(&fruit, &food, &predicates);
+        let (
+            fruit_food_resnik_from_similarity,
+            fruit_food_jaccard_from_similarity,
+            fruit_food_phenodigm_from_similarity,
+            fruit_food_mrca_from_similarity,
+        ) = fruit_similarities.get(&food).unwrap();
+        assert_eq!(*fruit_food_resnik_from_similarity, fruit_food_resnik);
+        assert_eq!(*fruit_food_jaccard_from_similarity, fruit_food_jaccard);
+        assert_eq!(
+            *fruit_food_phenodigm_from_similarity,
+            (fruit_food_resnik * fruit_food_jaccard).sqrt()
+        );
+        assert_eq!(*fruit_food_mrca_from_similarity, fruit_food_mrca);
+
+        assert!(!result.contains_key(&food));
         println!("{result:?}");
     }
 }
