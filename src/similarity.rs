@@ -182,8 +182,6 @@ mod tests {
         println!("{:?}", result);
         assert_eq!(result, 2.0 / 3.0);
         
-        // NO Predicate
-        // let mut sco_no_predicate: HashSet<Predicate> = HashSet::new();
         let result2 = calculate_semantic_jaccard_similarity(
             &*CLOSURE_MAP,
             "BFO:0000002",
