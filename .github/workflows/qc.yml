@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
+
 jobs:
 
   test-linux:
@@ -28,10 +33,35 @@ jobs:
         target: 'x86_64'
         manylinux: auto
         args: --release --out dist -i ${{ matrix.python-version }}
-    - name: Install built wheel and run Python tests
+    - name: Install built wheel and run all tests (Rust and Python)
       run: |
+        # Set up
+
         pip install semsimian --no-index --find-links dist --force-reinstall
-        pip install pytest
-        # pytest
-    - name: Run Rust tests (cargo test)
-      run: cargo test
+        pip install pytest pytest-cov
+        cargo install cargo-llvm-cov
+        cargo llvm-cov show-env --export-prefix
+        cargo llvm-cov clean --workspace
+        
+        # The following commands run all rust tests, just like cargo test
+        # The first version emits a report for further parsing
+        # The second provides a plain-text report to the stdout
+        # cargo llvm-cov --lcov --output-path coverage.lcov
+
+        cargo llvm-cov
+
+        # Convert the coverage report to more readable html
+        
+        # sudo apt-get install -y lcov
+        # genhtml -o output coverage.lcov
+
+        # run python tests
+        pytest python/tests --cov-report xml --cov-report term-missing
+
+    # - name: Upload coverage to Codecov
+    #   uses: codecov/codecov-action@v3.1.1
+    #   with:
+    #     files: coverage.lcov,coverage.xml
+    #     token: ${{ secrets.CODECOV_TOKEN }}
+    #     name: semsimian-py-${{ matrix.python-version }}
+    #     fail_ci_if_error: false
