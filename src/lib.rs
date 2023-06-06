@@ -57,7 +57,7 @@ impl RustSemsimian {
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> (String, f64) {
+    ) -> (HashSet<String>, f64) {
         let (closure_map, ic_map) = self.get_closure_and_ic_map(predicates);
         calculate_max_information_content(&closure_map, &ic_map, term1, term2, predicates)
     }
@@ -67,20 +67,22 @@ impl RustSemsimian {
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, String)>> {
+    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<TermID>)>> {
         let self_shared = Arc::new(Mutex::new(self.clone()));
 
-        let similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64, f64, String)>> =
+        let similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<TermID>)>> =
             subject_terms
                 .par_iter() // parallelize computations
                 .map(|subject| {
-                    let mut subject_similarities: HashMap<TermID, (f64, f64, f64, String)> =
-                        HashMap::new();
+                    let mut subject_similarities: HashMap<
+                        TermID,
+                        (f64, f64, f64, HashSet<TermID>),
+                    > = HashMap::new();
                     for object in object_terms.iter() {
                         let mut self_locked = self_shared.lock().unwrap();
                         let jaccard_sim =
                             self_locked.jaccard_similarity(subject, object, predicates);
-                        let (max_ic_ancestor, resnik_sim) =
+                        let (mica_ancestor_set, resnik_sim) =
                             self_locked.resnik_similarity(subject, object, predicates);
                         subject_similarities.insert(
                             object.clone(),
@@ -88,7 +90,7 @@ impl RustSemsimian {
                                 resnik_sim,
                                 jaccard_sim,
                                 (resnik_sim * jaccard_sim).sqrt(),
-                                max_ic_ancestor,
+                                mica_ancestor_set,
                             ),
                         );
                     }
@@ -162,7 +164,7 @@ impl Semsimian {
         term1: TermID,
         term2: TermID,
         predicates: Option<HashSet<Predicate>>,
-    ) -> PyResult<(String, f64)> {
+    ) -> PyResult<(HashSet<String>, f64)> {
         Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
     }
 
@@ -171,7 +173,7 @@ impl Semsimian {
         subject_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
         predicates: Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, String)>> {
+    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<String>)>> {
         self.ss
             .all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
     }
@@ -261,8 +263,8 @@ mod tests {
             *apple_fruit_phenodigm_from_similarity,
             (apple_fruit_jaccard * apple_fruit_resnik).sqrt()
         );
-        println!("-->{apple_similarities:?}<--");
-        println!("-->{apple_fruit_mrca:?}<-");
+        // println!("{apple_similarities:?}");
+        // println!("{apple_fruit_mrca:?}");
 
         assert_eq!(*apple_fruit_mrca_from_similarity, apple_fruit_mrca);
 
@@ -297,8 +299,8 @@ mod tests {
             fruit_fruit_mrca_from_similarity,
         ) = fruit_similarities.get(&fruit).unwrap();
 
-        println!("{fruit_similarities:?}");
-        println!("{fruit_fruit_mrca:?}");
+        // println!("{fruit_similarities:?}");
+        // println!("{fruit_fruit_mrca:?}");
 
         assert_eq!(fruit_similarities.len(), 2);
         assert!(fruit_similarities.contains_key(&fruit));

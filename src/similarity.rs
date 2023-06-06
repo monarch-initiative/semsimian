@@ -87,8 +87,15 @@ pub fn calculate_max_information_content(
     entity1: &str,
     entity2: &str,
     predicates: &Option<HashSet<Predicate>>,
-) -> (TermID, f64) {
-    // CODE TO CALCULATE MAX IC
+) -> (HashSet<TermID>, f64) {
+    // Code to calculate max IC and all ancestors that correspond to the IC.
+    // The reason a HashSet<TermID> is returned instead of just TermID is
+    // explained through the example used for the test in lib.rs named
+    // test_all_by_all_pairwise_similarity_with_nonempty_inputs
+    // "apple" has 2 ancestors with the same resnik score (food & item)
+    // This during the execution of this test. Each time it runs, it randomly
+    // picks on or the other. This is expected in a real-world scenario
+    // and hence we return a set of all ancestors with the max resnik score rather than one.
     let filtered_common_ancestors: Vec<String> =
         common_ancestors(closure_map, entity1, entity2, predicates);
 
@@ -96,7 +103,8 @@ pub fn calculate_max_information_content(
 
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
-    let mut mrca: Option<TermID> = None;
+    // let mut mrca: Option<TermID> = None;
+    let mut ancestor_ic_map = HashMap::new();
     for ancestor in filtered_common_ancestors.iter() {
         if let Some(ic) = ic_map
             .get(&predicate_set_key)
@@ -105,12 +113,17 @@ pub fn calculate_max_information_content(
         {
             if *ic > max_ic {
                 max_ic = *ic;
-                mrca = Some(ancestor.clone());
             }
+            ancestor_ic_map.insert(ancestor.clone(), *ic);
         }
     }
-    // then return the String and f64 for the filtered_common_ancestors with the highest f64
-    (mrca.unwrap(), max_ic)
+    // filter out only those ancestors that have the maximum IC value and return them as a vector
+    let max_ic_ancestors = ancestor_ic_map
+        .into_iter()
+        .filter(|(_, ic)| *ic == max_ic)
+        .map(|(anc, _)| anc)
+        .collect();
+    (max_ic_ancestors, max_ic)
 }
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
@@ -399,7 +412,7 @@ mod tests {
             &String::from("BFO:0000002"),
             &predicates,
         );
-        println!("Max IC Ancestor: {max_ic_anc}");
+        println!("Max IC Ancestor: {max_ic_anc:?}");
         println!("Max IC: {max_ic}");
         let expected_value = 1.585;
         assert!(
