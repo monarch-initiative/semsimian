@@ -248,13 +248,13 @@ mod tests {
 
         // Apple, fruit tests
         let apple_fruit_jaccard = rss.jaccard_similarity(&apple, &fruit, &predicates);
-        let (apple_fruit_mrca, apple_fruit_resnik) =
+        let (apple_fruit_mica, apple_fruit_resnik) =
             rss.resnik_similarity(&apple, &fruit, &predicates);
         let (
             apple_fruit_resnik_from_similarity,
             apple_fruit_jaccard_from_similarity,
             apple_fruit_phenodigm_from_similarity,
-            apple_fruit_mrca_from_similarity,
+            apple_fruit_mica_from_similarity,
         ) = apple_similarities.get(&fruit).unwrap();
 
         assert_eq!(*apple_fruit_resnik_from_similarity, apple_fruit_resnik);
@@ -264,9 +264,9 @@ mod tests {
             (apple_fruit_jaccard * apple_fruit_resnik).sqrt()
         );
         // println!("{apple_similarities:?}");
-        // println!("{apple_fruit_mrca:?}");
+        // println!("{apple_fruit_mica:?}");
 
-        assert_eq!(*apple_fruit_mrca_from_similarity, apple_fruit_mrca);
+        assert_eq!(*apple_fruit_mica_from_similarity, apple_fruit_mica);
 
         //Apple, food tests
         let apple_food_jaccard = rss.jaccard_similarity(&apple, &food, &predicates);
@@ -276,7 +276,7 @@ mod tests {
             apple_food_resnik_from_similarity,
             apple_food_jaccard_from_similarity,
             apple_food_phenodigm_from_similarity,
-            apple_food_mrca_from_similarity,
+            apple_food_mica_from_similarity,
         ) = apple_similarities.get(&food).unwrap();
 
         assert_eq!(*apple_food_resnik_from_similarity, apple_food_resnik);
@@ -285,22 +285,22 @@ mod tests {
             *apple_food_phenodigm_from_similarity,
             (apple_food_resnik * apple_food_jaccard).sqrt()
         );
-        assert_eq!(*apple_food_mrca_from_similarity, apple_food_mcra);
+        assert_eq!(*apple_food_mica_from_similarity, apple_food_mcra);
 
         // Fruit
         let fruit_similarities = result.get(&fruit).unwrap();
         let fruit_fruit_jaccard = rss.jaccard_similarity(&fruit, &fruit, &predicates);
-        let (fruit_fruit_mrca, fruit_fruit_resnik) =
+        let (fruit_fruit_mica, fruit_fruit_resnik) =
             rss.resnik_similarity(&fruit, &fruit, &predicates);
         let (
             fruit_fruit_resnik_from_similarity,
             fruit_fruit_jaccard_from_similarity,
             fruit_fruit_phenodigm_from_similarity,
-            fruit_fruit_mrca_from_similarity,
+            fruit_fruit_mica_from_similarity,
         ) = fruit_similarities.get(&fruit).unwrap();
 
         // println!("{fruit_similarities:?}");
-        // println!("{fruit_fruit_mrca:?}");
+        // println!("{fruit_fruit_mica:?}");
 
         assert_eq!(fruit_similarities.len(), 2);
         assert!(fruit_similarities.contains_key(&fruit));
@@ -312,17 +312,17 @@ mod tests {
             *fruit_fruit_phenodigm_from_similarity,
             (fruit_fruit_resnik * fruit_fruit_jaccard).sqrt()
         );
-        assert_eq!(*fruit_fruit_mrca_from_similarity, fruit_fruit_mrca);
+        assert_eq!(*fruit_fruit_mica_from_similarity, fruit_fruit_mica);
 
         // Fruit, food tests
         let fruit_food_jaccard = rss.jaccard_similarity(&fruit, &food, &predicates);
-        let (fruit_food_mrca, fruit_food_resnik) =
+        let (fruit_food_mica, fruit_food_resnik) =
             rss.resnik_similarity(&fruit, &food, &predicates);
         let (
             fruit_food_resnik_from_similarity,
             fruit_food_jaccard_from_similarity,
             fruit_food_phenodigm_from_similarity,
-            fruit_food_mrca_from_similarity,
+            fruit_food_mica_from_similarity,
         ) = fruit_similarities.get(&food).unwrap();
         assert_eq!(*fruit_food_resnik_from_similarity, fruit_food_resnik);
         assert_eq!(*fruit_food_jaccard_from_similarity, fruit_food_jaccard);
@@ -330,7 +330,7 @@ mod tests {
             *fruit_food_phenodigm_from_similarity,
             (fruit_food_resnik * fruit_food_jaccard).sqrt()
         );
-        assert_eq!(*fruit_food_mrca_from_similarity, fruit_food_mrca);
+        assert_eq!(*fruit_food_mica_from_similarity, fruit_food_mica);
 
         assert!(!result.contains_key(&food));
         println!("{result:?}");

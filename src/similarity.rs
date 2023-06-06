@@ -103,7 +103,7 @@ pub fn calculate_max_information_content(
 
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
-    // let mut mrca: Option<TermID> = None;
+    // let mut mica: Option<TermID> = None;
     let mut ancestor_ic_map = HashMap::new();
     for ancestor in filtered_common_ancestors.iter() {
         if let Some(ic) = ic_map
@@ -153,17 +153,17 @@ fn common_ancestors(
 }
 
 // scores: maps ancestors to corresponding IC scores
-// fn _mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
+// fn _mica_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
 //     let mut max_ic = 0.0;
-//     let mut mrca = None;
+//     let mut mica = None;
 
 //     for (ancestor, ic) in scores.iter() {
 //         if *ic > max_ic {
 //             max_ic = *ic;
-//             mrca = Some(ancestor.clone());
+//             mica = Some(ancestor.clone());
 //         }
 //     }
-//     (mrca, max_ic)
+//     (mica, max_ic)
 // }
 
 #[cfg(test)]
