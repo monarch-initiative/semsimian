@@ -3,10 +3,9 @@ use pyo3::prelude::*;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 pub mod similarity;
-use std::sync::RwLock;
 
 pub mod utils;
 use rayon::prelude::*;
@@ -47,16 +46,28 @@ impl RustSemsimian {
         }
     }
 
+    pub fn update_closure_and_ic_map(&mut self, predicates: &Option<HashSet<Predicate>>) {
+        let predicate_set_key = predicate_set_to_key(predicates);
+        let (this_closure_map, this_ic_map) =
+            convert_list_of_tuples_to_hashmap(&self.spo, predicates);
+        self.closure_map.insert(
+            predicate_set_key.clone(),
+            this_closure_map.get(&predicate_set_key).unwrap().clone(),
+        );
+        self.ic_map.insert(
+            predicate_set_key.clone(),
+            this_ic_map.get(&predicate_set_key).unwrap().clone(),
+        );
+    }
+
     pub fn jaccard_similarity(
-        &mut self,
+        &self,
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> f64 {
-        let (this_closure_map, _) = self.get_closure_and_ic_map(predicates);
-
-        let term1_set = expand_term_using_closure(term1, &this_closure_map, predicates);
-        let term2_set = expand_term_using_closure(term2, &this_closure_map, predicates);
+        let term1_set = expand_term_using_closure(term1, &self.closure_map, predicates);
+        let term2_set = expand_term_using_closure(term2, &self.closure_map, predicates);
 
         let intersection = term1_set.intersection(&term2_set).count() as f64;
         let union = term1_set.union(&term2_set).count() as f64;
@@ -70,12 +81,7 @@ impl RustSemsimian {
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> f64 {
-        let self_shared = Arc::new(Mutex::new(self.clone()));
-        let (closure_map, ic_map) = self_shared
-            .lock()
-            .unwrap()
-            .get_closure_and_ic_map(predicates);
-        calculate_max_information_content(&closure_map, &ic_map, term1, term2, predicates)
+        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
     }
 
     pub fn all_by_all_pairwise_similarity(
@@ -84,6 +90,7 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         predicates: &Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
+        self.update_closure_and_ic_map(predicates);
         let self_shared = Arc::new(RwLock::new(self.clone()));
 
         let similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64)>> = subject_terms
@@ -117,10 +124,7 @@ impl RustSemsimian {
     fn get_closure_and_ic_map(
         &mut self,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> (
-        HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-        HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-    ) {
+    ) -> (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
         let predicate_set_key = predicate_set_to_key(predicates);
         if !self.closure_map.contains_key(&predicate_set_key)
             || !self.ic_map.contains_key(&predicate_set_key)
@@ -139,7 +143,7 @@ impl RustSemsimian {
         }
 
         (self.closure_map.clone(), self.ic_map.clone())
-        }
+    }
 
 }
 
