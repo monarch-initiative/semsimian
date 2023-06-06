@@ -168,7 +168,6 @@ mod tests {
             &Some(sco_predicate.clone()),
         );
 
-        println!("{:?}", result);
         assert_eq!(result, 2.0 / 3.0);
 
         let result2 = calculate_semantic_jaccard_similarity(
@@ -177,7 +176,6 @@ mod tests {
             "BFO:0000003",
             &Some(sco_predicate.clone()),
         );
-        println!("{:?}", result2);
         assert_eq!(result2, 1.0 / 3.0);
 
         let mut sco_po_predicate: HashSet<String> = HashSet::new();
@@ -190,7 +188,6 @@ mod tests {
             "BFO:0000003",
             &Some(sco_po_predicate.clone()),
         );
-        println!("{:?}", result3);
         assert_eq!(result3, 1.0 / 3.0);
     }
 
@@ -207,7 +204,6 @@ mod tests {
             "banana",
             &Some(related_to_predicate.clone()),
         );
-        println!("{result}");
         assert_eq!(result, 1.0 / 3.0);
 
         let result2 = calculate_semantic_jaccard_similarity(
@@ -216,7 +212,6 @@ mod tests {
             "orange",
             &Some(related_to_predicate.clone()),
         );
-        println!("{result2}");
         assert_eq!(result2, 1.0 / 3.0);
 
         // NO predicates (should be the same as above)
@@ -227,7 +222,6 @@ mod tests {
             "orange",
             &no_predicate,
         );
-        println!("{result2}");
         assert_eq!(result2, 1.0 / 3.0);
     }
 
@@ -242,7 +236,6 @@ mod tests {
         ]);
         let (num_set1, num_set2, _) = numericize_sets(&set1, &set2);
         let result = calculate_jaccard_similarity(&num_set1, &num_set2);
-        println!("{result}");
         assert_eq!(result, 0.5);
     }
 
@@ -256,7 +249,6 @@ mod tests {
             String::from("tropical"),
         ]);
         let result = calculate_jaccard_similarity_str(&set1, &set2);
-        println!("{result}");
         assert_eq!(result, 0.5);
     }
 
@@ -365,7 +357,7 @@ mod tests {
             &predicates,
         );
 
-        println!("Max IC: {result:?}");
+        // println!("Max IC: {result:?}");
         let expected_value = 1.585;
         assert!(
             (result - expected_value).abs() < 1e-3,
