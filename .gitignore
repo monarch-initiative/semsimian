@@ -1,3 +1,4 @@
 /target
 **/__pycache__/**
 python/semsimian/semsimian.cpython-39-darwin.so
+.vscode/launch.json

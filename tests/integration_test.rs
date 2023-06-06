@@ -2,9 +2,8 @@ use std::collections::HashSet;
 extern crate semsimian;
 use semsimian::similarity::calculate_semantic_jaccard_similarity;
 use semsimian::utils::convert_list_of_tuples_to_hashmap;
-use semsimian::RustSemsimian;
 use semsimian::Predicate;
-
+use semsimian::RustSemsimian;
 
 #[test]
 fn integration_test_semantic_jaccard_similarity() {
@@ -51,14 +50,46 @@ fn integration_test_semantic_jaccard_similarity() {
 #[test]
 fn integration_test_jaccard_similarity_from_struct() {
     let triples = vec![
-        ("apple".to_string(), "related_to".to_string(), "apple".to_string()),
-        ("apple".to_string(), "related_to".to_string(), "banana".to_string()),
-        ("banana".to_string(), "related_to".to_string(), "banana".to_string()),
-        ("banana".to_string(), "related_to".to_string(), "orange".to_string()),
-        ("orange".to_string(), "related_to".to_string(), "orange".to_string()),
-        ("orange".to_string(), "related_to".to_string(), "pear".to_string()),
-        ("pear".to_string(), "related_to".to_string(), "pear".to_string()),
-        ("pear".to_string(), "related_to".to_string(), "kiwi".to_string()),
+        (
+            "apple".to_string(),
+            "related_to".to_string(),
+            "apple".to_string(),
+        ),
+        (
+            "apple".to_string(),
+            "related_to".to_string(),
+            "banana".to_string(),
+        ),
+        (
+            "banana".to_string(),
+            "related_to".to_string(),
+            "banana".to_string(),
+        ),
+        (
+            "banana".to_string(),
+            "related_to".to_string(),
+            "orange".to_string(),
+        ),
+        (
+            "orange".to_string(),
+            "related_to".to_string(),
+            "orange".to_string(),
+        ),
+        (
+            "orange".to_string(),
+            "related_to".to_string(),
+            "pear".to_string(),
+        ),
+        (
+            "pear".to_string(),
+            "related_to".to_string(),
+            "pear".to_string(),
+        ),
+        (
+            "pear".to_string(),
+            "related_to".to_string(),
+            "kiwi".to_string(),
+        ),
     ];
 
     let mut rs = RustSemsimian::new(triples);
@@ -76,16 +107,17 @@ fn integration_test_jaccard_similarity_from_struct() {
 
     //should be this:
     //Closure table for triples: {"+related_to": {"apple": {"banana", "apple"}, "banana": {"orange", "banana"}, "pear": {"kiwi", "pear"}, "orange": {"orange", "pear"}}}
-        
 
     let term1 = "apple".to_string();
     let term2 = "banana".to_string();
     let predicates: Option<HashSet<Predicate>> = Some(
-        vec!["related_to"].into_iter().map(|s| s.to_string()).collect()
+        vec!["related_to"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect(),
     );
 
     let sim = rs.jaccard_similarity(&term1, &term2, &predicates);
 
     assert_eq!(sim, 1.0 / 3.0);
 }
-

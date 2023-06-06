@@ -1,10 +1,9 @@
+use crate::Predicate;
+use crate::PredicateSetKey;
+use crate::TermID;
 use crate::{utils::expand_term_using_closure, utils::predicate_set_to_key};
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
-use crate::PredicateSetKey;
-use crate::TermID;
-use crate::Predicate;
-
 
 pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
@@ -23,7 +22,6 @@ pub fn calculate_semantic_jaccard_similarity(
     println!("SIM: Jaccard: {}", jaccard);
 
     jaccard
-
 }
 
 pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
@@ -94,8 +92,15 @@ pub fn calculate_max_information_content(
     entity1: &str,
     entity2: &str,
     predicates: &Option<HashSet<Predicate>>,
-) -> f64 {
-    // CODE TO CALCULATE MAX IC
+) -> (HashSet<TermID>, f64) {
+    // Code to calculate max IC and all ancestors that correspond to the IC.
+    // The reason a HashSet<TermID> is returned instead of just TermID is
+    // explained through the example used for the test in lib.rs named
+    // test_all_by_all_pairwise_similarity_with_nonempty_inputs
+    // "apple" has 2 ancestors with the same resnik score (food & item)
+    // This during the execution of this test. Each time it runs, it randomly
+    // picks on or the other. This is expected in a real-world scenario
+    // and hence we return a set of all ancestors with the max resnik score rather than one.
     let filtered_common_ancestors: Vec<String> =
         common_ancestors(closure_map, entity1, entity2, predicates);
 
@@ -103,6 +108,8 @@ pub fn calculate_max_information_content(
 
     // for each member of filtered_common_ancestors, find the entry for it in ic_map
     let mut max_ic: f64 = 0.0;
+    // let mut mica: Option<TermID> = None;
+    let mut ancestor_ic_map = HashMap::new();
     for ancestor in filtered_common_ancestors.iter() {
         if let Some(ic) = ic_map
             .get(&predicate_set_key)
@@ -112,10 +119,16 @@ pub fn calculate_max_information_content(
             if *ic > max_ic {
                 max_ic = *ic;
             }
+            ancestor_ic_map.insert(ancestor.clone(), *ic);
         }
     }
-    // then return the String and f64 for the filtered_common_ancestors with the highest f64
-    max_ic
+    // filter out only those ancestors that have the maximum IC value and return them as a vector
+    let max_ic_ancestors = ancestor_ic_map
+        .into_iter()
+        .filter(|(_, ic)| *ic == max_ic)
+        .map(|(anc, _)| anc)
+        .collect();
+    (max_ic_ancestors, max_ic)
 }
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
@@ -144,28 +157,12 @@ fn common_ancestors(
         .collect()
 }
 
-// scores: maps ancestors to corresponding IC scores
-fn _mrca_and_score(scores: &HashMap<TermID, f64>) -> (Option<TermID>, f64) {
-    let mut max_ic = 0.0;
-    let mut mrca = None;
-
-    for (ancestor, ic) in scores.iter() {
-        if *ic > max_ic {
-            max_ic = *ic;
-            mrca = Some(ancestor.clone());
-        }
-    }
-    (mrca, max_ic)
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::utils::numericize_sets;
     use super::*;
-    use std::collections::{HashMap, HashSet};
     use crate::test_utils::test_constants::*;
-
-
+    use crate::utils::numericize_sets;
+    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn test_semantic_jaccard_similarity_new() {
@@ -181,7 +178,7 @@ mod tests {
 
         println!("{:?}", result);
         assert_eq!(result, 2.0 / 3.0);
-        
+
         let result2 = calculate_semantic_jaccard_similarity(
             &*CLOSURE_MAP,
             "BFO:0000002",
@@ -205,10 +202,10 @@ mod tests {
         assert_eq!(result3, 1.0 / 3.0);
     }
 
-
     #[test]
     fn test_semantic_jaccard_similarity_fruits() {
-        let _closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+        let _closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
+            HashMap::new();
         let mut related_to_predicate: HashSet<Predicate> = HashSet::new();
         related_to_predicate.insert(String::from("related_to"));
         // the closure set for "apple" includes both "apple" and "banana", and the closure set for "banana" includes "banana" and "orange". The intersection of these two sets is {"banana"}, and the union is {"apple", "banana", "orange"}, so the Jaccard similarity would be 1 / 3 ≈ 0.33
@@ -236,7 +233,8 @@ mod tests {
             &ALL_NO_PRED_MAP,
             "banana",
             "orange",
-            &no_predicate);
+            &no_predicate,
+        );
         println!("{result2}");
         assert_eq!(result2, 1.0 / 3.0);
     }
@@ -288,14 +286,14 @@ mod tests {
         let mut entity_one = HashSet::new();
         entity_one.insert(String::from("CARO:0000000")); // resnik of best match = 5
         entity_one.insert(String::from("BFO:0000002")); // resnik of best match = 4
-    
+
         let mut entity_two = HashSet::new();
         entity_two.insert(String::from("BFO:0000003")); // resnik of best match = 3
         entity_two.insert(String::from("BFO:0000002")); // resnik of best match = 4
         entity_two.insert(String::from("CARO:0000000")); // resnik of best match = 5
-    
+
         let expected = ((5.0 + 4.0) / 2.0 + (3.0 + 4.0 + 5.0) / 3.0) / 2.0;
-    
+
         let result = calculate_phenomizer_score(MAP.clone(), entity_one, entity_two);
         assert_eq!(result, expected);
     }
@@ -354,9 +352,9 @@ mod tests {
         // "BFO:0000003": 2
         // "BFO:0000004": 1
         // The corpus size (sum of term frequencies) would be 6.
-        
+
         // Using these term frequencies, the IC scores can be calculated as follows:
-        
+
         // IC("CARO:0000000") = -log2(1/6) ≈ 2.585
         // IC("BFO:0000002") = -log2(2/6) ≈ 1.585
         // IC("BFO:0000003") = -log2(2/6) ≈ 1.585
@@ -367,18 +365,19 @@ mod tests {
         // Max IC: 1.585 (IC of "BFO:0000002")
 
         let predicates = Some(HashSet::from([String::from("subClassOf")]));
-        let result = calculate_max_information_content(
+        let (_, result) = calculate_max_information_content(
             &CLOSURE_MAP,
             &IC_MAP,
             &String::from("CARO:0000000"),
             &String::from("BFO:0000002"),
             &predicates,
         );
-        println!("Max IC: {result}");
+
+        println!("Max IC: {result:?}");
         let expected_value = 1.585;
         assert!(
             (result - expected_value).abs() < 1e-3,
-            "Expected value: {expected_value}, got: {result}"
+            "Expected value: {expected_value}, got: {result:?}"
         );
     }
 }
