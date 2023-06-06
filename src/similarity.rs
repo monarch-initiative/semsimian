@@ -368,19 +368,19 @@ mod tests {
         // Max IC: 1.585 (IC of "BFO:0000002")
 
         let predicates = Some(HashSet::from([String::from("subClassOf")]));
-        let result = calculate_max_information_content(
+        let (_, result) = calculate_max_information_content(
             &CLOSURE_MAP,
             &IC_MAP,
             &String::from("CARO:0000000"),
             &String::from("BFO:0000002"),
             &predicates,
         );
-        println!("Max IC Ancestor: {max_ic_anc:?}");
-        println!("Max IC: {max_ic}");
+
+        println!("Max IC: {result:?}");
         let expected_value = 1.585;
         assert!(
-            (max_ic - expected_value).abs() < 1e-3,
-            "Expected value: {expected_value}, got: {max_ic}"
+            (result - expected_value).abs() < 1e-3,
+            "Expected value: {expected_value}, got: {result:?}"
         );
     }
 }

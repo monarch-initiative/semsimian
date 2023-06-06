@@ -263,10 +263,10 @@ mod tests {
         );
         let (closure_map, _ic_map) = rs.get_closure_and_ic_map(&predicates);
         println!("Closure_map from semsimian {:?}", closure_map);
-        let sim = rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
+        let (_, sim) = rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
         println!("Do the print{}", sim);
         assert!(sim > 0.0);
-        let sim2 = rs.resnik_similarity(&"apple".to_string(), &"apple".to_string(), &predicates);
+        let (_, sim2) = rs.resnik_similarity(&"apple".to_string(), &"apple".to_string(), &predicates);
         println!("DO THE print{}", sim2);
         assert_eq!(sim2, 2.415037499278844);
     }
