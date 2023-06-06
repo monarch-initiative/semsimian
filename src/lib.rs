@@ -90,7 +90,6 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         predicates: &Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
-        self.update_closure_and_ic_map(predicates);
         let self_shared = Arc::new(RwLock::new(self.clone()));
 
         let similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64)>> = subject_terms
@@ -119,31 +118,6 @@ impl RustSemsimian {
         Ok(calculate_phenomizer_score(map, entity1, entity2))
     }
 
-    // get closure and ic map for a given set of predicates. if the closure and ic map for the given predicates doesn't exist, create them
-
-    fn get_closure_and_ic_map(
-        &mut self,
-        predicates: &Option<HashSet<Predicate>>,
-    ) -> (HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>, HashMap<PredicateSetKey, HashMap<TermID, f64>>) {
-        let predicate_set_key = predicate_set_to_key(predicates);
-        if !self.closure_map.contains_key(&predicate_set_key)
-            || !self.ic_map.contains_key(&predicate_set_key)
-        {
-            let (this_closure_map, this_ic_map) =
-                convert_list_of_tuples_to_hashmap(&self.spo, predicates);
-            self.closure_map.insert(
-                predicate_set_key.clone(),
-                this_closure_map.get(&predicate_set_key).unwrap().clone(),
-            );
-            self.ic_map.insert(
-                predicate_set_key.clone(),
-                this_ic_map.get(&predicate_set_key).unwrap().clone(),
-            );
-
-        }
-
-        (self.closure_map.clone(), self.ic_map.clone())
-    }
 
 }
 
@@ -184,8 +158,10 @@ impl Semsimian {
         object_terms: HashSet<TermID>,
         predicates: Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
-        self.ss
-            .all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
+        // first make sure we have the closure and ic map for the given predicates
+        self.ss.update_closure_and_ic_map(&predicates);
+
+        self.ss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
     }
 }
 
@@ -217,8 +193,8 @@ mod tests {
         );
         let no_predicates: Option<HashSet<Predicate>> = None;
         let mut ss = RustSemsimian::new(spo_cloned);
-        let (closure_table3, _) = ss.get_closure_and_ic_map(&predicates);
-        println!("Closure table for ss  {:?}", closure_table3);
+        ss.update_closure_and_ic_map(&predicates);
+        println!("Closure table for ss  {:?}", ss.closure_map);
         //Closure table: {"+related_to": {"apple": {"banana", "apple"}, "banana": {"orange", "banana"}, "pear": {"kiwi", "pear"}, "orange": {"orange", "pear"}}}
         let term1 = "apple".to_string();
         let term2 = "banana".to_string();
@@ -239,13 +215,9 @@ mod tests {
         let test_predicates: Option<HashSet<Predicate>> = Some(
             vec!["related_to"].into_iter().map(|s| s.to_string()).collect()
         );
-        let (closure_map, ic_map) = semsimian.get_closure_and_ic_map(&test_predicates);
-        println!("Closure_map from semsimian {:?}", closure_map);
-        // Closure_table: {"+related_to": {"orange": {"orange", "pear"}, "pear": {"pear", "kiwi"}, "apple": {"apple", "banana"}, "banana": {"banana", "orange"}}}
-        println!("ic_map from semsimian  {:?}", ic_map);
-        // ic_map:  {"+related_to": {"apple": 2.415037499278844, "banana": 2.0, "orange": 2.0, "kiwi": 4.0, "pear": 2.0}}
-        assert!(!closure_map.is_empty());
-        assert!(!ic_map.is_empty());
+        semsimian.update_closure_and_ic_map(&test_predicates);
+        assert!(!semsimian.closure_map.is_empty());
+        assert!(!semsimian.ic_map.is_empty());
     }
 
     #[test]
@@ -257,8 +229,8 @@ mod tests {
             .into_iter()
             .collect()
         );
-        let (closure_map, _ic_map) = rs.get_closure_and_ic_map(&predicates);
-        println!("Closure_map from semsimian {:?}", closure_map);
+        rs.update_closure_and_ic_map(&predicates);
+        println!("Closure_map from semsimian {:?}", rs.closure_map);
         let sim = rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
         println!("Do the print{}", sim);
         assert!(sim > 0.0);
