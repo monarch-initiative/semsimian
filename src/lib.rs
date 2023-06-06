@@ -6,6 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 pub mod similarity;
+use std::sync::RwLock;
 
 pub mod utils;
 use rayon::prelude::*;
@@ -83,16 +84,16 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         predicates: &Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (f64, f64)>> {
-        let self_shared = Arc::new(Mutex::new(self.clone()));
+        let self_shared = Arc::new(RwLock::new(self.clone()));
 
         let similarity_map: HashMap<TermID, HashMap<TermID, (f64, f64)>> = subject_terms
             .par_iter() // parallelize computations
             .map(|subject| {
                 let mut subject_similarities: HashMap<TermID, (f64, f64)> = HashMap::new();
                 for object in object_terms.iter() {
-                    let mut self_locked = self_shared.lock().unwrap();
-                    let jaccard_sim = self_locked.jaccard_similarity(subject, object, predicates);
-                    let resnik_sim = self_locked.resnik_similarity(subject, object, predicates);
+                    let self_read = self_shared.read().unwrap();
+                    let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
+                    let resnik_sim = self_read.resnik_similarity(subject, object, predicates);
                     subject_similarities.insert(object.clone(), (resnik_sim, jaccard_sim));
                 }
                 (subject.clone(), subject_similarities)
