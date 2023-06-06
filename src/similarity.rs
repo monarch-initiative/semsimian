@@ -1,10 +1,9 @@
+use crate::Predicate;
+use crate::PredicateSetKey;
+use crate::TermID;
 use crate::{utils::expand_term_using_closure, utils::predicate_set_to_key};
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
-use crate::PredicateSetKey;
-use crate::TermID;
-use crate::Predicate;
-
 
 pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
@@ -23,7 +22,6 @@ pub fn calculate_semantic_jaccard_similarity(
     println!("SIM: Jaccard: {}", jaccard);
 
     jaccard
-
 }
 
 pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
@@ -161,12 +159,10 @@ fn common_ancestors(
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::numericize_sets;
     use super::*;
-    use std::collections::{HashMap, HashSet};
     use crate::test_utils::test_constants::*;
-
-
+    use crate::utils::numericize_sets;
+    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn test_semantic_jaccard_similarity_new() {
@@ -182,7 +178,7 @@ mod tests {
 
         println!("{:?}", result);
         assert_eq!(result, 2.0 / 3.0);
-        
+
         let result2 = calculate_semantic_jaccard_similarity(
             &*CLOSURE_MAP,
             "BFO:0000002",
@@ -206,10 +202,10 @@ mod tests {
         assert_eq!(result3, 1.0 / 3.0);
     }
 
-
     #[test]
     fn test_semantic_jaccard_similarity_fruits() {
-        let _closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::new();
+        let _closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
+            HashMap::new();
         let mut related_to_predicate: HashSet<Predicate> = HashSet::new();
         related_to_predicate.insert(String::from("related_to"));
         // the closure set for "apple" includes both "apple" and "banana", and the closure set for "banana" includes "banana" and "orange". The intersection of these two sets is {"banana"}, and the union is {"apple", "banana", "orange"}, so the Jaccard similarity would be 1 / 3 ≈ 0.33
@@ -237,7 +233,8 @@ mod tests {
             &ALL_NO_PRED_MAP,
             "banana",
             "orange",
-            &no_predicate);
+            &no_predicate,
+        );
         println!("{result2}");
         assert_eq!(result2, 1.0 / 3.0);
     }
@@ -289,14 +286,14 @@ mod tests {
         let mut entity_one = HashSet::new();
         entity_one.insert(String::from("CARO:0000000")); // resnik of best match = 5
         entity_one.insert(String::from("BFO:0000002")); // resnik of best match = 4
-    
+
         let mut entity_two = HashSet::new();
         entity_two.insert(String::from("BFO:0000003")); // resnik of best match = 3
         entity_two.insert(String::from("BFO:0000002")); // resnik of best match = 4
         entity_two.insert(String::from("CARO:0000000")); // resnik of best match = 5
-    
+
         let expected = ((5.0 + 4.0) / 2.0 + (3.0 + 4.0 + 5.0) / 3.0) / 2.0;
-    
+
         let result = calculate_phenomizer_score(MAP.clone(), entity_one, entity_two);
         assert_eq!(result, expected);
     }
@@ -355,9 +352,9 @@ mod tests {
         // "BFO:0000003": 2
         // "BFO:0000004": 1
         // The corpus size (sum of term frequencies) would be 6.
-        
+
         // Using these term frequencies, the IC scores can be calculated as follows:
-        
+
         // IC("CARO:0000000") = -log2(1/6) ≈ 2.585
         // IC("BFO:0000002") = -log2(2/6) ≈ 1.585
         // IC("BFO:0000003") = -log2(2/6) ≈ 1.585
