@@ -426,6 +426,7 @@ dependencies = [
  "dict",
  "generator",
  "indicatif",
+ "lazy_static",
  "ordered-float",
  "pyo3",
  "rayon",

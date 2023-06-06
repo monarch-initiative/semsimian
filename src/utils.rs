@@ -24,6 +24,8 @@ pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> Predicat
             result.push_str(&predicate);
         }
     }
+    println!("Returning key: {}", result);  // for debugging
+
     result
 }
 
@@ -338,6 +340,32 @@ mod tests {
         };
 
         assert_eq!(ic_map, expected_ic_map_is_a_plus_part_of);
+
+                // Test closure map for None predicates
+        let _expected_closure_map_none: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> = HashMap::from([
+            (
+                String::from("+is_a+part_of"),
+                HashMap::from([
+                    (
+                        String::from("ABCD:123"),
+                        HashSet::from([String::from("BCDE:234"), String::from("ABCDE:1234")].iter().cloned().collect::<HashSet<TermID>>()),
+                    ),
+                    (
+                        String::from("XYZ:123"),
+                        HashSet::from([String::from("WXY:234"), String::from("WXYZ:1234")].iter().cloned().collect::<HashSet<TermID>>()),
+                    ),
+                ]),
+            ),
+        ]);
+
+        let predicates_none: Option<HashSet<Predicate>> = None;
+        println!("Passing predicates: {:?}", predicates_none);  // for debugging
+
+        let (closure_map_none, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_none);
+        println!("Received closure map: {:?}", closure_map_none);  // for debugging
+
+        // when no predicates are specified predicates will be set to _all to cover all relations
+        assert!(closure_map_none.contains_key("_all"));
     }
 
     #[test]
