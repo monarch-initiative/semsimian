@@ -224,8 +224,7 @@ mod tests {
         let sim2 = ss.jaccard_similarity(&apple, &banana, &no_predicates);
 
         assert_eq!(sim, 1.0 / 3.0);
-        // TODO: Confirm if this is correct
-        assert!(sim2.is_nan());
+        assert_eq!(sim2, 1.0 / 3.0);
     }
 
     #[test]

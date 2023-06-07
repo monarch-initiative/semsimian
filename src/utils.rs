@@ -139,8 +139,12 @@ pub fn expand_term_using_closure(
     predicates: &Option<HashSet<Predicate>>,
 ) -> HashSet<TermID> {
     let mut ancestors: HashSet<String> = HashSet::new();
-    let this_predicate_set_key = predicate_set_to_key(predicates);
-
+    let mut this_predicate_set_key = predicate_set_to_key(predicates);
+    if this_predicate_set_key == "_all" {
+        let closure_table_keys: Vec<String> = closure_table.keys().cloned().collect();
+        this_predicate_set_key = closure_table_keys.join("+");
+    }
+    
     for (closure_predicate_key, closure_map) in closure_table.iter() {
         if *closure_predicate_key == this_predicate_set_key {
             if let Some(ancestors_for_predicates) = closure_map.get(term) {
@@ -426,13 +430,15 @@ mod tests {
         let term = String::from("CARO:0000000");
         let predicates: Option<HashSet<Predicate>> =
             Some(HashSet::from(["subClassOf".to_string()]));
-        let result = expand_term_using_closure(&term, &closure_table, &predicates);
+        let result_1 = expand_term_using_closure(&term, &closure_table, &predicates);
+        let result_2 = expand_term_using_closure(&term, &closure_table, &None);
 
         let expected_result = HashSet::from([
             "BFO:0000002".to_string(),
             "BFO:0000003".to_string(),
             "CARO:0000000".to_string(),
         ]);
-        assert_eq!(result, expected_result);
+        assert_eq!(result_1, expected_result);
+        assert_eq!(result_2, expected_result);
     }
 }
