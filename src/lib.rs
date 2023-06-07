@@ -399,6 +399,6 @@ mod tests {
         assert_eq!(*fruit_food_mica_from_similarity, fruit_food_mica);
 
         assert!(!result.contains_key(&food));
-        println!("{result:?}");
+        println!("all_by_all_pairwise_similarity result: {result:?}");
     }
 }
