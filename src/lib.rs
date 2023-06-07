@@ -76,7 +76,7 @@ impl RustSemsimian {
     }
 
     pub fn resnik_similarity(
-        &mut self,
+        &self,
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
@@ -92,7 +92,7 @@ impl RustSemsimian {
     ) -> HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>
     {
         let self_shared = Arc::new(RwLock::new(self.clone()));
-        let self_read = self_shared.read().unwrap();
+
         let similarity_map: HashMap<
             TermID,
             HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
@@ -104,11 +104,10 @@ impl RustSemsimian {
                     (Jaccard, Resnik, Phenodigm, MostInformativeAncestors),
                 > = HashMap::new();
                 for object in object_terms.iter() {
-                    let mut self_write = self_shared.write().unwrap();
-                    self_write.update_closure_and_ic_map(predicates);
+                    let self_read = self_shared.read().unwrap();
                     let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
                     let (mica, resnik_sim) =
-                        self_write.resnik_similarity(subject, object, predicates);
+                        self_read.resnik_similarity(subject, object, predicates);
                     subject_similarities.insert(
                         object.clone(),
                         (

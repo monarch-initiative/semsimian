@@ -144,7 +144,7 @@ pub fn expand_term_using_closure(
         let closure_table_keys: Vec<String> = closure_table.keys().cloned().collect();
         this_predicate_set_key = closure_table_keys.join("+");
     }
-    
+
     for (closure_predicate_key, closure_map) in closure_table.iter() {
         if *closure_predicate_key == this_predicate_set_key {
             if let Some(ancestors_for_predicates) = closure_map.get(term) {
