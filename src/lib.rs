@@ -126,7 +126,6 @@ impl RustSemsimian {
     ) -> PyResult<f64> {
         Ok(calculate_phenomizer_score(map, entity1, entity2))
     }
-
 }
 
 #[pyclass]
@@ -169,7 +168,8 @@ impl Semsimian {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
 
-        self.ss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
+        self.ss
+            .all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
     }
 }
 
