@@ -163,6 +163,7 @@ impl Semsimian {
         term2: TermID,
         predicates: Option<HashSet<Predicate>>,
     ) -> PyResult<(HashSet<String>, f64)> {
+        self.ss.update_closure_and_ic_map(&predicates);
         Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
     }
 
