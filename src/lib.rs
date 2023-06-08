@@ -188,6 +188,10 @@ impl Semsimian {
         self.ss
             .all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
     }
+
+    fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
+        Ok(self.ss.spo.to_vec())
+    }
 }
 
 impl fmt::Debug for RustSemsimian {
@@ -411,4 +415,11 @@ mod tests {
         assert!(!result.contains_key(&food));
         println!("all_by_all_pairwise_similarity result: {result:?}");
     }
+
+    // #[test]
+    // fn test_all_by_all_pairwise_similarity_with_nonempty_inputs() {
+    //     let mut rss = RustSemsimian(
+
+    //     )
+    // }
 }
