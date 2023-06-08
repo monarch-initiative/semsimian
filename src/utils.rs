@@ -117,7 +117,7 @@ pub fn convert_list_of_tuples_to_hashmap(
         progress_bar.inc(1);
     }
 
-    progress_bar.finish();
+    progress_bar.finish_with_message("done");
 
     for (k, v) in freq_map.iter() {
         ic_map

@@ -129,7 +129,7 @@ impl RustSemsimian {
                 (subject.clone(), subject_similarities)
             })
             .collect();
-
+        pb.finish_with_message("done");
         similarity_map
     }
 
