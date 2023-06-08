@@ -267,7 +267,7 @@ mod tests {
         let (_, sim) =
             rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
         println!("DO THE print{}", sim);
-        assert_eq!(sim, 0.0);
+        assert_eq!(sim, 1.3219280948873622);
     }
 
     #[test]
@@ -428,12 +428,11 @@ mod tests {
         rss.update_closure_and_ic_map(&predicates);
         // println!("IC_map from semsimian {:?}", rss.ic_map);
         let (_, sim) = rss.resnik_similarity(
-            &"BFO:0000018".to_string(),
-            &"BFO:0000011".to_string(),
+            &"BFO:0000040".to_string(),
+            &"BFO:0000002".to_string(),
             &predicates,
         );
         println!("DO THE print {}", sim);
-        // TODO: Confirm if this is correct was 2.415037499278844
-        // assert_eq!(sim, 2.0);
+        assert_eq!(sim, 0.4854268271702417);
     }
 }

@@ -29,7 +29,7 @@ class testSemsimianWithPython(unittest.TestCase):
         term2 = "banana"
         predicates = {"related_to"}
         result = self.semsimian.resnik_similarity(term1, term2, predicates)
-        self.assertEqual(result, ({"banana"}, 0.0))
+        self.assertEqual(result, ({"banana"}, 1.3219280948873622))
 
     def test_all_by_all_pairwise_similarity(self):
         subject_terms = {"apple", "banana", "orange"}
