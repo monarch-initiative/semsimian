@@ -118,8 +118,8 @@ impl RustSemsimian {
                     subject_similarities.insert(
                         object.clone(),
                         (
-                            resnik_sim,
                             jaccard_sim,
+                            resnik_sim,
                             (resnik_sim * jaccard_sim).sqrt(),
                             mica,
                         ),
@@ -327,8 +327,8 @@ mod tests {
         let (apple_fruit_mica, apple_fruit_resnik) =
             rss.resnik_similarity(&apple, &fruit, &predicates);
         let (
-            apple_fruit_resnik_from_similarity,
             apple_fruit_jaccard_from_similarity,
+            apple_fruit_resnik_from_similarity,
             apple_fruit_phenodigm_from_similarity,
             apple_fruit_mica_from_similarity,
         ) = apple_similarities.get(&fruit).unwrap();
@@ -349,8 +349,8 @@ mod tests {
         let (apple_food_mcra, apple_food_resnik) =
             rss.resnik_similarity(&apple, &food, &predicates);
         let (
-            apple_food_resnik_from_similarity,
             apple_food_jaccard_from_similarity,
+            apple_food_resnik_from_similarity,
             apple_food_phenodigm_from_similarity,
             apple_food_mica_from_similarity,
         ) = apple_similarities.get(&food).unwrap();
@@ -369,8 +369,8 @@ mod tests {
         let (fruit_fruit_mica, fruit_fruit_resnik) =
             rss.resnik_similarity(&fruit, &fruit, &predicates);
         let (
-            fruit_fruit_resnik_from_similarity,
             fruit_fruit_jaccard_from_similarity,
+            fruit_fruit_resnik_from_similarity,
             fruit_fruit_phenodigm_from_similarity,
             fruit_fruit_mica_from_similarity,
         ) = fruit_similarities.get(&fruit).unwrap();
@@ -395,8 +395,8 @@ mod tests {
         let (fruit_food_mica, fruit_food_resnik) =
             rss.resnik_similarity(&fruit, &food, &predicates);
         let (
-            fruit_food_resnik_from_similarity,
             fruit_food_jaccard_from_similarity,
+            fruit_food_resnik_from_similarity,
             fruit_food_phenodigm_from_similarity,
             fruit_food_mica_from_similarity,
         ) = fruit_similarities.get(&food).unwrap();
