@@ -120,9 +120,10 @@ pub fn convert_list_of_tuples_to_hashmap(
     progress_bar.finish_with_message("done");
 
     for (k, v) in &freq_map {
-        let this_ic_map = ic_map.entry(predicate_set_key.clone())
-                                .or_insert_with(HashMap::new);
-        this_ic_map.insert(k.clone(), -(*v as f64 / total_count as f64).log2());
+        ic_map
+            .entry(predicate_set_key.clone())
+            .or_insert_with(HashMap::new)
+            .insert(k.clone(), -(*v as f64 / total_count as f64).log2());
     }
 
     (closure_map, ic_map)
