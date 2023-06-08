@@ -24,7 +24,7 @@ pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> Predicat
             result.push_str(&predicate);
         }
     }
-    println!("Returning key: {}", result); // for debugging
+    // println!("Returning key: {}", result); // for debugging
 
     result
 }
