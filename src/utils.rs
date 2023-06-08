@@ -127,7 +127,7 @@ pub fn convert_list_of_tuples_to_hashmap(
             .or_insert_with(|| -(*v as f64 / number_of_nodes).log2());
     }
 
-    println!("FREQ:{freq_map:?}");
+    // println!("FREQ:{freq_map:?}");
     (closure_map, ic_map)
 }
 
