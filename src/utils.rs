@@ -99,11 +99,11 @@ pub fn convert_list_of_tuples_to_hashmap(
         if predicates.is_some() && !predicates.as_ref().unwrap().contains(p) {
             continue;
         }
-
-        if s != o {
-            *freq_map.entry(s.clone()).or_insert(0) += 1;
-            *freq_map.entry(o.clone()).or_insert(0) += 1;
-        }
+        // ! THIS NEEDS VETTING!
+        // if s != o {
+        // *freq_map.entry(s.clone()).or_insert(0) += 1;
+        *freq_map.entry(o.clone()).or_insert(0) += 1;
+        // }
 
         closure_map
             .entry(predicate_set_key.clone())
@@ -127,6 +127,7 @@ pub fn convert_list_of_tuples_to_hashmap(
             .or_insert_with(|| -(*v as f64 / number_of_nodes).log2());
     }
 
+    println!("FREQ:{freq_map:?}");
     (closure_map, ic_map)
 }
 
@@ -330,12 +331,12 @@ mod tests {
 
         let expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = {
             let mut expected: HashMap<TermID, f64> = HashMap::new();
-            expected.insert(String::from("ABCD:123"), -(2.0 / 6 as f64).log2());
-            expected.insert(String::from("BCDE:234"), -(1.0 / 6 as f64).log2());
-            expected.insert(String::from("ABCDE:1234"), -(1.0 / 6 as f64).log2());
-            expected.insert(String::from("XYZ:123"), -(2.0 / 6 as f64).log2());
-            expected.insert(String::from("WXY:234"), -(1.0 / 6 as f64).log2());
-            expected.insert(String::from("WXYZ:1234"), -(1.0 / 6 as f64).log2());
+            // expected.insert(String::from("ABCD:123"), -(0.0 / 6 as f64).log2());
+            expected.insert(String::from("BCDE:234"), -(1.0 / 4 as f64).log2());
+            expected.insert(String::from("ABCDE:1234"), -(1.0 / 4 as f64).log2());
+            // expected.insert(String::from("XYZ:123"), -(0.0 / 6 as f64).log2());
+            expected.insert(String::from("WXY:234"), -(1.0 / 4 as f64).log2());
+            expected.insert(String::from("WXYZ:1234"), -(1.0 / 4 as f64).log2());
 
             let mut expected_ic_map_is_a_plus_part_of: HashMap<
                 PredicateSetKey,
