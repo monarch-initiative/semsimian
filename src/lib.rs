@@ -130,7 +130,6 @@ impl RustSemsimian {
             })
             .collect();
 
-        pb.finish_with_message("ALL X ALL pairwaise similarity calculated.");
         similarity_map
     }
 
