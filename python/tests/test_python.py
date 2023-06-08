@@ -31,6 +31,16 @@ class testSemsimianWithPython(unittest.TestCase):
         result = self.semsimian.resnik_similarity(term1, term2, predicates)
         self.assertEqual(result, ({'banana'}, 2.0))
 
+    def test_all_by_all_pairwise_similarity_non_existent_predicate(self):
+        subject_terms = {"apple", "banana", "orange"}
+        object_terms = {"orange", "pear", "kiwi"}
+        predicates = {"non_existent_predicate"}
+        orange_mica = {"orange", "pear"}
+        result = self.semsimian.all_by_all_pairwise_similarity(
+            subject_terms, object_terms, predicates
+        )
+        self.assertEqual(result["orange"]["orange"][3], orange_mica)
+
 
 if __name__ == "__main__":
     unittest.main()
