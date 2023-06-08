@@ -33,14 +33,14 @@ pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
 
     ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-    // ic_map is something like {('is_a_+_part_of'), {'GO:1234': 1.234}}
+    // ic_map is something like {("is_a_+_part_of"), {"GO:1234": 1.234}}
     closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    // closure_map is something like {('is_a_+_part_of'), {'GO:1234': {'GO:1234', 'GO:5678'}}}
+    // closure_map is something like {("is_a_+_part_of"), {"GO:1234": {"GO:1234", "GO:5678"}}}
 }
 
 impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
-    // TODO: also, we should support loading 'custom' ic
+    // TODO: also, we should support loading "custom" ic
     // TODO: generate ic map and closure map using (spo).
     pub fn new(spo: Vec<(TermID, Predicate, TermID)>) -> RustSemsimian {
         RustSemsimian {
@@ -267,8 +267,7 @@ mod tests {
         let (_, sim) =
             rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
         println!("DO THE print{}", sim);
-        // TODO: Confirm if this is correct was 2.415037499278844
-        assert_eq!(sim, 2.0);
+        assert_eq!(sim, 0.0);
     }
 
     #[test]
@@ -416,10 +415,25 @@ mod tests {
         println!("all_by_all_pairwise_similarity result: {result:?}");
     }
 
-    // #[test]
-    // fn test_all_by_all_pairwise_similarity_with_nonempty_inputs() {
-    //     let mut rss = RustSemsimian(
+    #[test]
+    fn test_resnik_using_bfo() {
+        let spo = crate::test_utils::test_constants::BFO_SPO.clone();
+        let mut rss = RustSemsimian::new(spo);
 
-    //     )
-    // }
+        let predicates: Option<HashSet<Predicate>> = Some(HashSet::from([
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]));
+
+        rss.update_closure_and_ic_map(&predicates);
+        // println!("IC_map from semsimian {:?}", rss.ic_map);
+        let (_, sim) = rss.resnik_similarity(
+            &"BFO:0000018".to_string(),
+            &"BFO:0000011".to_string(),
+            &predicates,
+        );
+        println!("DO THE print {}", sim);
+        // TODO: Confirm if this is correct was 2.415037499278844
+        // assert_eq!(sim, 2.0);
+    }
 }

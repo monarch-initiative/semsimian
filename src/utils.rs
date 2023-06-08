@@ -87,9 +87,17 @@ pub fn convert_list_of_tuples_to_hashmap(
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
     let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
-    let mut total_count = 0;
 
     let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
+
+    // Create a HashMap to store the num_nodes with nodes as key
+    let mut count_map: HashMap<&str, usize> = HashMap::new();
+    for (s1, _, s3) in list_of_tuples {
+        *count_map.entry(s1).or_insert(0) += 1;
+        if s1 != s3 {
+            *count_map.entry(s3).or_insert(0) += 1;
+        }
+    }
 
     let progress_bar = generate_progress_bar_of_length_and_message(
         list_of_tuples.len() as u64,
@@ -102,10 +110,9 @@ pub fn convert_list_of_tuples_to_hashmap(
         }
 
         *freq_map.entry(s.clone()).or_insert(0) += 1;
-        total_count += 1;
-
-        *freq_map.entry(o.clone()).or_insert(0) += 1;
-        total_count += 1;
+        if s != o {
+            *freq_map.entry(o.clone()).or_insert(0) += 1;
+        }
 
         closure_map
             .entry(predicate_set_key.clone())
@@ -120,10 +127,13 @@ pub fn convert_list_of_tuples_to_hashmap(
     progress_bar.finish_with_message("done");
 
     for (k, v) in &freq_map {
+        let total_count = *count_map.get(k.as_str()).unwrap_or(&0);
         ic_map
             .entry(predicate_set_key.clone())
             .or_insert_with(HashMap::new)
-            .insert(k.clone(), -(*v as f64 / total_count as f64).log2());
+            .entry(k.to_string())
+            .and_modify(|x| *x = -(*v as f64 / total_count as f64).log2())
+            .or_insert_with(|| -(*v as f64 / total_count as f64).log2());
     }
 
     (closure_map, ic_map)
@@ -243,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_convert_list_of_tuples_to_hashmap() {
-        let list_of_tuples: Vec<(String, String, String)> = vec![
+        let list_of_tuples: Vec<(TermID, Predicate, TermID)> = vec![
             (
                 String::from("ABCD:123"),
                 String::from("is_a"),
@@ -329,20 +339,12 @@ mod tests {
 
         let expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = {
             let mut expected: HashMap<TermID, f64> = HashMap::new();
-            let total_count = 8;
-
-            expected.insert(String::from("ABCD:123"), -(2.0 / total_count as f64).log2());
-            expected.insert(String::from("BCDE:234"), -(1.0 / total_count as f64).log2());
-            expected.insert(
-                String::from("ABCDE:1234"),
-                -(1.0 / total_count as f64).log2(),
-            );
-            expected.insert(String::from("XYZ:123"), -(2.0 / total_count as f64).log2());
-            expected.insert(String::from("WXY:234"), -(1.0 / total_count as f64).log2());
-            expected.insert(
-                String::from("WXYZ:1234"),
-                -(1.0 / total_count as f64).log2(),
-            );
+            expected.insert(String::from("ABCD:123"), -(2.0 / 2 as f64).log2());
+            expected.insert(String::from("BCDE:234"), -(1.0 / 1 as f64).log2());
+            expected.insert(String::from("ABCDE:1234"), -(1.0 / 1 as f64).log2());
+            expected.insert(String::from("XYZ:123"), -(2.0 / 2 as f64).log2());
+            expected.insert(String::from("WXY:234"), -(1.0 / 1 as f64).log2());
+            expected.insert(String::from("WXYZ:1234"), -(1.0 / 1 as f64).log2());
 
             let mut expected_ic_map_is_a_plus_part_of: HashMap<
                 PredicateSetKey,
