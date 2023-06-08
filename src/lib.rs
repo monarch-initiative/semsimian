@@ -14,7 +14,10 @@ mod test_utils;
 use std::fmt;
 
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
-use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure, predicate_set_to_key};
+use utils::{
+    convert_list_of_tuples_to_hashmap, expand_term_using_closure,
+    generate_progress_bar_of_length_and_message, predicate_set_to_key,
+};
 
 // change to "pub" because it is easier for testing
 pub type Predicate = String;
@@ -92,6 +95,10 @@ impl RustSemsimian {
     ) -> HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>
     {
         let self_shared = Arc::new(RwLock::new(self.clone()));
+        let pb = generate_progress_bar_of_length_and_message(
+            (subject_terms.len() * object_terms.len()) as u64,
+            "Building all X all pairwise similarity:",
+        );
 
         let similarity_map: HashMap<
             TermID,
@@ -117,11 +124,13 @@ impl RustSemsimian {
                             mica,
                         ),
                     );
+                    pb.inc(1);
                 }
                 (subject.clone(), subject_similarities)
             })
             .collect();
 
+        pb.finish_with_message("ALL X ALL pairwaise similarity calculated.");
         similarity_map
     }
 

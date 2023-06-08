@@ -91,13 +91,9 @@ pub fn convert_list_of_tuples_to_hashmap(
 
     let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
 
-    let progress_bar = ProgressBar::new(list_of_tuples.len() as u64);
-    progress_bar.set_style(
-        ProgressStyle::default_bar()
-            .template(
-                "[{elapsed_precise}] Building closure and IC map: {bar:40.cyan/blue} {percent}%",
-            )
-            .unwrap(),
+    let progress_bar = generate_progress_bar_of_length_and_message(
+        list_of_tuples.len() as u64,
+        "Building closure and IC map:",
     );
 
     for (s, p, o) in list_of_tuples.iter() {
@@ -153,6 +149,19 @@ pub fn expand_term_using_closure(
         }
     }
     ancestors
+}
+
+pub fn generate_progress_bar_of_length_and_message(length: u64, message: &str) -> ProgressBar {
+    let progress_bar = ProgressBar::new(length);
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template(&format!(
+                "[{{elapsed_precise}}] {} {{bar:40.cyan/blue}} {{percent}}%",
+                message
+            ))
+            .unwrap(),
+    );
+    progress_bar
 }
 
 #[cfg(test)]
