@@ -99,11 +99,14 @@ pub fn convert_list_of_tuples_to_hashmap(
         if predicates.is_some() && !predicates.as_ref().unwrap().contains(p) {
             continue;
         }
-        // ! THIS NEEDS VETTING!
-        // if s != o {
+
+        // ! As per this below, the frequency map gets populated ONLY if the node is an object (o)
+        // ! in the (s, p, o). If the node is a subject (s), it does not count towards the frequency.
+        // ! Only with this implemented will the results match with `oaklib`'s `sqlite` implementation
+        // ! of semantic similarity.
+        
         // *freq_map.entry(s.clone()).or_insert(0) += 1;
         *freq_map.entry(o.clone()).or_insert(0) += 1;
-        // }
 
         closure_map
             .entry(predicate_set_key.clone())
