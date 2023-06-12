@@ -116,6 +116,7 @@ fn integration_test_jaccard_similarity_from_struct() {
             .map(|s| s.to_string())
             .collect(),
     );
+    rs.update_closure_and_ic_map(&predicates);
 
     let sim = rs.jaccard_similarity(&term1, &term2, &predicates);
 

@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 pub mod similarity;
 
@@ -14,7 +14,10 @@ mod test_utils;
 use std::fmt;
 
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
-use utils::{convert_list_of_tuples_to_hashmap, expand_term_using_closure, predicate_set_to_key};
+use utils::{
+    convert_list_of_tuples_to_hashmap, expand_term_using_closure,
+    generate_progress_bar_of_length_and_message, predicate_set_to_key,
+};
 
 // change to "pub" because it is easier for testing
 pub type Predicate = String;
@@ -30,14 +33,14 @@ pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
 
     ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-    // ic_map is something like {('is_a_+_part_of'), {'GO:1234': 1.234}}
+    // ic_map is something like {("is_a_+_part_of"), {"GO:1234": 1.234}}
     closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    // closure_map is something like {('is_a_+_part_of'), {'GO:1234': {'GO:1234', 'GO:5678'}}}
+    // closure_map is something like {("is_a_+_part_of"), {"GO:1234": {"GO:1234", "GO:5678"}}}
 }
 
 impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
-    // TODO: also, we should support loading 'custom' ic
+    // TODO: also, we should support loading "custom" ic
     // TODO: generate ic map and closure map using (spo).
     pub fn new(spo: Vec<(TermID, Predicate, TermID)>) -> RustSemsimian {
         RustSemsimian {
@@ -47,16 +50,28 @@ impl RustSemsimian {
         }
     }
 
+    pub fn update_closure_and_ic_map(&mut self, predicates: &Option<HashSet<Predicate>>) {
+        let predicate_set_key = predicate_set_to_key(predicates);
+        let (this_closure_map, this_ic_map) =
+            convert_list_of_tuples_to_hashmap(&self.spo, predicates);
+        self.closure_map.insert(
+            predicate_set_key.clone(),
+            this_closure_map.get(&predicate_set_key).unwrap().clone(),
+        );
+        self.ic_map.insert(
+            predicate_set_key.clone(),
+            this_ic_map.get(&predicate_set_key).unwrap().clone(),
+        );
+    }
+
     pub fn jaccard_similarity(
-        &mut self,
+        &self,
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> f64 {
-        let (closure_map, _) = self.get_closure_and_ic_map(predicates);
-
-        let apple_set = expand_term_using_closure(term1, &closure_map, predicates);
-        let fruit_set = expand_term_using_closure(term2, &closure_map, predicates);
+        let apple_set = expand_term_using_closure(term1, &self.closure_map, predicates);
+        let fruit_set = expand_term_using_closure(term2, &self.closure_map, predicates);
 
         let intersection = apple_set.intersection(&fruit_set).count() as f64;
         let union = apple_set.union(&fruit_set).count() as f64;
@@ -64,13 +79,12 @@ impl RustSemsimian {
     }
 
     pub fn resnik_similarity(
-        &mut self,
+        &self,
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
     ) -> (HashSet<String>, f64) {
-        let (closure_map, ic_map) = self.get_closure_and_ic_map(predicates);
-        calculate_max_information_content(&closure_map, &ic_map, term1, term2, predicates)
+        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
     }
 
     pub fn all_by_all_pairwise_similarity(
@@ -80,7 +94,11 @@ impl RustSemsimian {
         predicates: &Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>
     {
-        let self_shared = Arc::new(Mutex::new(self.clone()));
+        let self_shared = Arc::new(RwLock::new(self.clone()));
+        let pb = generate_progress_bar_of_length_and_message(
+            (subject_terms.len() * object_terms.len()) as u64,
+            "Building all X all pairwise similarity:",
+        );
 
         let similarity_map: HashMap<
             TermID,
@@ -93,24 +111,25 @@ impl RustSemsimian {
                     (Jaccard, Resnik, Phenodigm, MostInformativeAncestors),
                 > = HashMap::new();
                 for object in object_terms.iter() {
-                    let mut self_locked = self_shared.lock().unwrap();
-                    let jaccard_sim = self_locked.jaccard_similarity(subject, object, predicates);
-                    let (mica_ancestor_set, resnik_sim) =
-                        self_locked.resnik_similarity(subject, object, predicates);
+                    let self_read = self_shared.read().unwrap();
+                    let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
+                    let (mica, resnik_sim) =
+                        self_read.resnik_similarity(subject, object, predicates);
                     subject_similarities.insert(
                         object.clone(),
                         (
-                            resnik_sim,
                             jaccard_sim,
+                            resnik_sim,
                             (resnik_sim * jaccard_sim).sqrt(),
-                            mica_ancestor_set,
+                            mica,
                         ),
                     );
+                    pb.inc(1);
                 }
                 (subject.clone(), subject_similarities)
             })
             .collect();
-
+        pb.finish_with_message("done");
         similarity_map
     }
 
@@ -121,34 +140,6 @@ impl RustSemsimian {
         entity2: HashSet<String>,
     ) -> PyResult<f64> {
         Ok(calculate_phenomizer_score(map, entity1, entity2))
-    }
-
-    // get closure and ic map for a given set of predicates. if the closure and ic map for the given predicates doesn't exist, create them
-
-    fn get_closure_and_ic_map(
-        &mut self,
-        predicates: &Option<HashSet<Predicate>>,
-    ) -> (
-        HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-        HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-    ) {
-        let predicate_set_key = predicate_set_to_key(predicates);
-        if !self.closure_map.contains_key(&predicate_set_key)
-            || !self.ic_map.contains_key(&predicate_set_key)
-        {
-            let (this_closure_map, this_ic_map) =
-                convert_list_of_tuples_to_hashmap(&self.spo, predicates);
-            self.closure_map.insert(
-                predicate_set_key.clone(),
-                this_closure_map.get(&predicate_set_key).unwrap().clone(),
-            );
-            self.ic_map.insert(
-                predicate_set_key.clone(),
-                this_ic_map.get(&predicate_set_key).unwrap().clone(),
-            );
-        }
-
-        (self.closure_map.clone(), self.ic_map.clone())
     }
 }
 
@@ -171,6 +162,7 @@ impl Semsimian {
         term2: TermID,
         predicates: Option<HashSet<Predicate>>,
     ) -> PyResult<f64> {
+        self.ss.update_closure_and_ic_map(&predicates);
         Ok(self.ss.jaccard_similarity(&term1, &term2, &predicates))
     }
 
@@ -180,6 +172,7 @@ impl Semsimian {
         term2: TermID,
         predicates: Option<HashSet<Predicate>>,
     ) -> PyResult<(HashSet<String>, f64)> {
+        self.ss.update_closure_and_ic_map(&predicates);
         Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
     }
 
@@ -189,8 +182,15 @@ impl Semsimian {
         object_terms: HashSet<TermID>,
         predicates: Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<String>)>> {
+        // first make sure we have the closure and ic map for the given predicates
+        self.ss.update_closure_and_ic_map(&predicates);
+
         self.ss
             .all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
+    }
+
+    fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
+        Ok(self.ss.spo.to_vec())
     }
 }
 
@@ -228,13 +228,13 @@ mod tests {
         );
         let no_predicates: Option<HashSet<Predicate>> = None;
         let mut ss = RustSemsimian::new(spo_cloned);
-        let (closure_table3, _) = ss.get_closure_and_ic_map(&predicates);
-        println!("Closure table for ss  {:?}", closure_table3);
+        ss.update_closure_and_ic_map(&predicates);
+        println!("Closure table for ss  {:?}", ss.closure_map);
         //Closure table: {"+related_to": {"apple": {"banana", "apple"}, "banana": {"orange", "banana"}, "pear": {"kiwi", "pear"}, "orange": {"orange", "pear"}}}
-        let term1 = "apple".to_string();
-        let term2 = "banana".to_string();
-        let sim = ss.jaccard_similarity(&term1, &term2, &predicates);
-        let sim2 = ss.jaccard_similarity(&term1, &term2, &no_predicates);
+        let apple = "apple".to_string();
+        let banana = "banana".to_string();
+        let sim = ss.jaccard_similarity(&apple, &banana, &predicates);
+        let sim2 = ss.jaccard_similarity(&apple, &banana, &no_predicates);
 
         assert_eq!(sim, 1.0 / 3.0);
         assert_eq!(sim2, 1.0 / 3.0);
@@ -251,13 +251,9 @@ mod tests {
                 .map(|s| s.to_string())
                 .collect(),
         );
-        let (closure_map, ic_map) = semsimian.get_closure_and_ic_map(&test_predicates);
-        println!("Closure_map from semsimian {:?}", closure_map);
-        // Closure_table: {"+related_to": {"orange": {"orange", "pear"}, "pear": {"pear", "kiwi"}, "apple": {"apple", "banana"}, "banana": {"banana", "orange"}}}
-        println!("ic_map from semsimian  {:?}", ic_map);
-        // ic_map:  {"+related_to": {"apple": 2.415037499278844, "banana": 2.0, "orange": 2.0, "kiwi": 4.0, "pear": 2.0}}
-        assert!(!closure_map.is_empty());
-        assert!(!ic_map.is_empty());
+        semsimian.update_closure_and_ic_map(&test_predicates);
+        assert!(!semsimian.closure_map.is_empty());
+        assert!(!semsimian.ic_map.is_empty());
     }
 
     #[test]
@@ -266,16 +262,12 @@ mod tests {
         let mut rs = RustSemsimian::new(spo_cloned);
         let predicates: Option<HashSet<String>> =
             Some(vec!["related_to".to_string()].into_iter().collect());
-        let (closure_map, _ic_map) = rs.get_closure_and_ic_map(&predicates);
-        println!("Closure_map from semsimian {:?}", closure_map);
+        rs.update_closure_and_ic_map(&predicates);
+        println!("Closure_map from semsimian {:?}", rs.closure_map);
         let (_, sim) =
             rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
-        println!("Do the print{}", sim);
-        assert!(sim > 0.0);
-        let (_, sim2) =
-            rs.resnik_similarity(&"apple".to_string(), &"apple".to_string(), &predicates);
-        println!("DO THE print{}", sim2);
-        assert_eq!(sim2, 2.415037499278844);
+        println!("DO THE print{}", sim);
+        assert_eq!(sim, 1.3219280948873622);
     }
 
     #[test]
@@ -319,7 +311,7 @@ mod tests {
         object_terms.insert(food.clone());
 
         let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["is_a".to_string()]));
-
+        rss.update_closure_and_ic_map(&predicates);
         let result = rss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates);
 
         assert_eq!(result.len(), 2);
@@ -338,8 +330,8 @@ mod tests {
         let (apple_fruit_mica, apple_fruit_resnik) =
             rss.resnik_similarity(&apple, &fruit, &predicates);
         let (
-            apple_fruit_resnik_from_similarity,
             apple_fruit_jaccard_from_similarity,
+            apple_fruit_resnik_from_similarity,
             apple_fruit_phenodigm_from_similarity,
             apple_fruit_mica_from_similarity,
         ) = apple_similarities.get(&fruit).unwrap();
@@ -360,8 +352,8 @@ mod tests {
         let (apple_food_mcra, apple_food_resnik) =
             rss.resnik_similarity(&apple, &food, &predicates);
         let (
-            apple_food_resnik_from_similarity,
             apple_food_jaccard_from_similarity,
+            apple_food_resnik_from_similarity,
             apple_food_phenodigm_from_similarity,
             apple_food_mica_from_similarity,
         ) = apple_similarities.get(&food).unwrap();
@@ -380,8 +372,8 @@ mod tests {
         let (fruit_fruit_mica, fruit_fruit_resnik) =
             rss.resnik_similarity(&fruit, &fruit, &predicates);
         let (
-            fruit_fruit_resnik_from_similarity,
             fruit_fruit_jaccard_from_similarity,
+            fruit_fruit_resnik_from_similarity,
             fruit_fruit_phenodigm_from_similarity,
             fruit_fruit_mica_from_similarity,
         ) = fruit_similarities.get(&fruit).unwrap();
@@ -406,8 +398,8 @@ mod tests {
         let (fruit_food_mica, fruit_food_resnik) =
             rss.resnik_similarity(&fruit, &food, &predicates);
         let (
-            fruit_food_resnik_from_similarity,
             fruit_food_jaccard_from_similarity,
+            fruit_food_resnik_from_similarity,
             fruit_food_phenodigm_from_similarity,
             fruit_food_mica_from_similarity,
         ) = fruit_similarities.get(&food).unwrap();
@@ -420,6 +412,27 @@ mod tests {
         assert_eq!(*fruit_food_mica_from_similarity, fruit_food_mica);
 
         assert!(!result.contains_key(&food));
-        println!("{result:?}");
+        println!("all_by_all_pairwise_similarity result: {result:?}");
+    }
+
+    #[test]
+    fn test_resnik_using_bfo() {
+        let spo = crate::test_utils::test_constants::BFO_SPO.clone();
+        let mut rss = RustSemsimian::new(spo);
+
+        let predicates: Option<HashSet<Predicate>> = Some(HashSet::from([
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]));
+
+        rss.update_closure_and_ic_map(&predicates);
+        // println!("IC_map from semsimian {:?}", rss.ic_map);
+        let (_, sim) = rss.resnik_similarity(
+            &"BFO:0000040".to_string(),
+            &"BFO:0000002".to_string(),
+            &predicates,
+        );
+        println!("DO THE print {}", sim);
+        assert_eq!(sim, 0.4854268271702417);
     }
 }
