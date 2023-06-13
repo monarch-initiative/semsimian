@@ -117,7 +117,7 @@ impl RustSemsimian {
                     let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
                     let (mica, resnik_sim) =
                         self_read.resnik_similarity(subject, object, predicates);
-                        
+
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
                         && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
                     {
@@ -131,7 +131,7 @@ impl RustSemsimian {
                             ),
                         );
                     }
-                    
+
                     pb.inc(1);
                 }
                 (subject.clone(), subject_similarities)
