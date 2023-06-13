@@ -40,6 +40,12 @@ class testSemsimianWithPython(unittest.TestCase):
             subject_terms, object_terms, 0.0, 0.0, predicates
         )
         self.assertEqual(result["orange"]["orange"][3], orange_mica)
+        result2 = self.semsimian.all_by_all_pairwise_similarity(
+            subject_terms=subject_terms,
+            object_terms=object_terms,
+            predicates=predicates
+        )
+        self.assertEqual(result2["orange"]["orange"][3], orange_mica)
 
 
 if __name__ == "__main__":
