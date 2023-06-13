@@ -91,6 +91,8 @@ impl RustSemsimian {
         &self,
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
+        minimum_jaccard_threshold: &Option<f64>,
+        minimum_resnik_threshold: &Option<f64>,
         predicates: &Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>
     {
@@ -115,15 +117,21 @@ impl RustSemsimian {
                     let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
                     let (mica, resnik_sim) =
                         self_read.resnik_similarity(subject, object, predicates);
-                    subject_similarities.insert(
-                        object.clone(),
-                        (
-                            jaccard_sim,
-                            resnik_sim,
-                            (resnik_sim * jaccard_sim).sqrt(),
-                            mica,
-                        ),
-                    );
+
+                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
+                        && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
+                    {
+                        subject_similarities.insert(
+                            object.clone(),
+                            (
+                                jaccard_sim,
+                                resnik_sim,
+                                (resnik_sim * jaccard_sim).sqrt(),
+                                mica,
+                            ),
+                        );
+                    }
+
                     pb.inc(1);
                 }
                 (subject.clone(), subject_similarities)
@@ -180,13 +188,20 @@ impl Semsimian {
         &mut self,
         subject_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
+        minimum_jaccard_threshold: Option<f64>,
+        minimum_resnik_threshold: Option<f64>,
         predicates: Option<HashSet<Predicate>>,
     ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<String>)>> {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
 
-        self.ss
-            .all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates)
+        self.ss.all_by_all_pairwise_similarity(
+            &subject_terms,
+            &object_terms,
+            &minimum_jaccard_threshold,
+            &minimum_resnik_threshold,
+            &predicates,
+        )
     }
 
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
@@ -282,7 +297,13 @@ mod tests {
         let object_terms: HashSet<TermID> = HashSet::new();
         let predicates: Option<HashSet<Predicate>> = None;
 
-        let result = rss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates);
+        let result = rss.all_by_all_pairwise_similarity(
+            &subject_terms,
+            &object_terms,
+            &Some(0.0),
+            &Some(0.0),
+            &predicates,
+        );
 
         assert_eq!(result.len(), 0);
     }
@@ -312,18 +333,24 @@ mod tests {
 
         let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["is_a".to_string()]));
         rss.update_closure_and_ic_map(&predicates);
-        let result = rss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &predicates);
+        let result = rss.all_by_all_pairwise_similarity(
+            &subject_terms,
+            &object_terms,
+            &Some(0.0),
+            &Some(0.0),
+            &predicates,
+        );
 
         assert_eq!(result.len(), 2);
         assert!(result.contains_key(&apple));
-        assert!(result.contains_key(&fruit));
+        // assert!(result.contains_key(&fruit));
 
         // Apple
         let apple_similarities = result.get(&apple).unwrap();
-
-        assert_eq!(apple_similarities.len(), 2);
+        // println!("{apple_similarities:?}");
+        assert_eq!(apple_similarities.len(), 1);
         assert!(apple_similarities.contains_key(&fruit));
-        assert!(apple_similarities.contains_key(&food));
+        assert!(!apple_similarities.contains_key(&food)); // Since resnik <= threshold
 
         // Apple, fruit tests
         let apple_fruit_jaccard = rss.jaccard_similarity(&apple, &fruit, &predicates);
@@ -351,20 +378,10 @@ mod tests {
         let apple_food_jaccard = rss.jaccard_similarity(&apple, &food, &predicates);
         let (apple_food_mcra, apple_food_resnik) =
             rss.resnik_similarity(&apple, &food, &predicates);
-        let (
-            apple_food_jaccard_from_similarity,
-            apple_food_resnik_from_similarity,
-            apple_food_phenodigm_from_similarity,
-            apple_food_mica_from_similarity,
-        ) = apple_similarities.get(&food).unwrap();
 
-        assert_eq!(*apple_food_resnik_from_similarity, apple_food_resnik);
-        assert_eq!(*apple_food_jaccard_from_similarity, apple_food_jaccard);
-        assert_eq!(
-            *apple_food_phenodigm_from_similarity,
-            (apple_food_resnik * apple_food_jaccard).sqrt()
-        );
-        assert_eq!(*apple_food_mica_from_similarity, apple_food_mcra);
+        assert_eq!(0.0, apple_food_resnik);
+        assert_eq!(0.3333333333333333, apple_food_jaccard);
+        assert_eq!(HashSet::from(["item".to_string()]), apple_food_mcra);
 
         // Fruit
         let fruit_similarities = result.get(&fruit).unwrap();
@@ -381,9 +398,10 @@ mod tests {
         // println!("{fruit_similarities:?}");
         // println!("{fruit_fruit_mica:?}");
 
-        assert_eq!(fruit_similarities.len(), 2);
+        assert_eq!(fruit_similarities.len(), 1);
         assert!(fruit_similarities.contains_key(&fruit));
-        assert!(fruit_similarities.contains_key(&food));
+        assert!(!fruit_similarities.contains_key(&food)); // Since Resnik <= threshold
+
         // Fruit, fruit tests
         assert_eq!(*fruit_fruit_resnik_from_similarity, fruit_fruit_resnik);
         assert_eq!(*fruit_fruit_jaccard_from_similarity, fruit_fruit_jaccard);
@@ -397,21 +415,10 @@ mod tests {
         let fruit_food_jaccard = rss.jaccard_similarity(&fruit, &food, &predicates);
         let (fruit_food_mica, fruit_food_resnik) =
             rss.resnik_similarity(&fruit, &food, &predicates);
-        let (
-            fruit_food_jaccard_from_similarity,
-            fruit_food_resnik_from_similarity,
-            fruit_food_phenodigm_from_similarity,
-            fruit_food_mica_from_similarity,
-        ) = fruit_similarities.get(&food).unwrap();
-        assert_eq!(*fruit_food_resnik_from_similarity, fruit_food_resnik);
-        assert_eq!(*fruit_food_jaccard_from_similarity, fruit_food_jaccard);
-        assert_eq!(
-            *fruit_food_phenodigm_from_similarity,
-            (fruit_food_resnik * fruit_food_jaccard).sqrt()
-        );
-        assert_eq!(*fruit_food_mica_from_similarity, fruit_food_mica);
-
-        assert!(!result.contains_key(&food));
+        assert_eq!(0.0, fruit_food_resnik);
+        assert_eq!(0.5, fruit_food_jaccard);
+        assert_eq!(HashSet::from(["item".to_string()]), fruit_food_mica);
+        assert!(!result.contains_key(&food)); // Since Resnik <= threshold
         println!("all_by_all_pairwise_similarity result: {result:?}");
     }
 
