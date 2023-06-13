@@ -418,7 +418,7 @@ mod tests {
         assert_eq!(0.0, fruit_food_resnik);
         assert_eq!(0.5, fruit_food_jaccard);
         assert_eq!(HashSet::from(["item".to_string()]), fruit_food_mica);
-        assert!(!result.contains_key(&food));
+        assert!(!result.contains_key(&food)); // Since Jaccard or Resnik < threshold
         println!("all_by_all_pairwise_similarity result: {result:?}");
     }
 
