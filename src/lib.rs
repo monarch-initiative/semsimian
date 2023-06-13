@@ -350,7 +350,7 @@ mod tests {
         // println!("{apple_similarities:?}");
         assert_eq!(apple_similarities.len(), 1);
         assert!(apple_similarities.contains_key(&fruit));
-        assert!(!apple_similarities.contains_key(&food)); // Since jaccard and resnik < threshold
+        assert!(!apple_similarities.contains_key(&food)); // Since jaccard or resnik < threshold
 
         // Apple, fruit tests
         let apple_fruit_jaccard = rss.jaccard_similarity(&apple, &fruit, &predicates);
@@ -400,8 +400,9 @@ mod tests {
 
         assert_eq!(fruit_similarities.len(), 1);
         assert!(fruit_similarities.contains_key(&fruit));
-        assert!(!fruit_similarities.contains_key(&food)); // Since Jaccard & Resnik < threshold
-                                                          // Fruit, fruit tests
+        assert!(!fruit_similarities.contains_key(&food)); // Since Jaccard or Resnik < threshold
+
+        // Fruit, fruit tests
         assert_eq!(*fruit_fruit_resnik_from_similarity, fruit_fruit_resnik);
         assert_eq!(*fruit_fruit_jaccard_from_similarity, fruit_fruit_jaccard);
         assert_eq!(
