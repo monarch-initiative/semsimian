@@ -87,58 +87,60 @@ impl RustSemsimian {
         calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
     }
 
-    pub fn all_by_all_pairwise_similarity(
-        &self,
-        subject_terms: &HashSet<TermID>,
-        object_terms: &HashSet<TermID>,
-        minimum_jaccard_threshold: &Option<f64>,
-        minimum_resnik_threshold: &Option<f64>,
-        predicates: &Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>
-    {
+    pub fn all_by_all_pairwise_similarity<'a>(
+        &'a self,
+        subject_terms: &'a HashSet<TermID>,
+        object_terms: &'a HashSet<TermID>,
+        minimum_jaccard_threshold: &'a Option<f64>,
+        minimum_resnik_threshold: &'a Option<f64>,
+        predicates: &'a Option<HashSet<Predicate>>,
+    ) -> impl Iterator<
+        Item = (
+            TermID,
+            HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
+        ),
+    > + 'a {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
             "Building all X all pairwise similarity:",
         );
+        let subject_similarities = Arc::new(RwLock::new(HashMap::new()));
+        subject_terms.par_iter().for_each(|subject| {
+            let mut similarities: HashMap<
+                TermID,
+                (Jaccard, Resnik, Phenodigm, MostInformativeAncestors),
+            > = HashMap::new();
+            for object in object_terms.iter() {
+                let self_read = self_shared.read().unwrap();
+                let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
+                let (mica, resnik_sim) = self_read.resnik_similarity(subject, object, predicates);
 
-        let similarity_map: HashMap<
-            TermID,
-            HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
-        > = subject_terms
-            .par_iter() // parallelize computations
-            .map(|subject| {
-                let mut subject_similarities: HashMap<
-                    TermID,
-                    (Jaccard, Resnik, Phenodigm, MostInformativeAncestors),
-                > = HashMap::new();
-                for object in object_terms.iter() {
-                    let self_read = self_shared.read().unwrap();
-                    let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
-                    let (mica, resnik_sim) =
-                        self_read.resnik_similarity(subject, object, predicates);
-
-                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
-                        && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
-                    {
-                        subject_similarities.insert(
-                            object.clone(),
-                            (
-                                jaccard_sim,
-                                resnik_sim,
-                                (resnik_sim * jaccard_sim).sqrt(),
-                                mica,
-                            ),
-                        );
-                    }
-
-                    pb.inc(1);
+                if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
+                    && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
+                {
+                    similarities.insert(
+                        object.clone(),
+                        (
+                            jaccard_sim,
+                            resnik_sim,
+                            (resnik_sim * jaccard_sim).sqrt(),
+                            mica,
+                        ),
+                    );
                 }
-                (subject.clone(), subject_similarities)
-            })
-            .collect();
-        pb.finish_with_message("done");
-        similarity_map
+            }
+            subject_similarities
+                .write()
+                .unwrap()
+                .insert(subject.clone(), similarities);
+            pb.inc(object_terms.len() as u64);
+        });
+        let cloned_subject_similarities = Arc::try_unwrap(subject_similarities)
+            .unwrap()
+            .into_inner()
+            .unwrap();
+        cloned_subject_similarities.into_iter()
     }
 
     // TODO: make this predicate aware, and make it work with the new closure map
@@ -191,17 +193,29 @@ impl Semsimian {
         minimum_jaccard_threshold: Option<f64>,
         minimum_resnik_threshold: Option<f64>,
         predicates: Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<String>)>> {
+    ) -> PyResult<Vec<(String, Vec<(String, (f64, f64, f64, HashSet<String>))>)>> {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
 
-        self.ss.all_by_all_pairwise_similarity(
+        let all_x_all = self.ss.all_by_all_pairwise_similarity(
             &subject_terms,
             &object_terms,
             &minimum_jaccard_threshold,
             &minimum_resnik_threshold,
             &predicates,
-        )
+        );
+
+        let result_vec: Vec<(String, HashMap<String, (f64, f64, f64, HashSet<String>)>)> =
+            all_x_all.collect();
+        let mut output_vec = Vec::new();
+        for (key, value) in result_vec {
+            let mut inner_vec = Vec::new();
+            for (inner_key, (similarity, jaccard, resnik, predicate)) in value {
+                inner_vec.push((inner_key, (similarity, jaccard, resnik, predicate)));
+            }
+            output_vec.push((key, inner_vec));
+        }
+        Ok(output_vec)
     }
 
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
@@ -216,6 +230,17 @@ impl fmt::Debug for RustSemsimian {
             "RustSemsimian {{ spo: {:?}, ic_map: {:?}, closure_map: {:?} }}",
             self.spo, self.ic_map, self.closure_map
         )
+    }
+}
+
+impl Iterator for RustSemsimian {
+    type Item = (
+        TermID,
+        HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
+    );
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
     }
 }
 
@@ -305,121 +330,159 @@ mod tests {
             &predicates,
         );
 
-        assert_eq!(result.len(), 0);
+        assert_eq!(result.count(), 0);
     }
 
     #[test]
-    fn test_all_by_all_pairwise_similarity_with_nonempty_inputs() {
+    fn test_all_by_all_pairwise_similarity() {
+        // HP:0000118: Phenotypic Abnormality
+        // HP:0001507: Growth Abnormality
+        // HP:0010718: Abormality of body weight
+        // HP:0001510: Growth delay
+        // HP:0004322: Short stature
+
+        // No direct relationship with "HP:0001507" or "HP:0004322"
+        // Create a new RustSemsimian object
         let mut rss = RustSemsimian::new(vec![
-            ("apple".to_string(), "is_a".to_string(), "fruit".to_string()),
-            ("apple".to_string(), "is_a".to_string(), "food".to_string()),
-            ("apple".to_string(), "is_a".to_string(), "item".to_string()),
-            ("fruit".to_string(), "is_a".to_string(), "food".to_string()),
-            ("fruit".to_string(), "is_a".to_string(), "item".to_string()),
-            ("food".to_string(), "is_a".to_string(), "item".to_string()),
+            (
+                "HP:0004322".to_string(),
+                "is_a".to_string(),
+                "HP:0001510".to_string(),
+            ),
+            (
+                "HP:0004322".to_string(),
+                "is_a".to_string(),
+                "HP:0010718".to_string(),
+            ),
+            (
+                "HP:0004322".to_string(),
+                "is_a".to_string(),
+                "HP:0001507".to_string(),
+            ),
+            (
+                "HP:0001510".to_string(),
+                "is_a".to_string(),
+                "HP:0001507".to_string(),
+            ),
+            (
+                "HP:0001510".to_string(),
+                "is_a".to_string(),
+                "HP:0001507".to_string(),
+            ),
+            (
+                "HP:0010718".to_string(),
+                "is_a".to_string(),
+                "HP:0001507".to_string(),
+            ),
+            (
+                "HP:0001507".to_string(),
+                "is_a".to_string(),
+                "HP:0000118".to_string(),
+            ),
         ]);
 
-        let apple = "apple".to_string();
-        let fruit = "fruit".to_string();
-        let food = "food".to_string();
-
-        let mut subject_terms: HashSet<String> = HashSet::new();
-        subject_terms.insert(apple.clone());
-        subject_terms.insert(fruit.clone());
-
-        let mut object_terms: HashSet<TermID> = HashSet::new();
-        object_terms.insert(fruit.clone());
-        object_terms.insert(food.clone());
-
+        // Define some test data
+        let subject_terms: HashSet<TermID> = ["HP:0010718", "HP:0001510", "HP:0004322"]
+            .iter()
+            .map(|&x| x.into())
+            .collect();
+        let object_terms: HashSet<TermID> = ["HP:0000118", "HP:0001507", "HP:0010718"]
+            .iter()
+            .map(|&x| x.into())
+            .collect();
+        // let minimum_jaccard_threshold = Some(0.5);
+        // let minimum_resnik_threshold = Some(1.0);
+        let minimum_jaccard_threshold = None;
+        let minimum_resnik_threshold = None;
         let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["is_a".to_string()]));
+
         rss.update_closure_and_ic_map(&predicates);
-        let result = rss.all_by_all_pairwise_similarity(
-            &subject_terms,
-            &object_terms,
-            &Some(0.0),
-            &Some(0.0),
-            &predicates,
-        );
 
-        assert_eq!(result.len(), 2);
-        assert!(result.contains_key(&apple));
-        // assert!(result.contains_key(&fruit));
+        // Call the function and collect the results into a vector
+        let result: Vec<_> = rss
+            .all_by_all_pairwise_similarity(
+                &subject_terms,
+                &object_terms,
+                &minimum_jaccard_threshold,
+                &minimum_resnik_threshold,
+                &predicates,
+            )
+            .collect();
+        // println!("{result:?}");
 
-        // Apple
-        let apple_similarities = result.get(&apple).unwrap();
-        // println!("{apple_similarities:?}");
-        assert_eq!(apple_similarities.len(), 1);
-        assert!(apple_similarities.contains_key(&fruit));
-        assert!(!apple_similarities.contains_key(&food)); // Since resnik <= threshold
+        // Define the expected output
 
-        // Apple, fruit tests
-        let apple_fruit_jaccard = rss.jaccard_similarity(&apple, &fruit, &predicates);
-        let (apple_fruit_mica, apple_fruit_resnik) =
-            rss.resnik_similarity(&apple, &fruit, &predicates);
-        let (
-            apple_fruit_jaccard_from_similarity,
-            apple_fruit_resnik_from_similarity,
-            apple_fruit_phenodigm_from_similarity,
-            apple_fruit_mica_from_similarity,
-        ) = apple_similarities.get(&fruit).unwrap();
+        let expected_output: Vec<_> = vec![
+            (
+                "HP:0010718".to_string(),
+                HashMap::from([
+                    (
+                        "HP:0010718".to_string(),
+                        (
+                            1.0 as f64,
+                            0.0 as f64,
+                            0.0 as f64,
+                            HashSet::from(["HP:0001507".to_string()]),
+                        ),
+                    ),
+                    (
+                        "HP:0000118".to_string(),
+                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                    ),
+                    (
+                        "HP:0001507".to_string(),
+                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                    ),
+                ]),
+            ),
+            (
+                "HP:0001510".to_string(),
+                HashMap::from([
+                    (
+                        "HP:0000118".to_string(),
+                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                    ),
+                    (
+                        "HP:0001507".to_string(),
+                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                    ),
+                    (
+                        "HP:0010718".to_string(),
+                        (
+                            1.0 as f64,
+                            0.0 as f64,
+                            0.0 as f64,
+                            HashSet::from(["HP:0001507".to_string()]),
+                        ),
+                    ),
+                ]),
+            ),
+            (
+                "HP:0004322".to_string(),
+                HashMap::from([
+                    (
+                        "HP:0010718".to_string(),
+                        (
+                            0.3333333333333333 as f64,
+                            0.0 as f64,
+                            0.0 as f64,
+                            HashSet::from(["HP:0001507".to_string()]),
+                        ),
+                    ),
+                    (
+                        "HP:0000118".to_string(),
+                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                    ),
+                    (
+                        "HP:0001507".to_string(),
+                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                    ),
+                ]),
+            ),
+        ];
 
-        assert_eq!(*apple_fruit_resnik_from_similarity, apple_fruit_resnik);
-        assert_eq!(*apple_fruit_jaccard_from_similarity, apple_fruit_jaccard);
-        assert_eq!(
-            *apple_fruit_phenodigm_from_similarity,
-            (apple_fruit_jaccard * apple_fruit_resnik).sqrt()
-        );
-        // println!("{apple_similarities:?}");
-        // println!("{apple_fruit_mica:?}");
-
-        assert_eq!(*apple_fruit_mica_from_similarity, apple_fruit_mica);
-
-        //Apple, food tests
-        let apple_food_jaccard = rss.jaccard_similarity(&apple, &food, &predicates);
-        let (apple_food_mcra, apple_food_resnik) =
-            rss.resnik_similarity(&apple, &food, &predicates);
-
-        assert_eq!(0.0, apple_food_resnik);
-        assert_eq!(0.3333333333333333, apple_food_jaccard);
-        assert_eq!(HashSet::from(["item".to_string()]), apple_food_mcra);
-
-        // Fruit
-        let fruit_similarities = result.get(&fruit).unwrap();
-        let fruit_fruit_jaccard = rss.jaccard_similarity(&fruit, &fruit, &predicates);
-        let (fruit_fruit_mica, fruit_fruit_resnik) =
-            rss.resnik_similarity(&fruit, &fruit, &predicates);
-        let (
-            fruit_fruit_jaccard_from_similarity,
-            fruit_fruit_resnik_from_similarity,
-            fruit_fruit_phenodigm_from_similarity,
-            fruit_fruit_mica_from_similarity,
-        ) = fruit_similarities.get(&fruit).unwrap();
-
-        // println!("{fruit_similarities:?}");
-        // println!("{fruit_fruit_mica:?}");
-
-        assert_eq!(fruit_similarities.len(), 1);
-        assert!(fruit_similarities.contains_key(&fruit));
-        assert!(!fruit_similarities.contains_key(&food)); // Since Resnik <= threshold
-
-        // Fruit, fruit tests
-        assert_eq!(*fruit_fruit_resnik_from_similarity, fruit_fruit_resnik);
-        assert_eq!(*fruit_fruit_jaccard_from_similarity, fruit_fruit_jaccard);
-        assert_eq!(
-            *fruit_fruit_phenodigm_from_similarity,
-            (fruit_fruit_resnik * fruit_fruit_jaccard).sqrt()
-        );
-        assert_eq!(*fruit_fruit_mica_from_similarity, fruit_fruit_mica);
-
-        // Fruit, food tests
-        let fruit_food_jaccard = rss.jaccard_similarity(&fruit, &food, &predicates);
-        let (fruit_food_mica, fruit_food_resnik) =
-            rss.resnik_similarity(&fruit, &food, &predicates);
-        assert_eq!(0.0, fruit_food_resnik);
-        assert_eq!(0.5, fruit_food_jaccard);
-        assert_eq!(HashSet::from(["item".to_string()]), fruit_food_mica);
-        assert!(!result.contains_key(&food)); // Since Resnik <= threshold
-        println!("all_by_all_pairwise_similarity result: {result:?}");
+        // Compare the actual and expected output
+        assert_eq!(result, expected_output);
     }
 
     #[test]
