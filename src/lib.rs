@@ -193,7 +193,7 @@ impl Semsimian {
         minimum_jaccard_threshold: Option<f64>,
         minimum_resnik_threshold: Option<f64>,
         predicates: Option<HashSet<Predicate>>,
-    ) -> PyResult<Vec<(String, Vec<(String, (f64, f64, f64, HashSet<String>))>)>> {
+    ) -> PyResult<HashMap<String, HashMap<String, (f64, f64, f64, HashSet<String>)>>> {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
 
@@ -205,17 +205,12 @@ impl Semsimian {
             &predicates,
         );
 
-        let result_vec: Vec<(String, HashMap<String, (f64, f64, f64, HashSet<String>)>)> =
-            all_x_all.collect();
-        let mut output_vec = Vec::new();
-        for (key, value) in result_vec {
-            let mut inner_vec = Vec::new();
-            for (inner_key, (similarity, jaccard, resnik, predicate)) in value {
-                inner_vec.push((inner_key, (similarity, jaccard, resnik, predicate)));
-            }
-            output_vec.push((key, inner_vec));
+        let mut output_map = HashMap::new();
+        for (key, value) in all_x_all {
+            let inner_map = value.into_iter().collect();
+            output_map.insert(key, inner_map);
         }
-        Ok(output_vec)
+        Ok(output_map)
     }
 
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
