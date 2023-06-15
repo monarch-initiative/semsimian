@@ -279,7 +279,7 @@ mod tests {
     fn test_get_closure_and_ic_map() {
         let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
         let mut semsimian = RustSemsimian::new(spo_cloned);
-        println!("semsimian after initialization: {:?}", semsimian);
+        println!("semsimian after initialization: {semsimian:?}");
         let test_predicates: Option<HashSet<Predicate>> = Some(
             vec!["related_to"]
                 .into_iter()
@@ -299,9 +299,8 @@ mod tests {
             Some(vec!["related_to".to_string()].into_iter().collect());
         rs.update_closure_and_ic_map(&predicates);
         println!("Closure_map from semsimian {:?}", rs.closure_map);
-        let (_, sim) =
-            rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
-        println!("DO THE print{}", sim);
+        let (_, sim) = rs.resnik_similarity("apple", "banana", &predicates);
+        println!("DO THE print{sim}");
         assert_eq!(sim, 1.3219280948873622);
     }
 
@@ -414,19 +413,19 @@ mod tests {
                     (
                         "HP:0010718".to_string(),
                         (
-                            1.0 as f64,
-                            0.0 as f64,
-                            0.0 as f64,
+                            1.0_f64,
+                            0.0_f64,
+                            0.0_f64,
                             HashSet::from(["HP:0001507".to_string()]),
                         ),
                     ),
                     (
                         "HP:0000118".to_string(),
-                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                        (0.0_f64, 0.0_f64, 0.0_f64, HashSet::new()),
                     ),
                     (
                         "HP:0001507".to_string(),
-                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                        (0.0_f64, 0.0_f64, 0.0_f64, HashSet::new()),
                     ),
                 ]),
             ),
@@ -435,18 +434,18 @@ mod tests {
                 HashMap::from([
                     (
                         "HP:0000118".to_string(),
-                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                        (0.0_f64, 0.0_f64, 0.0_f64, HashSet::new()),
                     ),
                     (
                         "HP:0001507".to_string(),
-                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                        (0.0_f64, 0.0_f64, 0.0_f64, HashSet::new()),
                     ),
                     (
                         "HP:0010718".to_string(),
                         (
-                            1.0 as f64,
-                            0.0 as f64,
-                            0.0 as f64,
+                            1.0_f64,
+                            0.0_f64,
+                            0.0_f64,
                             HashSet::from(["HP:0001507".to_string()]),
                         ),
                     ),
@@ -458,19 +457,19 @@ mod tests {
                     (
                         "HP:0010718".to_string(),
                         (
-                            0.3333333333333333 as f64,
-                            0.0 as f64,
-                            0.0 as f64,
+                            0.3333333333333333_f64,
+                            0.0_f64,
+                            0.0_f64,
                             HashSet::from(["HP:0001507".to_string()]),
                         ),
                     ),
                     (
                         "HP:0000118".to_string(),
-                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                        (0.0_f64, 0.0_f64, 0.0_f64, HashSet::new()),
                     ),
                     (
                         "HP:0001507".to_string(),
-                        (0.0 as f64, 0.0 as f64, 0.0 as f64, HashSet::new()),
+                        (0.0_f64, 0.0_f64, 0.0_f64, HashSet::new()),
                     ),
                 ]),
             ),
@@ -492,12 +491,8 @@ mod tests {
 
         rss.update_closure_and_ic_map(&predicates);
         // println!("IC_map from semsimian {:?}", rss.ic_map);
-        let (_, sim) = rss.resnik_similarity(
-            &"BFO:0000040".to_string(),
-            &"BFO:0000002".to_string(),
-            &predicates,
-        );
-        println!("DO THE print {}", sim);
+        let (_, sim) = rss.resnik_similarity("BFO:0000040", "BFO:0000002", &predicates);
+        println!("DO THE print {sim}");
         assert_eq!(sim, 0.4854268271702417);
     }
 }

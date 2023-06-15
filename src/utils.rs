@@ -161,8 +161,7 @@ pub fn generate_progress_bar_of_length_and_message(length: u64, message: &str) -
     progress_bar.set_style(
         ProgressStyle::default_bar()
             .template(&format!(
-                "[{{elapsed_precise}}] {} {{bar:40.cyan/blue}} {{percent}}%",
-                message
+                "[{{elapsed_precise}}] {message} {{bar:40.cyan/blue}} {{percent}}%"
             ))
             .unwrap(),
     );
@@ -335,11 +334,11 @@ mod tests {
         let expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = {
             let mut expected: HashMap<TermID, f64> = HashMap::new();
             // expected.insert(String::from("ABCD:123"), -(0.0 / 6 as f64).log2());
-            expected.insert(String::from("BCDE:234"), -(1.0 / 4 as f64).log2());
-            expected.insert(String::from("ABCDE:1234"), -(1.0 / 4 as f64).log2());
+            expected.insert(String::from("BCDE:234"), -(1.0 / 4_f64).log2());
+            expected.insert(String::from("ABCDE:1234"), -(1.0 / 4_f64).log2());
             // expected.insert(String::from("XYZ:123"), -(0.0 / 6 as f64).log2());
-            expected.insert(String::from("WXY:234"), -(1.0 / 4 as f64).log2());
-            expected.insert(String::from("WXYZ:1234"), -(1.0 / 4 as f64).log2());
+            expected.insert(String::from("WXY:234"), -(1.0 / 4_f64).log2());
+            expected.insert(String::from("WXYZ:1234"), -(1.0 / 4_f64).log2());
 
             let mut expected_ic_map_is_a_plus_part_of: HashMap<
                 PredicateSetKey,
@@ -358,31 +357,27 @@ mod tests {
                 HashMap::from([
                     (
                         String::from("ABCD:123"),
-                        HashSet::from(
-                            [String::from("BCDE:234"), String::from("ABCDE:1234")]
-                                .iter()
-                                .cloned()
-                                .collect::<HashSet<TermID>>(),
-                        ),
+                        [String::from("BCDE:234"), String::from("ABCDE:1234")]
+                            .iter()
+                            .cloned()
+                            .collect::<HashSet<TermID>>(),
                     ),
                     (
                         String::from("XYZ:123"),
-                        HashSet::from(
-                            [String::from("WXY:234"), String::from("WXYZ:1234")]
-                                .iter()
-                                .cloned()
-                                .collect::<HashSet<TermID>>(),
-                        ),
+                        [String::from("WXY:234"), String::from("WXYZ:1234")]
+                            .iter()
+                            .cloned()
+                            .collect::<HashSet<TermID>>(),
                     ),
                 ]),
             )]);
 
         let predicates_none: Option<HashSet<Predicate>> = None;
-        println!("Passing predicates: {:?}", predicates_none); // for debugging
+        println!("Passing predicates: {predicates_none:?}"); // for debugging
 
         let (closure_map_none, _) =
             convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_none);
-        println!("Received closure map: {:?}", closure_map_none); // for debugging
+        println!("Received closure map: {closure_map_none:?}"); // for debugging
 
         // when no predicates are specified predicates will be set to _all to cover all relations
         assert!(closure_map_none.contains_key("_all"));
