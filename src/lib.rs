@@ -1,7 +1,12 @@
-use pyo3::prelude::*;
-
+// use pyo3::iter::PyIterNextOutput;
+use pyo3::{
+    prelude::*,
+    // pyclass::IterNextOutput,
+    // types::{PyDict, PyList, PyTuple},
+};
 use std::{
     collections::{HashMap, HashSet},
+    fmt,
     sync::{Arc, RwLock},
 };
 pub mod similarity;
@@ -10,8 +15,6 @@ pub mod utils;
 use rayon::prelude::*;
 
 mod test_utils;
-
-use std::fmt;
 
 use similarity::{calculate_max_information_content, calculate_phenomizer_score};
 use utils::{
@@ -213,6 +216,47 @@ impl Semsimian {
         Ok(output_map)
     }
 
+    // fn all_by_all_pairwise_similarity_iter(
+    //         &mut self,
+    //         subject_terms: HashSet<TermID>,
+    //         object_terms: HashSet<TermID>,
+    //         minimum_jaccard_threshold: Option<f64>,
+    //         minimum_resnik_threshold: Option<f64>,
+    //         predicates: Option<HashSet<Predicate>>,
+    //     ) -> PyResult<IterNextOutput<PyObject, PyObject>>
+    // {
+    //     Python::with_gil(|py| {
+    //         // first make sure we have the closure and ic map for the given predicates
+    //         let owned_predicates = &predicates.unwrap_or_default();
+    //         self.ss.update_closure_and_ic_map(&Some(owned_predicates.clone()));
+
+    //         let all_x_all = self.ss.all_by_all_pairwise_similarity(
+    //             &subject_terms,
+    //             &object_terms,
+    //             &minimum_jaccard_threshold,
+    //             &minimum_resnik_threshold,
+    //             &Some(owned_predicates.clone()),
+    //         );
+
+    //         let mut results = Vec::new();
+
+    //         for (subject, similarities) in all_x_all
+    //         {
+    //             let similarity_dict = PyDict::new(py);
+
+    //             for (object, (jaccard, resnik, phenodigm, mrca)) in similarities {
+    //                 let tuple = PyTuple::new(py, &[jaccard.to_object(py), resnik.to_object(py), phenodigm.to_object(py), mrca.to_object(py)]);
+    //                 similarity_dict.set_item(object.as_str(), tuple)?;
+    //             }
+
+    //             let result_tuple = PyTuple::new(py, &[subject.as_str().to_object(py), similarity_dict.to_object(py)]);
+    //             results.push(result_tuple);
+    //         }
+
+    //         Ok(PyIterNextOutput::Yield(PyList::new(py, &results).to_object(py)))
+    //     })
+    // }
+
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
         Ok(self.ss.spo.to_vec())
     }
@@ -225,17 +269,6 @@ impl fmt::Debug for RustSemsimian {
             "RustSemsimian {{ spo: {:?}, ic_map: {:?}, closure_map: {:?} }}",
             self.spo, self.ic_map, self.closure_map
         )
-    }
-}
-
-impl Iterator for RustSemsimian {
-    type Item = (
-        TermID,
-        HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
-    );
-
-    fn next(&mut self) -> Option<Self::Item> {
-        None
     }
 }
 
