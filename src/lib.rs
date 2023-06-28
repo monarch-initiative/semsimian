@@ -279,8 +279,7 @@ mod tests {
             Some(vec!["related_to".to_string()].into_iter().collect());
         rs.update_closure_and_ic_map(&predicates);
         println!("Closure_map from semsimian {:?}", rs.closure_map);
-        let (_, sim) =
-            rs.resnik_similarity("apple", "banana", &predicates);
+        let (_, sim) = rs.resnik_similarity("apple", "banana", &predicates);
         println!("DO THE print{sim}");
         assert_eq!(sim, 1.3219280948873622);
     }
@@ -434,11 +433,7 @@ mod tests {
 
         rss.update_closure_and_ic_map(&predicates);
         // println!("IC_map from semsimian {:?}", rss.ic_map);
-        let (_, sim) = rss.resnik_similarity(
-            "BFO:0000040",
-            "BFO:0000002",
-            &predicates,
-        );
+        let (_, sim) = rss.resnik_similarity("BFO:0000040", "BFO:0000002", &predicates);
         println!("DO THE print {sim}");
         assert_eq!(sim, 0.4854268271702417);
     }

@@ -358,16 +358,16 @@ mod tests {
                     (
                         String::from("ABCD:123"),
                         [String::from("BCDE:234"), String::from("ABCDE:1234")]
-                                .iter()
-                                .cloned()
-                                .collect::<HashSet<TermID>>(),
+                            .iter()
+                            .cloned()
+                            .collect::<HashSet<TermID>>(),
                     ),
                     (
                         String::from("XYZ:123"),
                         [String::from("WXY:234"), String::from("WXYZ:1234")]
-                                .iter()
-                                .cloned()
-                                .collect::<HashSet<TermID>>(),
+                            .iter()
+                            .cloned()
+                            .collect::<HashSet<TermID>>(),
                     ),
                 ]),
             )]);
