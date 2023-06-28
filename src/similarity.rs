@@ -162,20 +162,22 @@ mod tests {
         sco_predicate.insert(String::from("subClassOf"));
 
         let result = calculate_semantic_jaccard_similarity(
-            &*CLOSURE_MAP,
+            &CLOSURE_MAP,
             "CARO:0000000",
             "BFO:0000002",
             &Some(sco_predicate.clone()),
         );
 
+        println!("{result:?}");
         assert_eq!(result, 2.0 / 3.0);
 
         let result2 = calculate_semantic_jaccard_similarity(
-            &*CLOSURE_MAP,
+            &CLOSURE_MAP,
             "BFO:0000002",
             "BFO:0000003",
             &Some(sco_predicate.clone()),
         );
+        println!("{result2:?}");
         assert_eq!(result2, 1.0 / 3.0);
 
         let mut sco_po_predicate: HashSet<String> = HashSet::new();
@@ -183,11 +185,12 @@ mod tests {
         sco_po_predicate.insert(String::from("partOf"));
 
         let result3 = calculate_semantic_jaccard_similarity(
-            &*CLOSURE_MAP2,
+            &CLOSURE_MAP2,
             "BFO:0000002",
             "BFO:0000003",
             &Some(sco_po_predicate.clone()),
         );
+        println!("{result3:?}");
         assert_eq!(result3, 1.0 / 3.0);
     }
 

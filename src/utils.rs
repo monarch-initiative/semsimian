@@ -84,17 +84,12 @@ pub fn convert_list_of_tuples_to_hashmap(
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
     let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
-    let mut total_count = 0;
 
     let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
 
-    let progress_bar = ProgressBar::new(list_of_tuples.len() as u64);
-    progress_bar.set_style(
-        ProgressStyle::default_bar()
-            .template(
-                "[{elapsed_precise}] Building closure and IC map: {bar:40.cyan/blue} {percent}%",
-            )
-            .unwrap(),
+    let progress_bar = generate_progress_bar_of_length_and_message(
+        list_of_tuples.len() as u64,
+        "Building closure and IC map:",
     );
 
     for (s, p, o) in list_of_tuples.iter() {
@@ -102,11 +97,13 @@ pub fn convert_list_of_tuples_to_hashmap(
             continue;
         }
 
-        *freq_map.entry(s.clone()).or_insert(0) += 1;
-        total_count += 1;
+        // ! As per this below, the frequency map gets populated ONLY if the node is an object (o)
+        // ! in the (s, p, o). If the node is a subject (s), it does not count towards the frequency.
+        // ! Only with this implemented will the results match with `oaklib`'s `sqlite` implementation
+        // ! of semantic similarity.
 
+        // *freq_map.entry(s.clone()).or_insert(0) += 1;
         *freq_map.entry(o.clone()).or_insert(0) += 1;
-        total_count += 1;
 
         closure_map
             .entry(predicate_set_key.clone())
@@ -118,13 +115,16 @@ pub fn convert_list_of_tuples_to_hashmap(
         progress_bar.inc(1);
     }
 
-    progress_bar.finish();
+    progress_bar.finish_with_message("done");
 
-    for (k, v) in freq_map.iter() {
+    let number_of_nodes = freq_map.keys().len() as f64;
+    for (k, v) in &freq_map {
         ic_map
             .entry(predicate_set_key.clone())
             .or_insert_with(HashMap::new)
-            .insert(k.clone(), -(*v as f64 / total_count as f64).log2());
+            .entry(k.to_string())
+            .and_modify(|x| *x = -(*v as f64 / number_of_nodes).log2())
+            .or_insert_with(|| -(*v as f64 / number_of_nodes).log2());
     }
 
     ClosureAndICMap {
@@ -139,7 +139,11 @@ pub fn expand_term_using_closure(
     predicates: &Option<HashSet<Predicate>>,
 ) -> HashSet<TermID> {
     let mut ancestors: HashSet<String> = HashSet::new();
-    let this_predicate_set_key = predicate_set_to_key(predicates);
+    let mut this_predicate_set_key = predicate_set_to_key(predicates);
+    if this_predicate_set_key == "_all" {
+        let closure_table_keys: Vec<String> = closure_table.keys().cloned().collect();
+        this_predicate_set_key = closure_table_keys.join("+");
+    }
 
     for (closure_predicate_key, closure_map) in closure_table.iter() {
         if *closure_predicate_key == this_predicate_set_key {
@@ -149,6 +153,18 @@ pub fn expand_term_using_closure(
         }
     }
     ancestors
+}
+
+pub fn generate_progress_bar_of_length_and_message(length: u64, message: &str) -> ProgressBar {
+    let progress_bar = ProgressBar::new(length);
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template(&format!(
+                "[{{elapsed_precise}}] {message} {{bar:40.cyan/blue}} {{percent}}%"
+            ))
+            .unwrap(),
+    );
+    progress_bar
 }
 
 #[cfg(test)]
@@ -230,7 +246,7 @@ mod tests {
 
     #[test]
     fn test_convert_list_of_tuples_to_hashmap() {
-        let list_of_tuples: Vec<(String, String, String)> = vec![
+        let list_of_tuples: Vec<(TermID, Predicate, TermID)> = vec![
             (
                 String::from("ABCD:123"),
                 String::from("is_a"),
@@ -316,20 +332,12 @@ mod tests {
 
         let expected_ic_map_is_a_plus_part_of: HashMap<PredicateSetKey, HashMap<TermID, f64>> = {
             let mut expected: HashMap<TermID, f64> = HashMap::new();
-            let total_count = 8;
-
-            expected.insert(String::from("ABCD:123"), -(2.0 / total_count as f64).log2());
-            expected.insert(String::from("BCDE:234"), -(1.0 / total_count as f64).log2());
-            expected.insert(
-                String::from("ABCDE:1234"),
-                -(1.0 / total_count as f64).log2(),
-            );
-            expected.insert(String::from("XYZ:123"), -(2.0 / total_count as f64).log2());
-            expected.insert(String::from("WXY:234"), -(1.0 / total_count as f64).log2());
-            expected.insert(
-                String::from("WXYZ:1234"),
-                -(1.0 / total_count as f64).log2(),
-            );
+            // expected.insert(String::from("ABCD:123"), -(0.0 / 6 as f64).log2());
+            expected.insert(String::from("BCDE:234"), -(1.0 / 4_f64).log2());
+            expected.insert(String::from("ABCDE:1234"), -(1.0 / 4_f64).log2());
+            // expected.insert(String::from("XYZ:123"), -(0.0 / 6 as f64).log2());
+            expected.insert(String::from("WXY:234"), -(1.0 / 4_f64).log2());
+            expected.insert(String::from("WXYZ:1234"), -(1.0 / 4_f64).log2());
 
             let mut expected_ic_map_is_a_plus_part_of: HashMap<
                 PredicateSetKey,
@@ -391,13 +399,15 @@ mod tests {
         let term = String::from("CARO:0000000");
         let predicates: Option<HashSet<Predicate>> =
             Some(HashSet::from(["subClassOf".to_string()]));
-        let result = expand_term_using_closure(&term, &closure_table, &predicates);
+        let result_1 = expand_term_using_closure(&term, &closure_table, &predicates);
+        let result_2 = expand_term_using_closure(&term, &closure_table, &None);
 
         let expected_result = HashSet::from([
             "BFO:0000002".to_string(),
             "BFO:0000003".to_string(),
             "CARO:0000000".to_string(),
         ]);
-        assert_eq!(result, expected_result);
+        assert_eq!(result_1, expected_result);
+        assert_eq!(result_2, expected_result);
     }
 }
