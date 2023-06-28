@@ -52,8 +52,22 @@ impl RustSemsimian {
         }
     }
 
+    pub fn update_closure_and_ic_map(&mut self, predicates: &Option<HashSet<Predicate>>) {
+         let predicate_set_key = predicate_set_to_key(predicates);
+         let (this_closure_map, this_ic_map) =
+             convert_list_of_tuples_to_hashmap(&self.spo, predicates);
+         self.closure_map.insert(
+             predicate_set_key.clone(),
+             this_closure_map.get(&predicate_set_key).unwrap().clone(),
+         );
+         self.ic_map.insert(
+             predicate_set_key.clone(),
+             this_ic_map.get(&predicate_set_key).unwrap().clone(),
+         );
+     }
+
     pub fn jaccard_similarity(
-        &mut self,
+        &self,
         term1: &str,
         term2: &str,
         predicates: &Option<HashSet<Predicate>>,
@@ -271,12 +285,12 @@ mod tests {
         let closure_ic_map: ClosureAndICMap = rs.get_closure_and_ic_map(&predicates);
         println!("Closure_map from semsimian {:?}", closure_ic_map.closure_map);
         let (_, sim) =
-            rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
-        println!("Do the print{}", sim);
+            rs.resnik_similarity("apple", "banana", &predicates);
+        println!("Do the print{sim}");
         assert!(sim > 0.0);
         let (_, sim2) =
-            rs.resnik_similarity(&"apple".to_string(), &"apple".to_string(), &predicates);
-        println!("DO THE print{}", sim2);
+            rs.resnik_similarity("apple", "apple", &predicates);
+        println!("DO THE print{sim2}");
         assert_eq!(sim2, 2.415037499278844);
     }
 
