@@ -66,6 +66,7 @@ pipeline {
         }
 
         stage('Run similarity ') {
+            // TODO: verify the version of PHENIO we are using and note that...somewhere
             steps {
                 dir('./gitrepo') {
                     script {
@@ -101,6 +102,7 @@ pipeline {
         }
 
         stage('Upload result') {
+            // Store similarity results at s3://kg-hub-public-data/monarch/
             steps {
                 dir('./gitrepo') {
                     script {
