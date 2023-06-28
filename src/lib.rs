@@ -259,7 +259,7 @@ mod tests {
     fn test_get_closure_and_ic_map() {
         let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
         let mut semsimian = RustSemsimian::new(spo_cloned);
-        println!("semsimian after initialization: {:?}", semsimian);
+        println!("semsimian after initialization: {semsimian:?}");
         let test_predicates: Option<HashSet<Predicate>> = Some(
             vec!["related_to"]
                 .into_iter()
@@ -280,8 +280,8 @@ mod tests {
         rs.update_closure_and_ic_map(&predicates);
         println!("Closure_map from semsimian {:?}", rs.closure_map);
         let (_, sim) =
-            rs.resnik_similarity(&"apple".to_string(), &"banana".to_string(), &predicates);
-        println!("DO THE print{}", sim);
+            rs.resnik_similarity("apple", "banana", &predicates);
+        println!("DO THE print{sim}");
         assert_eq!(sim, 1.3219280948873622);
     }
 
@@ -435,11 +435,11 @@ mod tests {
         rss.update_closure_and_ic_map(&predicates);
         // println!("IC_map from semsimian {:?}", rss.ic_map);
         let (_, sim) = rss.resnik_similarity(
-            &"BFO:0000040".to_string(),
-            &"BFO:0000002".to_string(),
+            "BFO:0000040",
+            "BFO:0000002",
             &predicates,
         );
-        println!("DO THE print {}", sim);
+        println!("DO THE print {sim}");
         assert_eq!(sim, 0.4854268271702417);
     }
 }
