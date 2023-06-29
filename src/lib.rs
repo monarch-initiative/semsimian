@@ -27,6 +27,8 @@ pub type Jaccard = f64;
 pub type Resnik = f64;
 pub type Phenodigm = f64;
 pub type MostInformativeAncestors = HashSet<TermID>;
+type SimilarityMap =
+    HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>;
 
 #[derive(Clone)]
 pub struct RustSemsimian {
@@ -94,18 +96,14 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>
-    {
+    ) -> SimilarityMap {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
             "Building all X all pairwise similarity:",
         );
 
-        let similarity_map: HashMap<
-            TermID,
-            HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
-        > = subject_terms
+        let similarity_map: SimilarityMap = subject_terms
             .par_iter() // parallelize computations
             .map(|subject| {
                 let mut subject_similarities: HashMap<
@@ -191,7 +189,7 @@ impl Semsimian {
         minimum_jaccard_threshold: Option<f64>,
         minimum_resnik_threshold: Option<f64>,
         predicates: Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<String>)>> {
+    ) -> SimilarityMap {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
 
@@ -279,8 +277,7 @@ mod tests {
             Some(vec!["related_to".to_string()].into_iter().collect());
         rs.update_closure_and_ic_map(&predicates);
         println!("Closure_map from semsimian {:?}", rs.closure_map);
-        let (_, sim) =
-            rs.resnik_similarity("apple", "banana", &predicates);
+        let (_, sim) = rs.resnik_similarity("apple", "banana", &predicates);
         println!("DO THE print{sim}");
         assert_eq!(sim, 1.3219280948873622);
     }
@@ -434,11 +431,7 @@ mod tests {
 
         rss.update_closure_and_ic_map(&predicates);
         // println!("IC_map from semsimian {:?}", rss.ic_map);
-        let (_, sim) = rss.resnik_similarity(
-            "BFO:0000040",
-            "BFO:0000002",
-            &predicates,
-        );
+        let (_, sim) = rss.resnik_similarity("BFO:0000040", "BFO:0000002", &predicates);
         println!("DO THE print {sim}");
         assert_eq!(sim, 0.4854268271702417);
     }

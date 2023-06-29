@@ -4,6 +4,8 @@ use std::collections::{HashMap, HashSet};
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
+type ClosureMap = HashMap<String, HashMap<String, HashSet<String>>>;
+type ICMap = HashMap<String, HashMap<String, f64>>;
 
 pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> PredicateSetKey {
     let mut result = String::new();
@@ -80,10 +82,7 @@ pub fn _stringify_sets_using_map(
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
     predicates: &Option<HashSet<String>>,
-) -> (
-    HashMap<String, HashMap<String, HashSet<String>>>,
-    HashMap<String, HashMap<String, f64>>,
-) {
+) -> (ClosureMap, ICMap) {
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
     let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
@@ -358,16 +357,16 @@ mod tests {
                     (
                         String::from("ABCD:123"),
                         [String::from("BCDE:234"), String::from("ABCDE:1234")]
-                                .iter()
-                                .cloned()
-                                .collect::<HashSet<TermID>>(),
+                            .iter()
+                            .cloned()
+                            .collect::<HashSet<TermID>>(),
                     ),
                     (
                         String::from("XYZ:123"),
                         [String::from("WXY:234"), String::from("WXYZ:1234")]
-                                .iter()
-                                .cloned()
-                                .collect::<HashSet<TermID>>(),
+                            .iter()
+                            .cloned()
+                            .collect::<HashSet<TermID>>(),
                     ),
                 ]),
             )]);
