@@ -275,13 +275,14 @@ impl Semsimian {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
 
-        Ok(self.ss.all_by_all_pairwise_similarity_with_output(
+        self.ss.all_by_all_pairwise_similarity_with_output(
             &subject_terms,
             &object_terms,
             &minimum_jaccard_threshold,
             &minimum_resnik_threshold,
             &predicates,
-        ))
+        );
+        Ok(())
     }
 
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
