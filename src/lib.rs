@@ -149,14 +149,15 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
         predicates: &Option<HashSet<Predicate>>,
+        outfile: Option<&str>,
     ) {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
             "Building all X all pairwise similarity:",
         );
-
-        let file = File::create("similarity_map.tsv").unwrap();
+        let outfile = outfile.unwrap_or("similarity_map.tsv");
+        let file = File::create(outfile).unwrap();
         let writer = Arc::new(Mutex::new(BufWriter::new(file)));
 
         // Write the column names to the TSV file
@@ -166,6 +167,7 @@ impl RustSemsimian {
             "Subject\tObject\tJaccard\tResnik\tPhenodigm\tMostInformativeAncestors"
         )
         .unwrap();
+        drop(writer_1);
 
         subject_terms
             .par_iter() // parallelize computations
@@ -271,6 +273,7 @@ impl Semsimian {
         minimum_jaccard_threshold: Option<f64>,
         minimum_resnik_threshold: Option<f64>,
         predicates: Option<HashSet<Predicate>>,
+        outfile: Option<&str>,
     ) -> PyResult<()> {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
@@ -281,6 +284,7 @@ impl Semsimian {
             &minimum_jaccard_threshold,
             &minimum_resnik_threshold,
             &predicates,
+            outfile,
         );
         Ok(())
     }
@@ -310,12 +314,12 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 mod tests {
 
     use super::*;
-    use crate::RustSemsimian;
-    use std::collections::HashSet;
+    use crate::{RustSemsimian, test_utils::test_constants::SPO_FRUITS};
+    use std::{collections::HashSet, io::{BufReader, BufRead}};
 
     #[test]
     fn test_jaccard_similarity() {
-        let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
+        let spo_cloned = SPO_FRUITS.clone();
         let predicates: Option<HashSet<Predicate>> = Some(
             vec!["related_to"]
                 .into_iter()
@@ -338,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_get_closure_and_ic_map() {
-        let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
+        let spo_cloned = SPO_FRUITS.clone();
         let mut semsimian = RustSemsimian::new(spo_cloned);
         println!("semsimian after initialization: {semsimian:?}");
         let test_predicates: Option<HashSet<Predicate>> = Some(
@@ -354,7 +358,7 @@ mod tests {
 
     #[test]
     fn test_resnik_similarity() {
-        let spo_cloned = crate::test_utils::test_constants::SPO_FRUITS.clone();
+        let spo_cloned = SPO_FRUITS.clone();
         let mut rs = RustSemsimian::new(spo_cloned);
         let predicates: Option<HashSet<String>> =
             Some(vec!["related_to".to_string()].into_iter().collect());
@@ -500,6 +504,49 @@ mod tests {
         assert_eq!(HashSet::from(["item".to_string()]), fruit_food_mica);
         assert!(!result.contains_key(&food)); // Since Resnik <= threshold
         println!("all_by_all_pairwise_similarity result: {result:?}");
+    }
+
+    #[test]
+    fn test_all_by_all_pairwise_similarity_with_output() {
+        let mut rss = RustSemsimian::new(SPO_FRUITS.clone());
+        let banana = "banana".to_string();
+        let apple = "apple".to_string();
+        let pear = "pear".to_string();
+        let outfile = Some("tests/data/output/similarity_test_output.tsv");
+
+        let mut subject_terms: HashSet<String> = HashSet::new();
+        subject_terms.insert(banana.clone());
+        subject_terms.insert(apple.clone());
+
+        let mut object_terms: HashSet<TermID> = HashSet::new();
+        object_terms.insert(apple.clone());
+        object_terms.insert(pear.clone());
+
+        let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["related_to".to_string()]));
+        rss.update_closure_and_ic_map(&predicates);
+        // let result = rss.all_by_all_pairwise_similarity(
+        //     &subject_terms,
+        //     &object_terms,
+        //     &Some(0.0),
+        //     &Some(0.0),
+        //     &predicates,
+        // );
+        rss.all_by_all_pairwise_similarity_with_output(
+            &subject_terms,
+            &object_terms,
+            &Some(0.0),
+            &Some(0.0),
+            &predicates,
+            outfile,
+        );
+
+        // Read the outfile and count the number of lines
+        let file = File::open(outfile.unwrap()).unwrap();
+        let reader = BufReader::new(file);
+        
+        let line_count = reader.lines().count();
+        // Assert that the line count is 3 (including the header)
+        assert_eq!(line_count, 3);
     }
 
     #[test]
