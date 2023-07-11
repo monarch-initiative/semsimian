@@ -2,8 +2,11 @@ use pyo3::prelude::*;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
+    fs::File,
+    io::{BufWriter, Write}
 };
+
 pub mod similarity;
 
 pub mod utils;
@@ -27,8 +30,6 @@ pub type Jaccard = f64;
 pub type Resnik = f64;
 pub type Phenodigm = f64;
 pub type MostInformativeAncestors = HashSet<TermID>;
-type SimilarityMap =
-    HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>;
 
 #[derive(Clone)]
 pub struct RustSemsimian {
@@ -96,14 +97,21 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> SimilarityMap {
+    ) -> HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>
+    {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
             "Building all X all pairwise similarity:",
         );
 
-        let similarity_map: SimilarityMap = subject_terms
+        let file = File::create("similarity_map.tsv").unwrap();
+        let writer = Arc::new(Mutex::new(BufWriter::new(file)));
+
+        let similarity_map: HashMap<
+            TermID,
+            HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
+        > = subject_terms
             .par_iter() // parallelize computations
             .map(|subject| {
                 let mut subject_similarities: HashMap<
@@ -128,6 +136,18 @@ impl RustSemsimian {
                                 mica,
                             ),
                         );
+                        // Write the line to the TSV file
+                        let mut writer = writer.lock().unwrap();
+                        writeln!(
+                            &mut writer,
+                            "{}\t{}\t{}\t{}\t{}",
+                            subject,
+                            object,
+                            jaccard_sim,
+                            resnik_sim,
+                            (resnik_sim * jaccard_sim).sqrt()
+                        )
+                        .unwrap();
                     }
 
                     pb.inc(1);
@@ -189,7 +209,7 @@ impl Semsimian {
         minimum_jaccard_threshold: Option<f64>,
         minimum_resnik_threshold: Option<f64>,
         predicates: Option<HashSet<Predicate>>,
-    ) -> SimilarityMap {
+    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<String>)>> {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
 
