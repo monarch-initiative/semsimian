@@ -314,8 +314,11 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 mod tests {
 
     use super::*;
-    use crate::{RustSemsimian, test_utils::test_constants::SPO_FRUITS};
-    use std::{collections::HashSet, io::{BufReader, BufRead}};
+    use crate::{test_utils::test_constants::SPO_FRUITS, RustSemsimian};
+    use std::{
+        collections::HashSet,
+        io::{BufRead, BufReader},
+    };
 
     #[test]
     fn test_jaccard_similarity() {
@@ -522,7 +525,8 @@ mod tests {
         object_terms.insert(apple.clone());
         object_terms.insert(pear.clone());
 
-        let predicates: Option<HashSet<Predicate>> = Some(HashSet::from(["related_to".to_string()]));
+        let predicates: Option<HashSet<Predicate>> =
+            Some(HashSet::from(["related_to".to_string()]));
         rss.update_closure_and_ic_map(&predicates);
         // let result = rss.all_by_all_pairwise_similarity(
         //     &subject_terms,
@@ -543,7 +547,7 @@ mod tests {
         // Read the outfile and count the number of lines
         let file = File::open(outfile.unwrap()).unwrap();
         let reader = BufReader::new(file);
-        
+
         let line_count = reader.lines().count();
         // Assert that the line count is 3 (including the header)
         assert_eq!(line_count, 3);
