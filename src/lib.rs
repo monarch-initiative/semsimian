@@ -2,9 +2,9 @@ use pyo3::prelude::*;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex, RwLock},
     fs::File,
-    io::{BufWriter, Write}
+    io::{BufWriter, Write},
+    sync::{Arc, Mutex, RwLock},
 };
 
 pub mod similarity;
@@ -30,7 +30,8 @@ pub type Jaccard = f64;
 pub type Resnik = f64;
 pub type Phenodigm = f64;
 pub type MostInformativeAncestors = HashSet<TermID>;
-type SimilarityMap = HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>;
+type SimilarityMap =
+    HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>;
 
 #[derive(Clone)]
 pub struct RustSemsimian {
@@ -98,8 +99,7 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> SimilarityMap
-    {
+    ) -> SimilarityMap {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
@@ -155,10 +155,10 @@ impl RustSemsimian {
             (subject_terms.len() * object_terms.len()) as u64,
             "Building all X all pairwise similarity:",
         );
-    
+
         let file = File::create("similarity_map.tsv").unwrap();
         let writer = Arc::new(Mutex::new(BufWriter::new(file)));
-    
+
         // Write the column names to the TSV file
         let mut writer_1 = writer.lock().unwrap();
         writeln!(
@@ -166,7 +166,7 @@ impl RustSemsimian {
             "Subject\tObject\tJaccard\tResnik\tPhenodigm\tMostInformativeAncestors"
         )
         .unwrap();
-    
+
         subject_terms
             .par_iter() // parallelize computations
             .for_each(|subject| {
@@ -175,7 +175,7 @@ impl RustSemsimian {
                     let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
                     let (mica, resnik_sim) =
                         self_read.resnik_similarity(subject, object, predicates);
-    
+
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
                         && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
                     {
@@ -193,11 +193,11 @@ impl RustSemsimian {
                         )
                         .unwrap();
                     }
-    
+
                     pb.inc(1);
                 }
             });
-    
+
         pb.finish_with_message("done");
     }
 
