@@ -105,9 +105,6 @@ impl RustSemsimian {
             "Building all X all pairwise similarity:",
         );
 
-        let file = File::create("similarity_map.tsv").unwrap();
-        let writer = Arc::new(Mutex::new(BufWriter::new(file)));
-
         let similarity_map: HashMap<
             TermID,
             HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
@@ -136,18 +133,6 @@ impl RustSemsimian {
                                 mica,
                             ),
                         );
-                        // Write the line to the TSV file
-                        let mut writer = writer.lock().unwrap();
-                        writeln!(
-                            &mut writer,
-                            "{}\t{}\t{}\t{}\t{}",
-                            subject,
-                            object,
-                            jaccard_sim,
-                            resnik_sim,
-                            (resnik_sim * jaccard_sim).sqrt()
-                        )
-                        .unwrap();
                     }
 
                     pb.inc(1);
@@ -157,6 +142,65 @@ impl RustSemsimian {
             .collect();
         pb.finish_with_message("done");
         similarity_map
+    }
+
+    pub fn all_by_all_pairwise_similarity_with_output(
+        &self,
+        subject_terms: &HashSet<TermID>,
+        object_terms: &HashSet<TermID>,
+        minimum_jaccard_threshold: &Option<f64>,
+        minimum_resnik_threshold: &Option<f64>,
+        predicates: &Option<HashSet<Predicate>>,
+    ) {
+        let self_shared = Arc::new(RwLock::new(self.clone()));
+        let pb = generate_progress_bar_of_length_and_message(
+            (subject_terms.len() * object_terms.len()) as u64,
+            "Building all X all pairwise similarity:",
+        );
+    
+        let file = File::create("similarity_map.tsv").unwrap();
+        let writer = Arc::new(Mutex::new(BufWriter::new(file)));
+    
+        // Write the column names to the TSV file
+        let mut writer_1 = writer.lock().unwrap();
+        writeln!(
+            &mut *writer_1,
+            "Subject\tObject\tJaccard\tResnik\tPhenodigm\tMostInformativeAncestors"
+        )
+        .unwrap();
+    
+        subject_terms
+            .par_iter() // parallelize computations
+            .for_each(|subject| {
+                for object in object_terms.iter() {
+                    let self_read = self_shared.read().unwrap();
+                    let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
+                    let (mica, resnik_sim) =
+                        self_read.resnik_similarity(subject, object, predicates);
+    
+                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
+                        && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
+                    {
+                        // Write the line to the TSV file
+                        let mut writer_2 = writer.lock().unwrap();
+                        writeln!(
+                            &mut *writer_2,
+                            "{}\t{}\t{}\t{}\t{}\t{}",
+                            subject,
+                            object,
+                            jaccard_sim,
+                            resnik_sim,
+                            (resnik_sim * jaccard_sim).sqrt(),
+                            mica.into_iter().collect::<Vec<String>>().join(", ")
+                        )
+                        .unwrap();
+                    }
+    
+                    pb.inc(1);
+                }
+            });
+    
+        pb.finish_with_message("done");
     }
 
     // TODO: make this predicate aware, and make it work with the new closure map
