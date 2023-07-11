@@ -30,6 +30,7 @@ pub type Jaccard = f64;
 pub type Resnik = f64;
 pub type Phenodigm = f64;
 pub type MostInformativeAncestors = HashSet<TermID>;
+type SimilarityMap = HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>;
 
 #[derive(Clone)]
 pub struct RustSemsimian {
@@ -97,7 +98,7 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
         predicates: &Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>
+    ) -> SimilarityMap
     {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
@@ -105,10 +106,7 @@ impl RustSemsimian {
             "Building all X all pairwise similarity:",
         );
 
-        let similarity_map: HashMap<
-            TermID,
-            HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>,
-        > = subject_terms
+        let similarity_map: SimilarityMap = subject_terms
             .par_iter() // parallelize computations
             .map(|subject| {
                 let mut subject_similarities: HashMap<
@@ -253,7 +251,7 @@ impl Semsimian {
         minimum_jaccard_threshold: Option<f64>,
         minimum_resnik_threshold: Option<f64>,
         predicates: Option<HashSet<Predicate>>,
-    ) -> HashMap<TermID, HashMap<TermID, (f64, f64, f64, HashSet<String>)>> {
+    ) -> SimilarityMap {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map(&predicates);
 
