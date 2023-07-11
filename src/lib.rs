@@ -518,12 +518,12 @@ mod tests {
         let outfile = Some("tests/data/output/similarity_test_output.tsv");
 
         let mut subject_terms: HashSet<String> = HashSet::new();
-        subject_terms.insert(banana.clone());
+        subject_terms.insert(banana);
         subject_terms.insert(apple.clone());
 
         let mut object_terms: HashSet<TermID> = HashSet::new();
-        object_terms.insert(apple.clone());
-        object_terms.insert(pear.clone());
+        object_terms.insert(apple);
+        object_terms.insert(pear);
 
         let predicates: Option<HashSet<Predicate>> =
             Some(HashSet::from(["related_to".to_string()]));
