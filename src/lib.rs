@@ -159,14 +159,20 @@ impl RustSemsimian {
         let outfile = outfile.unwrap_or("similarity_map.tsv");
         let file = File::create(outfile).unwrap();
         let writer = Arc::new(Mutex::new(BufWriter::new(file)));
+        let column_names: Vec<&str> = vec![
+            "subject_id",
+            "object_id",
+            "jaccard_similarity",
+            "ancestor_information_content",
+            "phenodigm_score",
+            "ancestor_id",
+        ];
+
+        let column_names_as_str = column_names.join("\t");
 
         // Write the column names to the TSV file
         let mut writer_1 = writer.lock().unwrap();
-        writeln!(
-            &mut *writer_1,
-            "Subject\tObject\tJaccard\tResnik\tPhenodigm\tMostInformativeAncestors"
-        )
-        .unwrap();
+        writeln!(&mut *writer_1, "{}", column_names_as_str).unwrap();
         drop(writer_1);
 
         subject_terms
