@@ -157,6 +157,22 @@ fn common_ancestors(
         .collect()
 }
 
+fn calculate_cosine_similarity_for_embeddings(embed_1: Vec<i64>, embed_2: Vec<i64>) -> f64 {
+    let dot_product = embed_1
+        .iter()
+        .zip(embed_2.iter())
+        .map(|(&a, &b)| a * b)
+        .sum::<i64>() as f64;
+    let norm_embed_1 = (embed_1.iter().map(|&a| a * a).sum::<i64>() as f64).sqrt();
+    let norm_embed_2 = (embed_2.iter().map(|&a| a * a).sum::<i64>() as f64).sqrt();
+
+    if norm_embed_1 == 0.0 || norm_embed_2 == 0.0 {
+        return 0.0;
+    }
+
+    dot_product / (norm_embed_1 * norm_embed_2)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -379,5 +395,26 @@ mod tests {
             (result - expected_value).abs() < 1e-3,
             "Expected value: {expected_value}, got: {result:?}"
         );
+    }
+
+    #[test]
+    fn test_calculate_cosine_similarity_for_embeddings() {
+        // Test case 1: Non-zero similarity
+        let embed_1 = vec![1, 2, 3];
+        let embed_2 = vec![4, 5, 6];
+        let similarity = calculate_cosine_similarity_for_embeddings(embed_1, embed_2);
+        assert_eq!(similarity, 0.9746318461970762);
+
+        // Test case 2: Zero similarity due to one embedding being all zeros
+        let embed_1 = vec![0, 0, 0];
+        let embed_2 = vec![4, 5, 6];
+        let similarity = calculate_cosine_similarity_for_embeddings(embed_1, embed_2);
+        assert_eq!(similarity, 0.0);
+
+        // Test case 3: Zero similarity due to both embeddings being all zeros
+        let embed_1 = vec![0, 0, 0];
+        let embed_2 = vec![0, 0, 0];
+        let similarity = calculate_cosine_similarity_for_embeddings(embed_1, embed_2);
+        assert_eq!(similarity, 0.0);
     }
 }
