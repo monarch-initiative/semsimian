@@ -172,7 +172,7 @@ impl RustSemsimian {
 
         // Write the column names to the TSV file
         let mut writer_1 = writer.lock().unwrap();
-        writeln!(&mut *writer_1, "{}", column_names_as_str).unwrap();
+        writeln!(&mut *writer_1, "{column_names_as_str}").unwrap();
         drop(writer_1);
 
         subject_terms
