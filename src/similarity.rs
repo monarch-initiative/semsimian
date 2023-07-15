@@ -185,7 +185,7 @@ pub fn calculate_cosine_similarity_for_nodes(
     }
 }
 
-fn calculate_cosine_similarity_for_embeddings(embed_1: &Vec<f64>, embed_2: &Vec<f64>) -> f64 {
+fn calculate_cosine_similarity_for_embeddings(embed_1: &[f64], embed_2: &[f64]) -> f64 {
     let dot_product = embed_1
         .iter()
         .zip(embed_2.iter())

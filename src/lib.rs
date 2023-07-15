@@ -86,16 +86,14 @@ impl RustSemsimian {
             // Skip the header row
             lines.next();
 
-            for line in lines {
-                if let Ok(line) = line {
-                    let values: Vec<&str> = line.split('\t').collect();
-                    let curie = values[0].to_string();
-                    let embedding: Vec<f64> = values[1..]
-                        .iter()
-                        .filter_map(|value| value.parse().ok())
-                        .collect();
-                    embeddings.push((curie, embedding));
-                }
+            for line in lines.flatten() {
+                let values: Vec<&str> = line.split('\t').collect();
+                let curie = values[0].to_string();
+                let embedding: Vec<f64> = values[1..]
+                    .iter()
+                    .filter_map(|value| value.parse().ok())
+                    .collect();
+                embeddings.push((curie, embedding));
             }
 
             self.embeddings = embeddings;
