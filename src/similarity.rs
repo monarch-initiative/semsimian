@@ -175,10 +175,10 @@ pub fn calculate_cosine_similarity_for_nodes(
         }
         _ => {
             if find_embedding_index(embeddings, term1).is_none() {
-                eprintln!("Embedding for term '{}' not found", term1);
+                eprintln!("Embedding for term '{term1}' not found");
             }
             if find_embedding_index(embeddings, term2).is_none() {
-                eprintln!("Embedding for term '{}' not found", term2);
+                eprintln!("Embedding for term '{term2}' not found");
             }
             None
         }

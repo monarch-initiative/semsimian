@@ -224,7 +224,7 @@ impl RustSemsimian {
                     let cosine_sim = match &self_read.embeddings.is_empty() {
                         true => std::f64::NAN,
                         false => {
-                            self_read.cosine_similarity(&subject, &object, &self_read.embeddings)
+                            self_read.cosine_similarity(subject, object, &self_read.embeddings)
                         }
                     };
 
