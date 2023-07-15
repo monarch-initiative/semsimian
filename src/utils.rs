@@ -167,6 +167,10 @@ pub fn generate_progress_bar_of_length_and_message(length: u64, message: &str) -
     progress_bar
 }
 
+pub fn find_embedding_index(embeddings: &[(String, Vec<f64>)], node: &str) -> Option<usize> {
+    embeddings.iter().position(|(curie, _)| curie == node)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
