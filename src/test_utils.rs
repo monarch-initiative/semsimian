@@ -127,15 +127,17 @@ pub mod test_constants {
          //             -> banana -> banana, orange
          //             -> orange -> orange, pear
          //             -> pear -> pear, kiwi
-         let mut spo: Vec<(TermID, Predicate, TermID)> = Vec::new();
-         spo.push((String::from("apple"), String::from("related_to"), String::from("apple")));
-         spo.push((String::from("apple"), String::from("related_to"), String::from("banana")));
-         spo.push((String::from("banana"), String::from("related_to"), String::from("banana")));
-         spo.push((String::from("banana"), String::from("related_to"), String::from("orange")));
-         spo.push((String::from("orange"), String::from("related_to"), String::from("orange")));
-         spo.push((String::from("orange"), String::from("related_to"), String::from("pear")));
-         spo.push((String::from("pear"), String::from("related_to"), String::from("pear")));
-         spo.push((String::from("pear"), String::from("related_to"), String::from("kiwi")));
+         let spo: Vec<(TermID, Predicate, TermID)> = vec![
+             (String::from("apple"), String::from("related_to"), String::from("apple")),
+             (String::from("apple"), String::from("related_to"), String::from("banana")),
+             (String::from("banana"), String::from("related_to"), String::from("banana")),
+             (String::from("banana"), String::from("related_to"), String::from("orange")),
+             (String::from("orange"), String::from("related_to"), String::from("orange")),
+             (String::from("orange"), String::from("related_to"), String::from("pear")),
+             (String::from("pear"), String::from("related_to"), String::from("pear")),
+             (String::from("pear"), String::from("related_to"), String::from("kiwi")),
+         ];
+         
          spo
        };
 
