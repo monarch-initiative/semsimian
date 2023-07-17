@@ -137,7 +137,7 @@ pub mod test_constants {
              (String::from("pear"), String::from("related_to"), String::from("pear")),
              (String::from("pear"), String::from("related_to"), String::from("kiwi")),
          ];
-         
+
          spo
        };
 
