@@ -141,6 +141,27 @@ pub mod test_constants {
          spo
        };
 
+       pub static ref OUTPUT_COLUMNS_VECTOR: Vec<String> = {
+        vec![
+                "subject_id".to_string(),
+                "subject_label".to_string(),
+                "subject_source".to_string(),
+                "object_id".to_string(),
+                "object_label".to_string(),
+                "object_source".to_string(),
+                "ancestor_id".to_string(),
+                "ancestor_label".to_string(),
+                "ancestor_source".to_string(),
+                "object_information_content".to_string(),
+                "subject_information_content".to_string(),
+                "ancestor_information_content".to_string(),
+                "jaccard_similarity".to_string(),
+                "cosine_similarity".to_string(),
+                "dice_similarity".to_string(),
+                "phenodigm_score".to_string(),
+            ]
+        };
+
        pub static ref BFO_SPO: Vec<(TermID, Predicate, TermID)> = {
         let spo:Vec<(TermID, Predicate, TermID)> = vec![
             (

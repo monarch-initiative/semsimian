@@ -1,10 +1,9 @@
 use pyo3::prelude::*;
-
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, Mutex, RwLock}, any::Any,
 };
 
 pub mod similarity;
@@ -47,15 +46,20 @@ pub struct RustSemsimian {
     closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     // closure_map is something like {("is_a_+_part_of"), {"GO:1234": {"GO:1234", "GO:5678"}}}
     embeddings: Embeddings,
+    term_pairwise_similarity_attributes: Option<Vec<String>>,
 }
 
 impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
     // TODO: also, we should support loading "custom" ic
     // TODO: generate ic map and closure map using (spo).
-    pub fn new(spo: Vec<(TermID, Predicate, TermID)>) -> RustSemsimian {
+    pub fn new(
+        spo: Vec<(TermID, Predicate, TermID)>,
+        term_pairwise_similarity_attributes: Option<Vec<String>>,
+    ) -> RustSemsimian {
         RustSemsimian {
             spo,
+            term_pairwise_similarity_attributes,
             ic_map: HashMap::new(),
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
@@ -203,8 +207,20 @@ impl RustSemsimian {
             "cosine_similarity",
             "ancestor_id",
         ];
+        let mut output_map: BTreeMap<&str, Box<dyn Any>> = BTreeMap::new();
+        if let Some(output_columns_vector) =
+            &self.term_pairwise_similarity_attributes
+        {
+            for name in output_columns_vector {
+                output_map.insert(name, Box::new(None::<String>));
+            }
+        } else {
+            for name in &column_names {
+                output_map.insert(name, Box::new(None::<String>));
+            }
+        }
 
-        let column_names_as_str = column_names.join("\t");
+        let column_names_as_str = output_map.keys().cloned().collect::<Vec<&str>>().join("\t");
 
         // Write the column names to the TSV file
         let mut writer_1 = writer.lock().unwrap();
@@ -213,34 +229,82 @@ impl RustSemsimian {
 
         subject_terms
             .par_iter() // parallelize computations
-            .for_each(|subject| {
-                for object in object_terms.iter() {
+            .for_each(|subject_id| {
+                for object_id in object_terms.iter() {
                     let self_read = self_shared.read().unwrap();
-                    let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
-                    let (mica, resnik_sim) =
-                        self_read.resnik_similarity(subject, object, predicates);
-                    let cosine_sim = match &self_read.embeddings.is_empty() {
+                    let jaccard_similarity =
+                        self_read.jaccard_similarity(subject_id, object_id, predicates);
+                    let (ancestor_id, ancestor_information_content) =
+                        self_read.resnik_similarity(subject_id, object_id, predicates);
+                    let cosine_similarity = match &self_read.embeddings.is_empty() {
                         true => std::f64::NAN,
-                        false => {
-                            self_read.cosine_similarity(subject, object, &self_read.embeddings)
-                        }
+                        false => self_read.cosine_similarity(
+                            subject_id,
+                            object_id,
+                            &self_read.embeddings,
+                        ),
                     };
+                    // TODO: This block of code is repeated and needs to be addressed.
+                    let mut output_map: BTreeMap<&str, Box<dyn Any>> = BTreeMap::new();
 
-                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
-                        && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
+                    if let Some(output_columns_vector) =
+                        &self_read.term_pairwise_similarity_attributes
+                    {
+                        for name in output_columns_vector {
+                            output_map.insert(name, Box::new(None::<String>));
+                        }
+                    } else {
+                        for name in &column_names {
+                            output_map.insert(name, Box::new(None::<String>));
+                        }
+                    }
+
+                    // Overwrite output_map values with variable values that correspond to the keys if they exist
+                    if let Some(value) = output_map.get_mut("subject_id") {
+                        *value = Box::new(Some(subject_id.to_string()));
+                    }
+                    if let Some(value) = output_map.get_mut("object_id") {
+                        *value = Box::new(Some(object_id.to_string()));
+                    }
+                    if let Some(value) = output_map.get_mut("jaccard_similarity") {
+                        *value = Box::new(Some(jaccard_similarity));
+                    }
+                    if let Some(value) = output_map.get_mut("ancestor_information_content") {
+                        *value = Box::new(Some(ancestor_information_content));
+                    }
+                    if let Some(value) = output_map.get_mut("phenodigm_score") {
+                        *value = Box::new(Some(
+                            (ancestor_information_content * jaccard_similarity).sqrt(),
+                        ));
+                    }
+                    if let Some(value) = output_map.get_mut("cosine_similarity") {
+                        *value = Box::new(Some(cosine_similarity));
+                    }
+                    if let Some(value) = output_map.get_mut("ancestor_id") {
+                        *value = Box::new(Some(
+                            ancestor_id.into_iter().collect::<Vec<String>>().join(", "),
+                        ));
+                    }
+
+                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
+                        && minimum_resnik_threshold
+                            .map_or(true, |t| ancestor_information_content > t)
                     {
                         // Write the line to the TSV file
                         let mut writer_2 = writer.lock().unwrap();
                         writeln!(
                             &mut *writer_2,
-                            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
-                            subject,
-                            object,
-                            jaccard_sim,
-                            resnik_sim,
-                            (resnik_sim * jaccard_sim).sqrt(),
-                            cosine_sim,
-                            mica.into_iter().collect::<Vec<String>>().join(", ")
+                            "{}",
+                            output_map
+                                .values()
+                                .map(|value| {
+                                    match value.downcast_ref::<Option<String>>() {
+                                        Some(Some(s)) => s,
+                                        _ => "",
+                                    }
+                                })
+                                .collect::<Vec<&str>>()
+                                .join("\t")
                         )
                         .unwrap();
                     }
@@ -270,8 +334,11 @@ pub struct Semsimian {
 #[pymethods]
 impl Semsimian {
     #[new]
-    fn new(spo: Vec<(TermID, Predicate, TermID)>) -> PyResult<Self> {
-        let ss = RustSemsimian::new(spo);
+    fn new(
+        spo: Vec<(TermID, Predicate, TermID)>,
+        term_pairwise_similarity_attributes: Option<Vec<String>>,
+    ) -> PyResult<Self> {
+        let ss = RustSemsimian::new(spo, term_pairwise_similarity_attributes);
         Ok(Semsimian { ss })
     }
 
@@ -395,7 +462,7 @@ mod tests {
                 .collect(),
         );
         let no_predicates: Option<HashSet<Predicate>> = None;
-        let mut ss = RustSemsimian::new(spo_cloned);
+        let mut ss = RustSemsimian::new(spo_cloned, None);
         ss.update_closure_and_ic_map(&predicates);
         println!("Closure table for ss  {:?}", ss.closure_map);
         //Closure table: {"+related_to": {"apple": {"banana", "apple"}, "banana": {"orange", "banana"}, "pear": {"kiwi", "pear"}, "orange": {"orange", "pear"}}}
@@ -411,7 +478,7 @@ mod tests {
     #[test]
     fn test_get_closure_and_ic_map() {
         let spo_cloned = SPO_FRUITS.clone();
-        let mut semsimian = RustSemsimian::new(spo_cloned);
+        let mut semsimian = RustSemsimian::new(spo_cloned, None);
         println!("semsimian after initialization: {semsimian:?}");
         let test_predicates: Option<HashSet<Predicate>> = Some(
             vec!["related_to"]
@@ -427,7 +494,7 @@ mod tests {
     #[test]
     fn test_resnik_similarity() {
         let spo_cloned = SPO_FRUITS.clone();
-        let mut rs = RustSemsimian::new(spo_cloned);
+        let mut rs = RustSemsimian::new(spo_cloned, None);
         let predicates: Option<HashSet<String>> =
             Some(vec!["related_to".to_string()].into_iter().collect());
         rs.update_closure_and_ic_map(&predicates);
@@ -439,11 +506,10 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_empty_inputs() {
-        let rss = RustSemsimian::new(vec![(
-            "apple".to_string(),
-            "is_a".to_string(),
-            "fruit".to_string(),
-        )]);
+        let rss = RustSemsimian::new(
+            vec![("apple".to_string(), "is_a".to_string(), "fruit".to_string())],
+            None,
+        );
 
         let subject_terms: HashSet<TermID> = HashSet::new();
         let object_terms: HashSet<TermID> = HashSet::new();
@@ -462,14 +528,17 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_nonempty_inputs() {
-        let mut rss = RustSemsimian::new(vec![
-            ("apple".to_string(), "is_a".to_string(), "fruit".to_string()),
-            ("apple".to_string(), "is_a".to_string(), "food".to_string()),
-            ("apple".to_string(), "is_a".to_string(), "item".to_string()),
-            ("fruit".to_string(), "is_a".to_string(), "food".to_string()),
-            ("fruit".to_string(), "is_a".to_string(), "item".to_string()),
-            ("food".to_string(), "is_a".to_string(), "item".to_string()),
-        ]);
+        let mut rss = RustSemsimian::new(
+            vec![
+                ("apple".to_string(), "is_a".to_string(), "fruit".to_string()),
+                ("apple".to_string(), "is_a".to_string(), "food".to_string()),
+                ("apple".to_string(), "is_a".to_string(), "item".to_string()),
+                ("fruit".to_string(), "is_a".to_string(), "food".to_string()),
+                ("fruit".to_string(), "is_a".to_string(), "item".to_string()),
+                ("food".to_string(), "is_a".to_string(), "item".to_string()),
+            ],
+            None,
+        );
 
         let apple = "apple".to_string();
         let fruit = "fruit".to_string();
@@ -576,12 +645,14 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_output() {
-        let mut rss = RustSemsimian::new(SPO_FRUITS.clone());
+        let output_columns = crate::test_utils::test_constants::OUTPUT_COLUMNS_VECTOR.clone();
+        let mut rss = RustSemsimian::new(SPO_FRUITS.clone(), Some(output_columns));
         let banana = "banana".to_string();
         let apple = "apple".to_string();
         let pear = "pear".to_string();
         let outfile = Some("tests/data/output/similarity_test_output.tsv");
         let embeddings_file = Some("tests/data/test_embeddings.tsv");
+        
 
         let mut subject_terms: HashSet<String> = HashSet::new();
         subject_terms.insert(banana);
@@ -616,7 +687,7 @@ mod tests {
     #[test]
     fn test_resnik_using_bfo() {
         let spo = crate::test_utils::test_constants::BFO_SPO.clone();
-        let mut rss = RustSemsimian::new(spo);
+        let mut rss = RustSemsimian::new(spo, None);
 
         let predicates: Option<HashSet<Predicate>> = Some(HashSet::from([
             "rdfs:subClassOf".to_string(),
@@ -633,7 +704,7 @@ mod tests {
     #[test]
     fn test_cosine_using_bfo() {
         let spo = crate::test_utils::test_constants::BFO_SPO.clone();
-        let mut rss = RustSemsimian::new(spo);
+        let mut rss = RustSemsimian::new(spo, None);
         let embeddings_file = Some("tests/data/bfo_embeddings.tsv");
 
         rss.load_embeddings(embeddings_file.unwrap());

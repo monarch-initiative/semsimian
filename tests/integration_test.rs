@@ -92,7 +92,7 @@ fn integration_test_jaccard_similarity_from_struct() {
         ),
     ];
 
-    let mut rs = RustSemsimian::new(triples);
+    let mut rs = RustSemsimian::new(triples, None);
 
     // cant do this as get_closure is private, but is tested in lib
 
