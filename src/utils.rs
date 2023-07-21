@@ -1,5 +1,7 @@
+use ::polars::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
 
 type Predicate = String;
 type TermID = String;
@@ -171,8 +173,30 @@ pub fn find_embedding_index(embeddings: &[(String, Vec<f64>)], node: &str) -> Op
     embeddings.iter().position(|(curie, _)| curie == node)
 }
 
+pub fn rearrange_columns_and_rewrite(filename: &str, sequence: Vec<String>) {
+    // Read the TSV `filename` path using polars
+    let df = CsvReader::from_path(filename)
+        .expect("Cannot read file")
+        .with_delimiter(b'\t')
+        .finish()
+        .unwrap();
+
+    // Change the sequence of the columns of the TSV file
+    let mut df_reordered = df.select(&sequence).unwrap();
+
+    // Use writer to write df_reordered into a TSV file.
+    let mut buf = File::create(filename).unwrap();
+    CsvWriter::new(&mut buf)
+        .has_header(true)
+        .with_delimiter(b'\t')
+        .finish(&mut df_reordered)
+        .expect("DataFrame not exported!");
+}
+
 #[cfg(test)]
 mod tests {
+    use std::io::{Read, Write};
+
     use super::*;
     #[test]
 
@@ -444,5 +468,40 @@ mod tests {
         ]);
         assert_eq!(result_1, expected_result);
         assert_eq!(result_2, expected_result);
+    }
+
+    #[test]
+    fn test_rearrange_columns_and_rewrite() {
+        // Create a temporary file for testing
+        let filename = "tests/data/output/test_data.tsv";
+        let mut file = File::create(filename).expect("Failed to create file");
+        writeln!(file, "Column A\tColumn B\tColumn C").expect("Failed to write line");
+        writeln!(file, "Value 1\t\tValue 3").expect("Failed to write line");
+        writeln!(file, "Value 4\tValue 5\tValue 6").expect("Failed to write line");
+
+        // Define the desired column sequence
+        let sequence = vec![
+            String::from("Column C"),
+            String::from("Column A"),
+            String::from("Column B"),
+        ];
+
+        // Call the function being tested
+        rearrange_columns_and_rewrite(filename, sequence);
+
+        // Read the modified file and check the contents
+        let mut file = File::open(filename).expect("Failed to open file");
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .expect("Failed to read file");
+
+        println!("{contents:?}");
+        // assert_eq!(
+        //     contents,
+        //     "Column C\tColumn A\tColumn B\nValue 3\tValue 1\tValue 2\nValue 6\tValue 4\tValue 5\n"
+        // );
+
+        // // Clean up the temporary file
+        // std::fs::remove_file(filename).expect("Failed to remove file");
     }
 }

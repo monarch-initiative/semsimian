@@ -1,9 +1,10 @@
 use pyo3::prelude::*;
 use std::{
+    any::Any,
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
-    sync::{Arc, Mutex, RwLock}, any::Any,
+    sync::{Arc, Mutex, RwLock},
 };
 
 pub mod similarity;
@@ -22,6 +23,7 @@ use similarity::{
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
     generate_progress_bar_of_length_and_message, predicate_set_to_key,
+    rearrange_columns_and_rewrite,
 };
 
 // change to "pub" because it is easier for testing
@@ -208,9 +210,7 @@ impl RustSemsimian {
             "ancestor_id",
         ];
         let mut output_map: BTreeMap<&str, Box<dyn Any>> = BTreeMap::new();
-        if let Some(output_columns_vector) =
-            &self.term_pairwise_similarity_attributes
-        {
+        if let Some(output_columns_vector) = &self.term_pairwise_similarity_attributes {
             for name in output_columns_vector {
                 output_map.insert(name, Box::new(None::<String>));
             }
@@ -312,7 +312,15 @@ impl RustSemsimian {
                     pb.inc(1);
                 }
             });
-
+        drop(writer);
+        if let Some(output_columns_vector) = &self.term_pairwise_similarity_attributes {
+            rearrange_columns_and_rewrite(outfile, output_columns_vector.to_owned());
+        } else {
+            rearrange_columns_and_rewrite(
+                outfile,
+                column_names.iter().map(|&s| s.to_owned()).collect(),
+            );
+        }
         pb.finish_with_message("done");
     }
 
@@ -652,7 +660,6 @@ mod tests {
         let pear = "pear".to_string();
         let outfile = Some("tests/data/output/similarity_test_output.tsv");
         let embeddings_file = Some("tests/data/test_embeddings.tsv");
-        
 
         let mut subject_terms: HashSet<String> = HashSet::new();
         subject_terms.insert(banana);
