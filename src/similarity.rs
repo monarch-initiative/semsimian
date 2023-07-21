@@ -1,7 +1,9 @@
 use crate::Predicate;
 use crate::PredicateSetKey;
 use crate::TermID;
-use crate::{utils::expand_term_using_closure, utils::predicate_set_to_key};
+use crate::{
+    utils::expand_term_using_closure, utils::find_embedding_index, utils::predicate_set_to_key,
+};
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
 
@@ -155,6 +157,48 @@ fn common_ancestors(
         .into_iter()
         .filter(|ancestor| entity2_closure.contains(ancestor))
         .collect()
+}
+
+pub fn calculate_cosine_similarity_for_nodes(
+    embeddings: &[(String, Vec<f64>)],
+    term1: &str,
+    term2: &str,
+) -> Option<f64> {
+    match (
+        find_embedding_index(embeddings, term1),
+        find_embedding_index(embeddings, term2),
+    ) {
+        (Some(index1), Some(index2)) => {
+            let embed_1 = &embeddings[index1].1;
+            let embed_2 = &embeddings[index2].1;
+            Some(calculate_cosine_similarity_for_embeddings(embed_1, embed_2))
+        }
+        _ => {
+            if find_embedding_index(embeddings, term1).is_none() {
+                eprintln!("Embedding for term '{term1}' not found");
+            }
+            if find_embedding_index(embeddings, term2).is_none() {
+                eprintln!("Embedding for term '{term2}' not found");
+            }
+            None
+        }
+    }
+}
+
+fn calculate_cosine_similarity_for_embeddings(embed_1: &[f64], embed_2: &[f64]) -> f64 {
+    let dot_product = embed_1
+        .iter()
+        .zip(embed_2.iter())
+        .map(|(&a, &b)| a * b)
+        .sum::<f64>();
+    let norm_embed_1 = (embed_1.iter().map(|&a| a * a).sum::<f64>()).sqrt();
+    let norm_embed_2 = (embed_2.iter().map(|&a| a * a).sum::<f64>()).sqrt();
+
+    if norm_embed_1 == 0.0 || norm_embed_2 == 0.0 {
+        return 0.0;
+    }
+
+    dot_product / (norm_embed_1 * norm_embed_2)
 }
 
 #[cfg(test)]
@@ -379,5 +423,51 @@ mod tests {
             (result - expected_value).abs() < 1e-3,
             "Expected value: {expected_value}, got: {result:?}"
         );
+    }
+
+    #[test]
+    fn test_calculate_cosine_similarity_for_nodes() {
+        // Test case 1: Non-empty embeddings, terms exist
+        let embeddings = vec![
+            ("term1".to_string(), vec![1.0, -2.0, 3.0]),
+            ("term2".to_string(), vec![-4.0, 5.0, -6.0]),
+        ];
+        let term1 = "term1";
+        let term2 = "term2";
+        let expected_result = -0.9746318461970762;
+        assert_eq!(
+            calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).unwrap(),
+            expected_result
+        );
+
+        // Test case 2: Non-empty embeddings, one term doesn't exist
+        let embeddings = vec![
+            ("term1".to_string(), vec![1.0, -2.0, 3.0]),
+            ("term2".to_string(), vec![-4.0, 5.0, -6.0]),
+        ];
+        let term1 = "term1";
+        let term2 = "term3"; // Term3 doesn't exist in embeddings
+        assert!(calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).is_none());
+
+        // Test case 3: Empty embeddings
+        let embeddings: Vec<(String, Vec<f64>)> = vec![];
+        let term1 = "term1";
+        let term2 = "term2";
+        assert!(calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).is_none());
+    }
+
+    #[test]
+    fn test_calculate_cosine_similarity_for_embeddings() {
+        // Test case 1: Non-zero similarity
+        let embed_1 = vec![1.0, -2.0, 3.0];
+        let embed_2 = vec![-4.0, 5.0, -6.0];
+        let similarity = calculate_cosine_similarity_for_embeddings(&embed_1, &embed_2);
+        assert_eq!(similarity, -0.9746318461970762);
+
+        // Test case 2: Zero similarity
+        let embed_1 = vec![1.0, 0.0, 0.0];
+        let embed_2 = vec![0.0, 1.0, 0.0];
+        let similarity = calculate_cosine_similarity_for_embeddings(&embed_1, &embed_2);
+        assert_eq!(similarity, 0.0);
     }
 }

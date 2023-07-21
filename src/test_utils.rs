@@ -127,17 +127,40 @@ pub mod test_constants {
          //             -> banana -> banana, orange
          //             -> orange -> orange, pear
          //             -> pear -> pear, kiwi
-         let mut spo: Vec<(TermID, Predicate, TermID)> = Vec::new();
-         spo.push((String::from("apple"), String::from("related_to"), String::from("apple")));
-         spo.push((String::from("apple"), String::from("related_to"), String::from("banana")));
-         spo.push((String::from("banana"), String::from("related_to"), String::from("banana")));
-         spo.push((String::from("banana"), String::from("related_to"), String::from("orange")));
-         spo.push((String::from("orange"), String::from("related_to"), String::from("orange")));
-         spo.push((String::from("orange"), String::from("related_to"), String::from("pear")));
-         spo.push((String::from("pear"), String::from("related_to"), String::from("pear")));
-         spo.push((String::from("pear"), String::from("related_to"), String::from("kiwi")));
+         let spo: Vec<(TermID, Predicate, TermID)> = vec![
+             (String::from("apple"), String::from("related_to"), String::from("apple")),
+             (String::from("apple"), String::from("related_to"), String::from("banana")),
+             (String::from("banana"), String::from("related_to"), String::from("banana")),
+             (String::from("banana"), String::from("related_to"), String::from("orange")),
+             (String::from("orange"), String::from("related_to"), String::from("orange")),
+             (String::from("orange"), String::from("related_to"), String::from("pear")),
+             (String::from("pear"), String::from("related_to"), String::from("pear")),
+             (String::from("pear"), String::from("related_to"), String::from("kiwi")),
+         ];
+
          spo
        };
+
+       pub static ref OUTPUT_COLUMNS_VECTOR: Vec<String> = {
+        vec![
+                "subject_id".to_string(),
+                "subject_label".to_string(),
+                "subject_source".to_string(),
+                "object_id".to_string(),
+                "object_label".to_string(),
+                "object_source".to_string(),
+                "ancestor_id".to_string(),
+                "ancestor_label".to_string(),
+                "ancestor_source".to_string(),
+                "object_information_content".to_string(),
+                "subject_information_content".to_string(),
+                "ancestor_information_content".to_string(),
+                "jaccard_similarity".to_string(),
+                "cosine_similarity".to_string(),
+                "dice_similarity".to_string(),
+                "phenodigm_score".to_string(),
+            ]
+        };
 
        pub static ref BFO_SPO: Vec<(TermID, Predicate, TermID)> = {
         let spo:Vec<(TermID, Predicate, TermID)> = vec![
