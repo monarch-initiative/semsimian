@@ -200,31 +200,26 @@ impl RustSemsimian {
         let outfile = outfile.unwrap_or("similarity_map.tsv");
         let file = File::create(outfile).unwrap();
         let writer = Arc::new(Mutex::new(BufWriter::new(file)));
-        let column_names: Vec<&str> = vec![
-            "subject_id",
-            "object_id",
-            "jaccard_similarity",
-            "ancestor_information_content",
-            "phenodigm_score",
-            "cosine_similarity",
-            "ancestor_id",
+        let column_names: Vec<String> = vec![
+            "subject_id".to_string(),
+            "object_id".to_string(),
+            "jaccard_similarity".to_string(),
+            "ancestor_information_content".to_string(),
+            "phenodigm_score".to_string(),
+            "cosine_similarity".to_string(),
+            "ancestor_id".to_string(),
         ];
-        let mut output_map: BTreeMap<&str, Box<dyn Any>> = BTreeMap::new();
-        if let Some(output_columns_vector) = &self.term_pairwise_similarity_attributes {
-            for name in output_columns_vector {
-                output_map.insert(name, Box::new(None::<String>));
-            }
-        } else {
-            for name in &column_names {
-                output_map.insert(name, Box::new(None::<String>));
-            }
-        }
 
-        let column_names_as_str = output_map.keys().cloned().collect::<Vec<&str>>().join("\t");
+        let output_columns_vector = self
+            .term_pairwise_similarity_attributes
+            .as_ref()
+            .unwrap_or(&column_names);
+
+        let column_names_as_str = output_columns_vector.join("\t") + "\n";
 
         // Write the column names to the TSV file
         let mut writer_1 = writer.lock().unwrap();
-        writeln!(&mut *writer_1, "{column_names_as_str}").unwrap();
+        writer_1.write_all(column_names_as_str.as_bytes()).unwrap();
         drop(writer_1);
 
         subject_terms
@@ -236,27 +231,19 @@ impl RustSemsimian {
                         self_read.jaccard_similarity(subject_id, object_id, predicates);
                     let (ancestor_id, ancestor_information_content) =
                         self_read.resnik_similarity(subject_id, object_id, predicates);
-                    let cosine_similarity = match &self_read.embeddings.is_empty() {
-                        true => std::f64::NAN,
-                        false => self_read.cosine_similarity(
+                    let cosine_similarity = match !self_read.embeddings.is_empty() {
+                        true => self_read.cosine_similarity(
                             subject_id,
                             object_id,
                             &self_read.embeddings,
                         ),
+                        false => std::f64::NAN,
                     };
-                    // TODO: This block of code is repeated and needs to be addressed.
+
                     let mut output_map: BTreeMap<&str, Box<dyn Any>> = BTreeMap::new();
 
-                    if let Some(output_columns_vector) =
-                        &self_read.term_pairwise_similarity_attributes
-                    {
-                        for name in output_columns_vector {
-                            output_map.insert(name, Box::new(None::<String>));
-                        }
-                    } else {
-                        for name in &column_names {
-                            output_map.insert(name, Box::new(None::<String>));
-                        }
+                    for name in output_columns_vector {
+                        output_map.insert(name, Box::new(None::<String>));
                     }
 
                     // Overwrite output_map values with variable values that correspond to the keys if they exist
@@ -291,22 +278,20 @@ impl RustSemsimian {
                             .map_or(true, |t| ancestor_information_content > t)
                     {
                         // Write the line to the TSV file
+                        let mut output_bytes: Vec<u8> = output_map
+                            .values()
+                            .map(|value| match value.downcast_ref::<Option<String>>() {
+                                Some(Some(s)) => s,
+                                _ => "",
+                            })
+                            .collect::<Vec<&str>>()
+                            .join("\t")
+                            .as_bytes()
+                            .to_vec();
+
+                        output_bytes.extend_from_slice(b"\n");
                         let mut writer_2 = writer.lock().unwrap();
-                        writeln!(
-                            &mut *writer_2,
-                            "{}",
-                            output_map
-                                .values()
-                                .map(|value| {
-                                    match value.downcast_ref::<Option<String>>() {
-                                        Some(Some(s)) => s,
-                                        _ => "",
-                                    }
-                                })
-                                .collect::<Vec<&str>>()
-                                .join("\t")
-                        )
-                        .unwrap();
+                        writer_2.write_all(&output_bytes).unwrap();
                     }
 
                     pb.inc(1);
@@ -318,7 +303,7 @@ impl RustSemsimian {
         } else {
             rearrange_columns_and_rewrite(
                 outfile,
-                column_names.iter().map(|&s| s.to_owned()).collect(),
+                column_names.iter().map(|s| s.to_owned()).collect(),
             );
         }
         pb.finish_with_message("done");
