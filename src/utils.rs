@@ -182,7 +182,7 @@ pub fn rearrange_columns_and_rewrite(filename: &str, sequence: Vec<String>) {
         .unwrap();
 
     // Change the sequence of the columns of the TSV file
-    let mut df_reordered = df.select(&sequence).unwrap();
+    let mut df_reordered = df.select(sequence).unwrap();
 
     // Use writer to write df_reordered into a TSV file.
     let mut buf = File::create(filename).unwrap();
