@@ -190,7 +190,9 @@ pub fn rearrange_columns_and_rewrite(filename: &str, sequence: Vec<String>) {
         .write(true)
         .truncate(true)
         .open(filename)
-        .expect("Error opening file");
+        .unwrap_or_else(|error| {
+            panic!("Error opening file '{}': {}", filename, error);
+        });
 
     CsvWriter::new(&mut buf)
         .has_header(true)
