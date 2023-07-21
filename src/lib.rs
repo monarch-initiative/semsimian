@@ -689,6 +689,9 @@ mod tests {
         let line_count = reader.lines().count();
         // Assert that the line count is 3 (including the header)
         assert_eq!(line_count, 3);
+
+        // Clean up the temporary file
+        // std::fs::remove_file(outfile.unwrap()).expect("Failed to remove file");
     }
 
     #[test]

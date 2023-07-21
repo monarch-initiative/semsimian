@@ -476,7 +476,7 @@ mod tests {
         let filename = "tests/data/output/test_data.tsv";
         let mut file = File::create(filename).expect("Failed to create file");
         writeln!(file, "Column A\tColumn B\tColumn C").expect("Failed to write line");
-        writeln!(file, "Value 1\t\tValue 3").expect("Failed to write line");
+        writeln!(file, "Value 1\tValue 2\tValue 3").expect("Failed to write line");
         writeln!(file, "Value 4\tValue 5\tValue 6").expect("Failed to write line");
 
         // Define the desired column sequence
@@ -496,12 +496,12 @@ mod tests {
             .expect("Failed to read file");
 
         println!("{contents:?}");
-        // assert_eq!(
-        //     contents,
-        //     "Column C\tColumn A\tColumn B\nValue 3\tValue 1\tValue 2\nValue 6\tValue 4\tValue 5\n"
-        // );
+        assert_eq!(
+            contents,
+            "Column C\tColumn A\tColumn B\nValue 3\tValue 1\tValue 2\nValue 6\tValue 4\tValue 5\n"
+        );
 
-        // // Clean up the temporary file
+        // Clean up the temporary file
         // std::fs::remove_file(filename).expect("Failed to remove file");
     }
 }
