@@ -286,7 +286,7 @@ impl RustSemsimian {
                                     Some(Some(f)) => f.to_string(),
                                     _ => match value.downcast_ref::<Option<i32>>() {
                                         Some(Some(i)) => i.to_string(),
-                                        _ => "".to_string(),
+                                        _ => String::from(""),
                                     },
                                 },
                             })
