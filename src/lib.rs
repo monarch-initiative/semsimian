@@ -281,10 +281,16 @@ impl RustSemsimian {
                         let mut output_bytes: Vec<u8> = output_map
                             .values()
                             .map(|value| match value.downcast_ref::<Option<String>>() {
-                                Some(Some(s)) => s,
-                                _ => "",
+                                Some(Some(s)) => s.clone(),
+                                _ => match value.downcast_ref::<Option<f64>>() {
+                                    Some(Some(f)) => f.to_string(),
+                                    _ => match value.downcast_ref::<Option<i32>>() {
+                                        Some(Some(i)) => i.to_string(),
+                                        _ => String::from(""),
+                                    },
+                                },
                             })
-                            .collect::<Vec<&str>>()
+                            .collect::<Vec<String>>()
                             .join("\t")
                             .as_bytes()
                             .to_vec();
