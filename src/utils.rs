@@ -1,7 +1,7 @@
 use ::polars::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
+use std::fs::OpenOptions;
 
 type Predicate = String;
 type TermID = String;
@@ -179,13 +179,19 @@ pub fn rearrange_columns_and_rewrite(filename: &str, sequence: Vec<String>) {
         .expect("Cannot read file")
         .with_delimiter(b'\t')
         .finish()
-        .unwrap();
+        .expect("Error reading CSV file");
 
     // Change the sequence of the columns of the TSV file
-    let mut df_reordered = df.select(sequence).unwrap();
+    let mut df_reordered = df.select(sequence).expect("Error selecting columns");
 
     // Use writer to write df_reordered into a TSV file.
-    let mut buf = File::create(filename).unwrap();
+    // let mut buf = File::create(filename).unwrap();
+    let mut buf = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(filename)
+        .expect("Error opening file");
+
     CsvWriter::new(&mut buf)
         .has_header(true)
         .with_delimiter(b'\t')
@@ -195,7 +201,10 @@ pub fn rearrange_columns_and_rewrite(filename: &str, sequence: Vec<String>) {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Write};
+    use std::{
+        fs::File,
+        io::{Read, Write},
+    };
 
     use super::*;
     #[test]
