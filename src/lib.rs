@@ -245,7 +245,7 @@ impl RustSemsimian {
                     for name in output_columns_vector {
                         output_map.insert(name, Box::new(None::<String>));
                     }
-                    dbg!(&ancestor_information_content);
+
                     // Overwrite output_map values with variable values that correspond to the keys if they exist
                     if let Some(value) = output_map.get_mut("subject_id") {
                         *value = Box::new(Some(subject_id.to_string()));
@@ -294,7 +294,6 @@ impl RustSemsimian {
                             .join("\t")
                             .as_bytes()
                             .to_vec();
-                        
 
                         output_bytes.extend_from_slice(b"\n");
                         let mut writer_2 = writer.lock().unwrap();
