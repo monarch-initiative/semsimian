@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use std::{
-    any::Any,
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
@@ -200,7 +199,7 @@ impl RustSemsimian {
         let outfile = outfile.unwrap_or("similarity_map.tsv");
         let file = File::create(outfile).unwrap();
         let writer = Arc::new(Mutex::new(BufWriter::new(file)));
-        let column_names: Vec<String> = vec![
+        let mut column_names: Vec<String> = vec![
             "subject_id".to_string(),
             "object_id".to_string(),
             "jaccard_similarity".to_string(),
@@ -209,11 +208,17 @@ impl RustSemsimian {
             "cosine_similarity".to_string(),
             "ancestor_id".to_string(),
         ];
+        column_names.sort();
+        let sorted_attributes = match &self.term_pairwise_similarity_attributes {
+            Some(attributes) => {
+                let mut cloned_attributes = attributes.clone();
+                cloned_attributes.sort();
+                Some(cloned_attributes)
+            }
+            None => None,
+        };
 
-        let output_columns_vector = self
-            .term_pairwise_similarity_attributes
-            .as_ref()
-            .unwrap_or(&column_names);
+        let output_columns_vector = sorted_attributes.as_ref().unwrap_or(&column_names).clone();
 
         let column_names_as_str = output_columns_vector.join("\t") + "\n";
 
@@ -240,37 +245,35 @@ impl RustSemsimian {
                         false => std::f64::NAN,
                     };
 
-                    let mut output_map: BTreeMap<&str, Box<dyn Any>> = BTreeMap::new();
+                    let mut output_map: BTreeMap<&str, String> = BTreeMap::new();
 
-                    for name in output_columns_vector {
-                        output_map.insert(name, Box::new(None::<String>));
+                    for name in &output_columns_vector {
+                        output_map.insert(name, "".to_string());
                     }
 
                     // Overwrite output_map values with variable values that correspond to the keys if they exist
                     if let Some(value) = output_map.get_mut("subject_id") {
-                        *value = Box::new(Some(subject_id.to_string()));
+                        *value = subject_id.to_string();
                     }
                     if let Some(value) = output_map.get_mut("object_id") {
-                        *value = Box::new(Some(object_id.to_string()));
+                        *value = object_id.to_string();
                     }
                     if let Some(value) = output_map.get_mut("jaccard_similarity") {
-                        *value = Box::new(Some(jaccard_similarity));
+                        *value = jaccard_similarity.to_string();
                     }
                     if let Some(value) = output_map.get_mut("ancestor_information_content") {
-                        *value = Box::new(Some(ancestor_information_content));
+                        *value = ancestor_information_content.to_string();
                     }
                     if let Some(value) = output_map.get_mut("phenodigm_score") {
-                        *value = Box::new(Some(
-                            (ancestor_information_content * jaccard_similarity).sqrt(),
-                        ));
+                        *value = (ancestor_information_content * jaccard_similarity)
+                            .sqrt()
+                            .to_string();
                     }
                     if let Some(value) = output_map.get_mut("cosine_similarity") {
-                        *value = Box::new(Some(cosine_similarity));
+                        *value = cosine_similarity.to_string();
                     }
                     if let Some(value) = output_map.get_mut("ancestor_id") {
-                        *value = Box::new(Some(
-                            ancestor_id.into_iter().collect::<Vec<String>>().join(", "),
-                        ));
+                        *value = ancestor_id.into_iter().collect::<Vec<String>>().join(", ");
                     }
 
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
@@ -280,15 +283,9 @@ impl RustSemsimian {
                         // Write the line to the TSV file
                         let mut output_bytes: Vec<u8> = output_map
                             .values()
-                            .map(|value| match value.downcast_ref::<Option<String>>() {
-                                Some(Some(s)) => s.clone(),
-                                _ => match value.downcast_ref::<Option<f64>>() {
-                                    Some(Some(f)) => f.to_string(),
-                                    _ => match value.downcast_ref::<Option<i32>>() {
-                                        Some(Some(i)) => i.to_string(),
-                                        _ => String::from(""),
-                                    },
-                                },
+                            .map(|value| {
+                                let s = value;
+                                s.to_string()
                             })
                             .collect::<Vec<String>>()
                             .join("\t")
