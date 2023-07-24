@@ -283,8 +283,9 @@ impl RustSemsimian {
                         // Write the line to the TSV file
                         let mut output_bytes: Vec<u8> = output_map
                             .values()
-                            .map(|value| match value {
-                                s => s.to_string(),
+                            .map(|value| {
+                                let s = value;
+                                s.to_string()
                             })
                             .collect::<Vec<String>>()
                             .join("\t")
