@@ -218,9 +218,7 @@ impl RustSemsimian {
             None => None,
         };
 
-        let output_columns_vector = sorted_attributes
-            .as_ref()
-            .unwrap_or(&column_names).clone();
+        let output_columns_vector = sorted_attributes.as_ref().unwrap_or(&column_names).clone();
 
         let column_names_as_str = output_columns_vector.join("\t") + "\n";
 
@@ -267,15 +265,15 @@ impl RustSemsimian {
                         *value = ancestor_information_content.to_string();
                     }
                     if let Some(value) = output_map.get_mut("phenodigm_score") {
-                        *value = 
-                            (ancestor_information_content * jaccard_similarity).sqrt().to_string();
+                        *value = (ancestor_information_content * jaccard_similarity)
+                            .sqrt()
+                            .to_string();
                     }
                     if let Some(value) = output_map.get_mut("cosine_similarity") {
                         *value = cosine_similarity.to_string();
                     }
                     if let Some(value) = output_map.get_mut("ancestor_id") {
-                        *value = 
-                            ancestor_id.into_iter().collect::<Vec<String>>().join(", ");
+                        *value = ancestor_id.into_iter().collect::<Vec<String>>().join(", ");
                     }
 
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
