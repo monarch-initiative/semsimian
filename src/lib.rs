@@ -302,9 +302,9 @@ impl RustSemsimian {
             });
         drop(writer);
         if let Some(output_columns_vector) = &self.term_pairwise_similarity_attributes {
-            rearrange_columns_and_rewrite(outfile, output_columns_vector.to_owned());
+            let _ = rearrange_columns_and_rewrite(outfile, output_columns_vector.to_owned());
         } else {
-            rearrange_columns_and_rewrite(
+            let _ = rearrange_columns_and_rewrite(
                 outfile,
                 column_names.iter().map(|s| s.to_owned()).collect(),
             );
