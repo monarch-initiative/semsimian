@@ -8,8 +8,8 @@ use std::{
 
 pub mod similarity;
 
-pub mod utils;
 pub mod db_query;
+pub mod utils;
 use rayon::prelude::*;
 
 mod test_utils;
