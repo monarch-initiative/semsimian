@@ -9,6 +9,7 @@ use std::{
 pub mod similarity;
 
 pub mod utils;
+pub mod db_query;
 use rayon::prelude::*;
 
 mod test_utils;

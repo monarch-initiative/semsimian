@@ -18,4 +18,5 @@ indicatif = "*" # progress bar
 lazy_static = "1.4.0"
 cargo-llvm-cov = "0.5.19"
 rayon = "1.7.0"
+rusqlite = { version = "0.29.0", features = ["bundled"] }
 
