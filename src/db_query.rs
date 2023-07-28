@@ -57,9 +57,8 @@ mod tests {
             db,
             vec!["rdfs:subClassOf"],
         );
-        println!("{result:?}")
 
         // Assert that the function executed successfully
-        // assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 1302);
     }
 }
