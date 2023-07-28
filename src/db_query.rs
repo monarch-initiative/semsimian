@@ -17,10 +17,15 @@ pub fn get_entailed_edges_for_predicate_list(
 
     // Build the SQL query with the provided table name such that 'predicates' are in the Vector predicates.
     let joined_predicates = format!("'{}'", predicates.join("', '"));
-    let query = format!(
-        "SELECT * FROM {} WHERE predicate IN ({})",
-        table_name, joined_predicates
-    );
+    
+    let query = if !predicates.is_empty() {
+        format!(
+            "SELECT * FROM {} WHERE predicate IN ({})",
+            table_name, joined_predicates
+        )
+    } else {
+        format!("SELECT * FROM {}", table_name)
+    };
 
     // Open a connection to the SQLite database file
     let conn = Connection::open(path)?;
