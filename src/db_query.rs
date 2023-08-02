@@ -1,23 +1,15 @@
 use crate::{Predicate, TermID};
 use rusqlite::{Connection, Result};
 
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct EntailedEdges {
-    subject: TermID,
-    predicate: Predicate,
-    object: TermID,
-}
-
 pub fn get_entailed_edges_for_predicate_list(
     path: &str,
-    predicates: Vec<&str>,
-) -> Result<Vec<EntailedEdges>, rusqlite::Error> {
+    predicates: &Vec<Predicate>,
+) -> Result<Vec<(TermID, Predicate, TermID)>, rusqlite::Error> {
     let table_name = "entailed_edge";
 
     // Build the SQL query with the provided table name such that 'predicates' are in the Vector predicates.
     let joined_predicates = format!("'{}'", predicates.join("', '"));
-    
+
     let query = if !predicates.is_empty() {
         format!(
             "SELECT * FROM {} WHERE predicate IN ({})",
@@ -35,17 +27,13 @@ pub fn get_entailed_edges_for_predicate_list(
 
     let rows = stmt.query_map([], |row| {
         // Access the columns of each row
-        Ok(EntailedEdges {
-            subject: row.get(0)?,
-            predicate: row.get(1)?,
-            object: row.get(2)?,
-        })
+        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
     })?;
 
     // Collect the results into a vector
     let entailed_edges: Result<Vec<_>, _> = rows.collect();
 
-    // Return the vector of EntailedEdges structs
+    // Return the vector of s-p-o s.
     entailed_edges
 }
 
@@ -58,7 +46,8 @@ mod tests {
         let db = "tests/data/go-nucleus.db";
 
         // Call the function with the test parameters
-        let result = get_entailed_edges_for_predicate_list(db, vec!["rdfs:subClassOf"]);
+        let result =
+            get_entailed_edges_for_predicate_list(db, &vec!["rdfs:subClassOf".to_string()]);
 
         // Assert that the function executed successfully
         assert_eq!(result.unwrap().len(), 1302);

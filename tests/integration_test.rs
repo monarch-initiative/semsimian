@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 extern crate semsimian;
 use semsimian::similarity::calculate_semantic_jaccard_similarity;
 use semsimian::utils::convert_list_of_tuples_to_hashmap;
@@ -35,14 +34,10 @@ fn integration_test_semantic_jaccard_similarity() {
             "fruit".to_string(),
         ),
     ];
-    let predicate_set = Some(HashSet::from(["is_a".to_string()]));
-    let (closure_table, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicate_set);
-    let sem_jaccard = calculate_semantic_jaccard_similarity(
-        &closure_table,
-        "apple",
-        "cherry",
-        &Some(HashSet::from(["is_a".to_string()])),
-    );
+    let predicates = Some(vec!["is_a".to_string()]);
+    let (closure_table, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates);
+    let sem_jaccard =
+        calculate_semantic_jaccard_similarity(&closure_table, "apple", "cherry", &predicates);
 
     assert_eq!(sem_jaccard, 0.5)
 }
@@ -92,7 +87,7 @@ fn integration_test_jaccard_similarity_from_struct() {
         ),
     ];
 
-    let mut rs = RustSemsimian::new(triples, None);
+    let mut rs = RustSemsimian::new(Some(triples), None, None, None);
 
     // cant do this as get_closure is private, but is tested in lib
 
@@ -110,13 +105,13 @@ fn integration_test_jaccard_similarity_from_struct() {
 
     let term1 = "apple".to_string();
     let term2 = "banana".to_string();
-    let predicates: Option<HashSet<Predicate>> = Some(
+    let predicates: Option<Vec<Predicate>> = Some(
         vec!["related_to"]
             .into_iter()
             .map(|s| s.to_string())
             .collect(),
     );
-    rs.update_closure_and_ic_map(&predicates);
+    rs.update_closure_and_ic_map();
 
     let sim = rs.jaccard_similarity(&term1, &term2, &predicates);
 

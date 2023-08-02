@@ -12,7 +12,7 @@ type PredicateSetKey = String;
 type ClosureMap = HashMap<String, HashMap<String, HashSet<String>>>;
 type ICMap = HashMap<String, HashMap<String, f64>>;
 
-pub fn predicate_set_to_key(predicates: &Option<HashSet<Predicate>>) -> PredicateSetKey {
+pub fn predicate_set_to_key(predicates: &Option<Vec<Predicate>>) -> PredicateSetKey {
     let mut result = String::new();
 
     if predicates.is_none() {
@@ -86,7 +86,7 @@ pub fn _stringify_sets_using_map(
 
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
-    predicates: &Option<HashSet<String>>,
+    predicates: &Option<Vec<String>>,
 ) -> (ClosureMap, ICMap) {
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
     let mut freq_map: HashMap<String, usize> = HashMap::new();
@@ -141,7 +141,7 @@ pub fn convert_list_of_tuples_to_hashmap(
 pub fn expand_term_using_closure(
     term: &str,
     closure_table: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    predicates: &Option<HashSet<Predicate>>,
+    predicates: &Option<Vec<Predicate>>,
 ) -> HashSet<TermID> {
     let mut ancestors: HashSet<String> = HashSet::new();
     let mut this_predicate_set_key = predicate_set_to_key(predicates);
@@ -375,7 +375,7 @@ mod tests {
                 ]),
             )]);
 
-        let predicates_is_a: Option<HashSet<Predicate>> =
+        let predicates_is_a: Option<Vec<Predicate>> =
             Some(["is_a"].iter().map(|&s| s.to_string()).collect());
         let (closure_map_is_a, _) =
             convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a);
@@ -405,7 +405,7 @@ mod tests {
             ]),
         )]);
 
-        let predicates_is_a_plus_part_of: Option<HashSet<Predicate>> =
+        let predicates_is_a_plus_part_of: Option<Vec<Predicate>> =
             Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
         let (closure_map_is_a_plus_part_of, ic_map) =
             convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a_plus_part_of);
@@ -455,7 +455,7 @@ mod tests {
                 ]),
             )]);
 
-        let predicates_none: Option<HashSet<Predicate>> = None;
+        let predicates_none: Option<Vec<Predicate>> = None;
         println!("Passing predicates: {predicates_none:?}"); // for debugging
 
         let (closure_map_none, _) =
@@ -468,13 +468,13 @@ mod tests {
 
     #[test]
     fn test_predicate_set_to_string() {
-        let predicates_is_a: Option<HashSet<Predicate>> =
+        let predicates_is_a: Option<Vec<Predicate>> =
             Some(["is_a"].iter().map(|&s| s.to_string()).collect());
-        let predicates_is_a_part_of: Option<HashSet<Predicate>> =
+        let predicates_is_a_part_of: Option<Vec<Predicate>> =
             Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
-        let predicates_part_of_is_a: Option<HashSet<Predicate>> =
+        let predicates_part_of_is_a: Option<Vec<Predicate>> =
             Some(["part_of", "is_a"].iter().map(|&s| s.to_string()).collect());
-        let predicates_empty: Option<HashSet<Predicate>> = None;
+        let predicates_empty: Option<Vec<Predicate>> = None;
 
         assert_eq!(predicate_set_to_key(&predicates_is_a), "+is_a");
         assert_eq!(
@@ -512,8 +512,7 @@ mod tests {
         closure_table.insert(String::from("+subClassOf"), map);
 
         let term = String::from("CARO:0000000");
-        let predicates: Option<HashSet<Predicate>> =
-            Some(HashSet::from(["subClassOf".to_string()]));
+        let predicates: Option<Vec<Predicate>> = Some(vec!["subClassOf".to_string()]);
         let result_1 = expand_term_using_closure(&term, &closure_table, &predicates);
         let result_2 = expand_term_using_closure(&term, &closure_table, &None);
 
