@@ -45,12 +45,13 @@ mod tests {
     #[test]
     fn test_get_entailed_edges_for_predicate_list() {
         let db = "tests/data/go-nucleus.db";
+        let expected_length:usize = 1302;
 
         // Call the function with the test parameters
         let result =
             get_entailed_edges_for_predicate_list(db, &vec!["rdfs:subClassOf".to_string()]);
 
         // Assert that the function executed successfully
-        assert_eq!(result.unwrap().len(), 1302);
+        assert_eq!(result.unwrap().len(), expected_length);
     }
 }
