@@ -481,6 +481,15 @@ mod tests {
     }
 
     #[test]
+    fn test_object_creation_using_resource() {
+        let predicates: Option<Vec<Predicate>> = Some(vec!["rdfs:subClassOf".to_string()]);
+        let db = Some("tests/data/go-nucleus.db");
+        let ss = RustSemsimian::new(None, predicates, None, db);
+        // dbg!(ss.spo.len());
+        assert_eq!(ss.spo.len(), 1302)
+    }
+
+    #[test]
     fn test_jaccard_similarity() {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
