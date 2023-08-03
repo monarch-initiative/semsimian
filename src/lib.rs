@@ -83,13 +83,11 @@ impl RustSemsimian {
         let predicates = match predicates {
             Some(predicates) => Some(predicates),
             None => {
-                let mut unique_predicates = Vec::new();
+                let mut unique_predicates = HashSet::new();
                 for (_, predicate, _) in &spo {
-                    if !unique_predicates.iter().any(|p| *p == predicate.to_owned()) {
-                        unique_predicates.push(predicate.clone());
-                    }
+                    unique_predicates.insert(predicate.to_owned());
                 }
-                Some(unique_predicates)
+                Some(unique_predicates.into_iter().collect())
             }
         };
 
