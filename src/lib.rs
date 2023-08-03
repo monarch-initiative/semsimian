@@ -488,13 +488,20 @@ mod tests {
     };
 
     #[test]
+    fn test_object_creation(){
+        let spo_cloned = Some(SPO_FRUITS.clone());
+        let predicates: Option<Vec<Predicate>> = Some(
+            vec!["related_to".to_string()]
+        );
+        let ss = RustSemsimian::new(spo_cloned, None, None, None);
+        assert_eq!(predicates, ss.predicates);
+    }
+
+    #[test]
     fn test_jaccard_similarity() {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let predicates: Option<Vec<Predicate>> = Some(
-            vec!["related_to"]
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect(),
+            vec!["related_to".to_string()]
         );
         let no_predicates: Option<Vec<Predicate>> = None;
         let mut ss = RustSemsimian::new(spo_cloned, no_predicates.clone(), None, None);
@@ -514,10 +521,7 @@ mod tests {
     fn test_get_closure_and_ic_map() {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let test_predicates: Option<Vec<Predicate>> = Some(
-            vec!["related_to"]
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect(),
+            vec!["related_to".to_string()]
         );
         let mut semsimian = RustSemsimian::new(spo_cloned, test_predicates, None, None);
         println!("semsimian after initialization: {semsimian:?}");
@@ -530,7 +534,7 @@ mod tests {
     fn test_resnik_similarity() {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let predicates: Option<Vec<String>> =
-            Some(vec!["related_to".to_string()].into_iter().collect());
+            Some(vec!["related_to".to_string()]);
         let mut rs = RustSemsimian::new(spo_cloned, predicates.clone(), None, None);
         rs.update_closure_and_ic_map();
         println!("Closure_map from semsimian {:?}", rs.closure_map);
