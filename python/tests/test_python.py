@@ -21,7 +21,6 @@ class testSemsimianWithPython(unittest.TestCase):
     def test_jaccard_similarity(self):
         term1 = "apple"
         term2 = "banana"
-        
         result = self.semsimian.jaccard_similarity(term1, term2)
         self.assertEqual(result, 1.0 / 3.0)
 
