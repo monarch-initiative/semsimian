@@ -14,36 +14,34 @@ class testSemsimianWithPython(unittest.TestCase):
             ("pear", "related_to", "pear"),
             ("pear", "related_to", "kiwi"),
         ]
+        predicates = ["related_to"]
 
-        self.semsimian = Semsimian(spo)
+        self.semsimian = Semsimian(spo, predicates)
 
     def test_jaccard_similarity(self):
         term1 = "apple"
         term2 = "banana"
-        predicates = ["related_to"]
-        result = self.semsimian.jaccard_similarity(term1, term2, predicates)
+        
+        result = self.semsimian.jaccard_similarity(term1, term2)
         self.assertEqual(result, 1.0 / 3.0)
 
     def test_resnik_similarity(self):
         term1 = "apple"
         term2 = "banana"
-        predicates = ["related_to"]
-        result = self.semsimian.resnik_similarity(term1, term2, predicates)
+        result = self.semsimian.resnik_similarity(term1, term2)
         self.assertEqual(result, ({"banana"}, 1.3219280948873622))
 
     def test_all_by_all_pairwise_similarity(self):
         subject_terms = {"apple", "banana", "orange"}
         object_terms = {"orange", "pear", "kiwi"}
-        predicates = ["related_to"]
         orange_mica = {"orange", "pear"}
         result = self.semsimian.all_by_all_pairwise_similarity(
-            subject_terms, object_terms, 0.0, 0.0, predicates
+            subject_terms, object_terms, 0.0, 0.0
         )
         self.assertEqual(result["orange"]["orange"][3], orange_mica)
         result2 = self.semsimian.all_by_all_pairwise_similarity(
             subject_terms=subject_terms,
             object_terms=object_terms,
-            predicates=predicates
         )
         self.assertEqual(result2["orange"]["orange"][3], orange_mica)
 
