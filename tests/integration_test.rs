@@ -86,8 +86,9 @@ fn integration_test_jaccard_similarity_from_struct() {
             "kiwi".to_string(),
         ),
     ];
+    let predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
 
-    let mut rs = RustSemsimian::new(Some(triples), None, None, None);
+    let mut rs = RustSemsimian::new(Some(triples), predicates, None, None);
 
     // cant do this as get_closure is private, but is tested in lib
 
@@ -105,15 +106,10 @@ fn integration_test_jaccard_similarity_from_struct() {
 
     let term1 = "apple".to_string();
     let term2 = "banana".to_string();
-    let predicates: Option<Vec<Predicate>> = Some(
-        vec!["related_to"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect(),
-    );
+
     rs.update_closure_and_ic_map();
 
-    let sim = rs.jaccard_similarity(&term1, &term2, &predicates);
+    let sim = rs.jaccard_similarity(&term1, &term2);
 
     assert_eq!(sim, 1.0 / 3.0);
 }

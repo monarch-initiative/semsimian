@@ -141,27 +141,23 @@ impl RustSemsimian {
         }
     }
 
-    pub fn jaccard_similarity(
-        &self,
-        term1: &str,
-        term2: &str,
-        predicates: &Option<Vec<Predicate>>,
-    ) -> f64 {
-        let apple_set = expand_term_using_closure(term1, &self.closure_map, predicates);
-        let fruit_set = expand_term_using_closure(term2, &self.closure_map, predicates);
+    pub fn jaccard_similarity(&self, term1: &str, term2: &str) -> f64 {
+        let apple_set = expand_term_using_closure(term1, &self.closure_map, &self.predicates);
+        let fruit_set = expand_term_using_closure(term2, &self.closure_map, &self.predicates);
 
         let intersection = apple_set.intersection(&fruit_set).count() as f64;
         let union = apple_set.union(&fruit_set).count() as f64;
         intersection / union
     }
 
-    pub fn resnik_similarity(
-        &self,
-        term1: &str,
-        term2: &str,
-        predicates: &Option<Vec<Predicate>>,
-    ) -> (HashSet<String>, f64) {
-        calculate_max_information_content(&self.closure_map, &self.ic_map, term1, term2, predicates)
+    pub fn resnik_similarity(&self, term1: &str, term2: &str) -> (HashSet<String>, f64) {
+        calculate_max_information_content(
+            &self.closure_map,
+            &self.ic_map,
+            term1,
+            term2,
+            &self.predicates,
+        )
     }
 
     pub fn cosine_similarity(&self, term1: &str, term2: &str, embeddings: &Embeddings) -> f64 {
@@ -174,7 +170,6 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
-        predicates: &Option<Vec<Predicate>>,
     ) -> SimilarityMap {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
@@ -191,9 +186,8 @@ impl RustSemsimian {
                 > = HashMap::new();
                 for object in object_terms.iter() {
                     let self_read = self_shared.read().unwrap();
-                    let jaccard_sim = self_read.jaccard_similarity(subject, object, predicates);
-                    let (mica, resnik_sim) =
-                        self_read.resnik_similarity(subject, object, predicates);
+                    let jaccard_sim = self_read.jaccard_similarity(subject, object);
+                    let (mica, resnik_sim) = self_read.resnik_similarity(subject, object);
 
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
                         && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
@@ -224,7 +218,6 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
-        predicates: &Option<Vec<Predicate>>,
         outfile: &Option<&str>,
     ) {
         let self_shared = Arc::new(RwLock::new(self.clone()));
@@ -268,10 +261,9 @@ impl RustSemsimian {
             .for_each(|subject_id| {
                 for object_id in object_terms.iter() {
                     let self_read = self_shared.read().unwrap();
-                    let jaccard_similarity =
-                        self_read.jaccard_similarity(subject_id, object_id, predicates);
+                    let jaccard_similarity = self_read.jaccard_similarity(subject_id, object_id);
                     let (ancestor_id, ancestor_information_content) =
-                        self_read.resnik_similarity(subject_id, object_id, predicates);
+                        self_read.resnik_similarity(subject_id, object_id);
                     let cosine_similarity = match !self_read.embeddings.is_empty() {
                         true => self_read.cosine_similarity(
                             subject_id,
@@ -372,18 +364,18 @@ impl Semsimian {
         term_pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
     ) -> PyResult<Self> {
-        let ss = RustSemsimian::new(spo, predicates, term_pairwise_similarity_attributes, resource_path);
+        let ss = RustSemsimian::new(
+            spo,
+            predicates,
+            term_pairwise_similarity_attributes,
+            resource_path,
+        );
         Ok(Semsimian { ss })
     }
 
-    fn jaccard_similarity(
-        &mut self,
-        term1: TermID,
-        term2: TermID,
-        predicates: Option<Vec<Predicate>>,
-    ) -> PyResult<f64> {
+    fn jaccard_similarity(&mut self, term1: TermID, term2: TermID) -> PyResult<f64> {
         self.ss.update_closure_and_ic_map();
-        Ok(self.ss.jaccard_similarity(&term1, &term2, &predicates))
+        Ok(self.ss.jaccard_similarity(&term1, &term2))
     }
 
     fn cosine_similarity(
@@ -402,10 +394,9 @@ impl Semsimian {
         &mut self,
         term1: TermID,
         term2: TermID,
-        predicates: Option<Vec<Predicate>>,
     ) -> PyResult<(HashSet<String>, f64)> {
         self.ss.update_closure_and_ic_map();
-        Ok(self.ss.resnik_similarity(&term1, &term2, &predicates))
+        Ok(self.ss.resnik_similarity(&term1, &term2))
     }
 
     fn all_by_all_pairwise_similarity(
@@ -414,7 +405,6 @@ impl Semsimian {
         object_terms: HashSet<TermID>,
         minimum_jaccard_threshold: Option<f64>,
         minimum_resnik_threshold: Option<f64>,
-        predicates: Option<Vec<Predicate>>,
     ) -> SimilarityMap {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map();
@@ -424,7 +414,6 @@ impl Semsimian {
             &object_terms,
             &minimum_jaccard_threshold,
             &minimum_resnik_threshold,
-            &predicates,
         )
     }
 
@@ -434,7 +423,6 @@ impl Semsimian {
         object_terms: HashSet<TermID>,
         minimum_jaccard_threshold: Option<f64>,
         minimum_resnik_threshold: Option<f64>,
-        predicates: Option<Vec<Predicate>>,
         embeddings_file: Option<&str>,
         outfile: Option<&str>,
     ) -> PyResult<()> {
@@ -449,7 +437,6 @@ impl Semsimian {
             &object_terms,
             &minimum_jaccard_threshold,
             &minimum_resnik_threshold,
-            &predicates,
             &outfile,
         );
         Ok(())
@@ -488,11 +475,9 @@ mod tests {
     };
 
     #[test]
-    fn test_object_creation(){
+    fn test_object_creation() {
         let spo_cloned = Some(SPO_FRUITS.clone());
-        let predicates: Option<Vec<Predicate>> = Some(
-            vec!["related_to".to_string()]
-        );
+        let predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
         let ss = RustSemsimian::new(spo_cloned, None, None, None);
         assert_eq!(predicates, ss.predicates);
     }
@@ -500,18 +485,25 @@ mod tests {
     #[test]
     fn test_jaccard_similarity() {
         let spo_cloned = Some(SPO_FRUITS.clone());
-        let predicates: Option<Vec<Predicate>> = Some(
-            vec!["related_to".to_string()]
-        );
+        let predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
         let no_predicates: Option<Vec<Predicate>> = None;
-        let mut ss = RustSemsimian::new(spo_cloned, no_predicates.clone(), None, None);
-        ss.update_closure_and_ic_map();
-        println!("Closure table for ss  {:?}", ss.closure_map);
+        let mut ss_with_predicates = RustSemsimian::new(spo_cloned.clone(), predicates, None, None);
+        let mut ss_without_predicates = RustSemsimian::new(spo_cloned, no_predicates, None, None);
+        ss_without_predicates.update_closure_and_ic_map();
+        ss_with_predicates.update_closure_and_ic_map();
+        println!(
+            "Closure table for ss without predicates  {:?}",
+            ss_without_predicates.closure_map
+        );
+        println!(
+            "Closure table for ss with predicates {:?}",
+            ss_with_predicates.closure_map
+        );
         //Closure table: {"+related_to": {"apple": {"banana", "apple"}, "banana": {"orange", "banana"}, "pear": {"kiwi", "pear"}, "orange": {"orange", "pear"}}}
         let apple = "apple".to_string();
         let banana = "banana".to_string();
-        let sim = ss.jaccard_similarity(&apple, &banana, &predicates);
-        let sim2 = ss.jaccard_similarity(&apple, &banana, &no_predicates);
+        let sim = ss_with_predicates.jaccard_similarity(&apple, &banana);
+        let sim2 = ss_without_predicates.jaccard_similarity(&apple, &banana);
 
         assert_eq!(sim, 1.0 / 3.0);
         assert_eq!(sim2, 1.0 / 3.0);
@@ -520,9 +512,7 @@ mod tests {
     #[test]
     fn test_get_closure_and_ic_map() {
         let spo_cloned = Some(SPO_FRUITS.clone());
-        let test_predicates: Option<Vec<Predicate>> = Some(
-            vec!["related_to".to_string()]
-        );
+        let test_predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
         let mut semsimian = RustSemsimian::new(spo_cloned, test_predicates, None, None);
         println!("semsimian after initialization: {semsimian:?}");
         semsimian.update_closure_and_ic_map();
@@ -533,12 +523,11 @@ mod tests {
     #[test]
     fn test_resnik_similarity() {
         let spo_cloned = Some(SPO_FRUITS.clone());
-        let predicates: Option<Vec<String>> =
-            Some(vec!["related_to".to_string()]);
+        let predicates: Option<Vec<String>> = Some(vec!["related_to".to_string()]);
         let mut rs = RustSemsimian::new(spo_cloned, predicates.clone(), None, None);
         rs.update_closure_and_ic_map();
         println!("Closure_map from semsimian {:?}", rs.closure_map);
-        let (_, sim) = rs.resnik_similarity("apple", "banana", &predicates);
+        let (_, sim) = rs.resnik_similarity("apple", "banana");
         println!("DO THE print{sim}");
         assert_eq!(sim, 1.3219280948873622);
     }
@@ -558,14 +547,12 @@ mod tests {
 
         let subject_terms: HashSet<TermID> = HashSet::new();
         let object_terms: HashSet<TermID> = HashSet::new();
-        let predicates: Option<Vec<Predicate>> = None;
 
         let result = rss.all_by_all_pairwise_similarity(
             &subject_terms,
             &object_terms,
             &Some(0.0),
             &Some(0.0),
-            &predicates,
         );
 
         assert_eq!(result.len(), 0);
@@ -605,7 +592,6 @@ mod tests {
             &object_terms,
             &Some(0.0),
             &Some(0.0),
-            &rss.predicates,
         );
 
         assert_eq!(result.len(), 2);
@@ -620,9 +606,8 @@ mod tests {
         assert!(!apple_similarities.contains_key(&food)); // Since resnik <= threshold
 
         // Apple, fruit tests
-        let apple_fruit_jaccard = rss.jaccard_similarity(&apple, &fruit, &rss.predicates);
-        let (apple_fruit_mica, apple_fruit_resnik) =
-            rss.resnik_similarity(&apple, &fruit, &rss.predicates);
+        let apple_fruit_jaccard = rss.jaccard_similarity(&apple, &fruit);
+        let (apple_fruit_mica, apple_fruit_resnik) = rss.resnik_similarity(&apple, &fruit);
         let (
             apple_fruit_jaccard_from_similarity,
             apple_fruit_resnik_from_similarity,
@@ -642,9 +627,8 @@ mod tests {
         assert_eq!(*apple_fruit_mica_from_similarity, apple_fruit_mica);
 
         //Apple, food tests
-        let apple_food_jaccard = rss.jaccard_similarity(&apple, &food, &rss.predicates);
-        let (apple_food_mcra, apple_food_resnik) =
-            rss.resnik_similarity(&apple, &food, &rss.predicates);
+        let apple_food_jaccard = rss.jaccard_similarity(&apple, &food);
+        let (apple_food_mcra, apple_food_resnik) = rss.resnik_similarity(&apple, &food);
 
         assert_eq!(0.0, apple_food_resnik);
         assert_eq!(0.3333333333333333, apple_food_jaccard);
@@ -652,9 +636,8 @@ mod tests {
 
         // Fruit
         let fruit_similarities = result.get(&fruit).unwrap();
-        let fruit_fruit_jaccard = rss.jaccard_similarity(&fruit, &fruit, &rss.predicates);
-        let (fruit_fruit_mica, fruit_fruit_resnik) =
-            rss.resnik_similarity(&fruit, &fruit, &rss.predicates);
+        let fruit_fruit_jaccard = rss.jaccard_similarity(&fruit, &fruit);
+        let (fruit_fruit_mica, fruit_fruit_resnik) = rss.resnik_similarity(&fruit, &fruit);
         let (
             fruit_fruit_jaccard_from_similarity,
             fruit_fruit_resnik_from_similarity,
@@ -679,9 +662,8 @@ mod tests {
         assert_eq!(*fruit_fruit_mica_from_similarity, fruit_fruit_mica);
 
         // Fruit, food tests
-        let fruit_food_jaccard = rss.jaccard_similarity(&fruit, &food, &rss.predicates);
-        let (fruit_food_mica, fruit_food_resnik) =
-            rss.resnik_similarity(&fruit, &food, &rss.predicates);
+        let fruit_food_jaccard = rss.jaccard_similarity(&fruit, &food);
+        let (fruit_food_mica, fruit_food_resnik) = rss.resnik_similarity(&fruit, &food);
         assert_eq!(0.0, fruit_food_resnik);
         assert_eq!(0.5, fruit_food_jaccard);
         assert_eq!(HashSet::from(["item".to_string()]), fruit_food_mica);
@@ -719,7 +701,6 @@ mod tests {
             &object_terms,
             &Some(0.0),
             &Some(0.0),
-            &rss.predicates,
             &outfile,
         );
 
@@ -748,7 +729,7 @@ mod tests {
 
         rss.update_closure_and_ic_map();
         // println!("IC_map from semsimian {:?}", rss.ic_map);
-        let (_, sim) = rss.resnik_similarity("BFO:0000040", "BFO:0000002", &rss.predicates);
+        let (_, sim) = rss.resnik_similarity("BFO:0000040", "BFO:0000002");
         println!("DO THE print {sim}");
         assert_eq!(sim, 0.4854268271702417);
     }
