@@ -11,7 +11,7 @@ pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
     entity1: &str,
     entity2: &str,
-    predicates: &Option<HashSet<String>>,
+    predicates: &Option<Vec<String>>,
 ) -> f64 {
     /* Returns semantic Jaccard similarity between the two sets. */
 
@@ -93,7 +93,7 @@ pub fn calculate_max_information_content(
     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     entity1: &str,
     entity2: &str,
-    predicates: &Option<HashSet<Predicate>>,
+    predicates: &Option<Vec<Predicate>>,
 ) -> (HashSet<TermID>, f64) {
     // Code to calculate max IC and all ancestors that correspond to the IC.
     // The reason a HashSet<TermID> is returned instead of just TermID is
@@ -147,7 +147,7 @@ fn common_ancestors(
     // {"GO:5678": 'is_a_+_part_of': {['GO:3456', 'GO:7890']}}
     entity1: &str,
     entity2: &str,
-    predicates: &Option<HashSet<Predicate>>,
+    predicates: &Option<Vec<Predicate>>,
 ) -> Vec<String> {
     // expand_term_using_closure() handles case of the entity being not present -> returning empty set
     let entity1_closure = expand_term_using_closure(entity1, closure_map, predicates);
@@ -210,8 +210,7 @@ mod tests {
 
     #[test]
     fn test_semantic_jaccard_similarity_new() {
-        let mut sco_predicate: HashSet<Predicate> = HashSet::new();
-        sco_predicate.insert(String::from("subClassOf"));
+        let sco_predicate: Vec<Predicate> = vec![(String::from("subClassOf"))];
 
         let result = calculate_semantic_jaccard_similarity(
             &CLOSURE_MAP,
@@ -232,9 +231,8 @@ mod tests {
         println!("{result2:?}");
         assert_eq!(result2, 1.0 / 3.0);
 
-        let mut sco_po_predicate: HashSet<String> = HashSet::new();
-        sco_po_predicate.insert(String::from("subClassOf"));
-        sco_po_predicate.insert(String::from("partOf"));
+        let sco_po_predicate: Vec<String> =
+            vec![String::from("subClassOf"), String::from("partOf")];
 
         let result3 = calculate_semantic_jaccard_similarity(
             &CLOSURE_MAP2,
@@ -250,8 +248,7 @@ mod tests {
     fn test_semantic_jaccard_similarity_fruits() {
         let _closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
             HashMap::new();
-        let mut related_to_predicate: HashSet<Predicate> = HashSet::new();
-        related_to_predicate.insert(String::from("related_to"));
+        let related_to_predicate: Vec<Predicate> = vec![String::from("related_to")];
         // the closure set for "apple" includes both "apple" and "banana", and the closure set for "banana" includes "banana" and "orange". The intersection of these two sets is {"banana"}, and the union is {"apple", "banana", "orange"}, so the Jaccard similarity would be 1 / 3 ≈ 0.33
         let result = calculate_semantic_jaccard_similarity(
             &FRUIT_CLOSURE_MAP,
@@ -272,7 +269,7 @@ mod tests {
         assert_eq!(result2, 1.0 / 3.0);
 
         // NO predicates (should be the same as above)
-        let no_predicate: Option<HashSet<Predicate>> = None;
+        let no_predicate: Option<Vec<Predicate>> = None;
         let result2 = calculate_semantic_jaccard_similarity(
             &ALL_NO_PRED_MAP,
             "banana",
@@ -408,7 +405,7 @@ mod tests {
         // Common ancestors: "BFO:0000002" and "BFO:0000003"
         // Max IC: 1.585 (IC of "BFO:0000002")
 
-        let predicates = Some(HashSet::from([String::from("subClassOf")]));
+        let predicates = Some(vec![String::from("subClassOf")]);
         let (_, result) = calculate_max_information_content(
             &CLOSURE_MAP,
             &IC_MAP,
