@@ -484,11 +484,10 @@ mod tests {
     fn test_object_creation_using_resource() {
         let predicates: Option<Vec<Predicate>> = Some(vec!["rdfs:subClassOf".to_string()]);
         let db = Some("tests/data/go-nucleus.db");
-        let expected_length:usize = 1302;
+        let expected_length: usize = 1302;
         let ss = RustSemsimian::new(None, predicates, None, db);
         // dbg!(ss.spo.len());
         assert_eq!(ss.spo.len(), expected_length)
-
     }
 
     #[test]
