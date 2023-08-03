@@ -60,21 +60,21 @@ impl RustSemsimian {
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<Predicate>>,
         term_pairwise_similarity_attributes: Option<Vec<String>>,
-        slug: Option<&str>,
+        resource_path: Option<&str>,
     ) -> RustSemsimian {
         let spo = match spo {
             Some(spo) => Some(spo),
             None => {
-                if let Some(slug) = slug {
+                if let Some(resource_path) = resource_path {
                     match get_entailed_edges_for_predicate_list(
-                        slug,
+                        resource_path,
                         predicates.as_ref().unwrap_or(&Vec::new()),
                     ) {
                         Ok(edges) => Some(edges),
                         Err(err) => panic!("Resource returned nothing with predicates: {}", err),
                     }
                 } else {
-                    panic!("If no `spo` is provided, `slug` is required.");
+                    panic!("If no `spo` is provided, `resource_path` is required.");
                 }
             }
         }
@@ -370,9 +370,9 @@ impl Semsimian {
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<String>>,
         term_pairwise_similarity_attributes: Option<Vec<String>>,
-        slug: Option<&str>,
+        resource_path: Option<&str>,
     ) -> PyResult<Self> {
-        let ss = RustSemsimian::new(spo, predicates, term_pairwise_similarity_attributes, slug);
+        let ss = RustSemsimian::new(spo, predicates, term_pairwise_similarity_attributes, resource_path);
         Ok(Semsimian { ss })
     }
 
