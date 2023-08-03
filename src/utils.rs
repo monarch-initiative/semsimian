@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use csv::{ReaderBuilder, WriterBuilder};
 use std::error::Error;
 use std::fs::File;
-use std::io::Read;
+use std::io::{BufReader, BufWriter};
 
 type Predicate = String;
 type TermID = String;
@@ -176,46 +176,15 @@ pub fn find_embedding_index(embeddings: &[(String, Vec<f64>)], node: &str) -> Op
     embeddings.iter().position(|(curie, _)| curie == node)
 }
 
-// pub fn rearrange_columns_and_rewrite_using_polars(filename: &str, sequence: Vec<String>) {
-//     // Read the TSV `filename` path using polars
-//     let df = CsvReader::from_path(filename)
-//         .expect("Cannot read file")
-//         .with_delimiter(b'\t')
-//         .finish()
-//         .expect("Error reading CSV file");
-
-//     // Change the sequence of the columns of the TSV file
-//     let mut df_reordered = df.select(sequence).expect("Error selecting columns");
-
-//     // Use writer to write df_reordered into a TSV file.
-//     // let mut buf = File::create(filename).unwrap();
-//     let mut buf = OpenOptions::new()
-//         .write(true)
-//         .truncate(true)
-//         .open(filename)
-//         .unwrap_or_else(|error| {
-//             panic!("Error opening file '{}': {}", filename, error);
-//         });
-
-//     CsvWriter::new(&mut buf)
-//         .has_header(true)
-//         .with_delimiter(b'\t')
-//         .finish(&mut df_reordered)
-//         .expect("DataFrame not exported!");
-// }
-
 pub fn rearrange_columns_and_rewrite(
     filename: &str,
     sequence: Vec<String>,
 ) -> Result<(), Box<dyn Error>> {
     // Read the TSV file into a CSV reader
-    let mut file = File::open(filename)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-
+    let file = File::open(filename)?;
     let mut reader = ReaderBuilder::new()
         .delimiter(b'\t')
-        .from_reader(contents.as_bytes());
+        .from_reader(BufReader::new(file));
 
     // Get the header row from the reader
     let headers = reader.headers()?.clone();
@@ -230,7 +199,10 @@ pub fn rearrange_columns_and_rewrite(
         });
 
     // Create a new CSV writer
-    let mut writer = WriterBuilder::new().delimiter(b'\t').from_path(filename)?;
+    let file = File::create(filename)?;
+    let mut writer = WriterBuilder::new()
+        .delimiter(b'\t')
+        .from_writer(BufWriter::new(file));
 
     // Write the rearranged header row
     writer.write_record(indices.iter().map(|&i| headers.get(i).unwrap()))?;
@@ -238,7 +210,7 @@ pub fn rearrange_columns_and_rewrite(
     // Write the remaining rows with rearranged columns
     for result in reader.records() {
         let record = result?;
-        let rearranged_record = indices.iter().map(|&i| record.get(i).unwrap());
+        let rearranged_record: Vec<_> = indices.iter().map(|&i| record.get(i).unwrap()).collect();
         writer.write_record(rearranged_record)?;
     }
 
