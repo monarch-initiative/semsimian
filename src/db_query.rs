@@ -22,9 +22,10 @@ pub fn get_entailed_edges_for_predicate_list(
     // Open a connection to the SQLite database file
     let conn = Connection::open(path)?;
 
-    // Execute the SQL query and retrieve the results
+    // Prepare the SQL query
     let mut stmt = conn.prepare(&query)?;
 
+    // Execute the SQL query and retrieve the results
     let rows = stmt.query_map([], |row| {
         // Access the columns of each row
         Ok((row.get(0)?, row.get(1)?, row.get(2)?))
