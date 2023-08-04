@@ -440,6 +440,31 @@ impl Semsimian {
         Ok(())
     }
 
+    fn termset_similarity(
+        &mut self,
+        subject_terms: HashSet<TermID>,
+        object_terms: HashSet<TermID>,
+        minimum_jaccard_threshold: Option<f64>,
+        minimum_resnik_threshold: Option<f64>,
+        embeddings_file: Option<&str>,
+        outfile: Option<&str>,
+    ) -> PyResult<()> {
+        self.ss.update_closure_and_ic_map();
+        if let Some(file) = embeddings_file {
+            self.ss.load_embeddings(file);
+        }
+
+        // this is just a placeholder - it's not doing termset yet
+        self.ss.all_by_all_pairwise_similarity_with_output(
+            &subject_terms,
+            &object_terms,
+            &minimum_jaccard_threshold,
+            &minimum_resnik_threshold,
+            &outfile,
+        );
+        Ok(())
+    }    
+
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
         Ok(self.ss.spo.to_vec())
     }
