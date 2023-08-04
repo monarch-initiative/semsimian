@@ -1,5 +1,6 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use csv::{ReaderBuilder, WriterBuilder};
 use std::error::Error;
@@ -180,6 +181,13 @@ pub fn rearrange_columns_and_rewrite(
     filename: &str,
     sequence: Vec<String>,
 ) -> Result<(), Box<dyn Error>> {
+    // Get the parent directory of the input file
+    let parent_dir = Path::new(filename).parent().ok_or("Invalid file path")?;
+    
+    // Create a temporary file in the same directory as the input file
+    let temp_filename = parent_dir.join("temp_file.tmp");
+    let temp_file = File::create(&temp_filename)?;
+
     // Read the TSV file into a CSV reader
     let file = File::open(filename)?;
     let mut reader = ReaderBuilder::new()
@@ -198,9 +206,7 @@ pub fn rearrange_columns_and_rewrite(
             panic!("One or more columns not found in the input file");
         });
 
-    // Create a temporary file to write the rearranged data
-    let temp_filename = format!("{}.tmp", filename);
-    let temp_file = File::create(&temp_filename)?;
+    // Create a CSV writer for the temporary file
     let mut writer = WriterBuilder::new()
         .delimiter(b'\t')
         .from_writer(BufWriter::new(temp_file));
@@ -218,6 +224,9 @@ pub fn rearrange_columns_and_rewrite(
     // Flush and close the writer
     writer.flush()?;
     drop(writer);
+
+    // Close the input file
+    drop(reader);
 
     // Replace the input file with the temporary file
     fs::rename(&temp_filename, filename)?;
