@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use csv::{ReaderBuilder, WriterBuilder};
 use std::error::Error;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
 type Predicate = String;
@@ -198,11 +198,12 @@ pub fn rearrange_columns_and_rewrite(
             panic!("One or more columns not found in the input file");
         });
 
-    // Create a new CSV writer
-    let file = File::create(filename)?;
+    // Create a temporary file to write the rearranged data
+    let temp_filename = format!("{}.tmp", filename);
+    let temp_file = File::create(&temp_filename)?;
     let mut writer = WriterBuilder::new()
         .delimiter(b'\t')
-        .from_writer(BufWriter::new(file));
+        .from_writer(BufWriter::new(temp_file));
 
     // Write the rearranged header row
     writer.write_record(indices.iter().map(|&i| headers.get(i).unwrap()))?;
@@ -214,7 +215,13 @@ pub fn rearrange_columns_and_rewrite(
         writer.write_record(rearranged_record)?;
     }
 
+    // Flush and close the writer
     writer.flush()?;
+    drop(writer);
+
+    // Replace the input file with the temporary file
+    fs::rename(&temp_filename, filename)?;
+
     Ok(())
 }
 
