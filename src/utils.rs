@@ -229,6 +229,9 @@ pub fn rearrange_columns_and_rewrite(
     drop(reader);
 
     // Replace the input file with the temporary file
+    if Path::new(filename).exists() {
+        fs::remove_file(filename)?;
+    }
     fs::rename(&temp_filename, filename)?;
 
     Ok(())
