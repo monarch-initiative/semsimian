@@ -14,12 +14,13 @@ permissions:
 
 jobs:
 
-  test-linux:
-    name: Test for Linux
-    runs-on: ubuntu-latest
+  test:
+    name: Test for Linux & Windows
     strategy:
       matrix:
         python-version: [ '3.9', '3.10' ]
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
