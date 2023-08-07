@@ -346,44 +346,42 @@ impl RustSemsimian {
         pb.finish_with_message("done");
     }
 
-    // TODO: make this predicate aware, and make it work with the new closure map
-    // pub fn phenomizer_score(
-    //     &self,
-    //     entity1: HashSet<TermID>,
-    //     entity2: HashSet<TermID>,
-    //     // predicates: Option<HashSet<Predicate>>
-    // ) -> Result<f64, String> {  
-    //     let predicate_set_key = predicate_set_to_key(&self.predicates);
+    pub fn phenomizer_score(
+        &self,
+        entity1: HashSet<TermID>,
+        entity2: HashSet<TermID>,
+    ) -> Result<f64, String> {  
+        let predicate_set_key = predicate_set_to_key(&self.predicates);
 
-    //     let closure_map = self.closure_map.get(&predicate_set_key)
-    //     .ok_or_else(|| "Predicate key not found in closure map")?;
+        let closure_map = self.closure_map.get(&predicate_set_key)
+        .ok_or_else(|| "Predicate key not found in closure map")?;
        
-    //     let ic_map = self.ic_map.get(&predicate_set_key)
-    //     .ok_or_else(|| "Predicate key not found in ic map")?;
+        let ic_map = self.ic_map.get(&predicate_set_key)
+        .ok_or_else(|| "Predicate key not found in ic map")?;
     
-    //     //  wrap maps in new HashMaps with the PredicateSetKey 
-    //     let mut specific_closure_map_with_key = HashMap::new();
-    //     specific_closure_map_with_key.insert(predicate_set_key.clone(), closure_map.clone());
-    //     let mut specific_ic_map_with_key = HashMap::new();
-    //     specific_ic_map_with_key.insert(predicate_set_key.clone(), ic_map.clone());
+        //  wrap maps in new HashMaps with the PredicateSetKey 
+        let mut specific_closure_map_with_key = HashMap::new();
+        specific_closure_map_with_key.insert(predicate_set_key.clone(), closure_map.clone());
+        let mut specific_ic_map_with_key = HashMap::new();
+        specific_ic_map_with_key.insert(predicate_set_key.clone(), ic_map.clone());
 
-    //     let entity1_closure = entity1.iter()
-    //     .map(|term| expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates))
-    //     .flatten() 
-    //     .collect::<HashSet<TermID>>();
+        let entity1_closure = entity1.iter()
+        .map(|term| expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates))
+        .flatten() 
+        .collect::<HashSet<TermID>>();
     
-    //     let entity2_closure = entity2.iter()
-    //     .map(|term| expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates))
-    //     .flatten() 
-    //     .collect::<HashSet<TermID>>();
+        let entity2_closure = entity2.iter()
+        .map(|term| expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates))
+        .flatten() 
+        .collect::<HashSet<TermID>>();
 
-    //     Ok(calculate_phenomizer_score_carlo_adjusted(
-    //         &specific_closure_map_with_key, 
-    //         &specific_ic_map_with_key, 
-    //         &entity1_closure, 
-    //         &entity2_closure, 
-    //         &self.predicates))
-    // }
+        Ok(calculate_phenomizer_score_carlo_adjusted(
+            &specific_closure_map_with_key, 
+            &specific_ic_map_with_key, 
+            &entity1_closure, 
+            &entity2_closure, 
+            &self.predicates))
+    }
 
     pub fn termset_pairwise_similarity(
         &self,
@@ -526,6 +524,17 @@ impl Semsimian {
 
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
         Ok(self.ss.spo.to_vec())
+    }
+
+    fn phenomizer_score(
+        &mut self,
+        entity1: HashSet<TermID>,
+        entity2: HashSet<TermID>,
+    ) -> PyResult<f64> {
+        match self.ss.phenomizer_score(entity1, entity2) {
+            Ok(score) => Ok(score),
+            Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),
+        }
     }
 }
 
@@ -866,25 +875,23 @@ mod tests {
         
     }
 
-    // #[test]
-    // fn test_phenomizer_score(){
+    #[test]
+    fn test_phenomizer_score(){
+        let spo = Some(BFO_SPO.clone());
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let mut rss = RustSemsimian::new(spo, predicates, None, None);
 
-    //     let spo = crate::test_utils::test_constants::BFO_SPO.clone();
-    //     let mut rss = RustSemsimian::new(spo, None);
+        rss.update_closure_and_ic_map();
 
-    //     let predicates: Option<HashSet<Predicate>> = Some(HashSet::from([
-    //         "rdfs:subClassOf".to_string(),
-    //         "BFO:0000050".to_string(),
-    //     ]));
+        let entity1: HashSet<TermID> = HashSet::from(["BFO:0000020".to_string(), "BFO:0000002".to_string()]);
+        let entity2: HashSet<TermID> = HashSet::from(["BFO:0000030".to_string(), "BFO:0000005".to_string()]);
 
-    //     rss.update_closure_and_ic_map(&predicates);
+        let result = rss.phenomizer_score(entity1, entity2); //Result<f64, String>
+        let expected_result = 0.35597967325817725; 
 
-    //     let entity1: HashSet<TermID> = HashSet::from(["BFO:0000020".to_string(), "BFO:0000002".to_string()]);
-    //     let entity2: HashSet<TermID> = HashSet::from(["BFO:0000030".to_string(), "BFO:0000005".to_string()]);
-
-    //     let result = rss.phenomizer_score(entity1, entity2, predicates); //Result<f64, String>
-    //     let expected_result = 0.35597967325817725; 
-
-    //     assert_eq!(result.unwrap(), expected_result);
-    // }
+        assert_eq!(result.unwrap(), expected_result);
+    }
 }

@@ -86,92 +86,92 @@ pub fn pairwise_entity_resnik_score(
     }
 
     entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
+}   
+
+//finds the maximum information content (IC) score between each term in entity1 and its best match in entity2.
+pub fn pairwise_entity_resnik_score_carlo(
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    entity1: &HashSet<TermID>, 
+    entity2: &HashSet<TermID>,
+    predicates: &Option<Vec<Predicate>>,
+) -> f64 {
+    // // At each iteration, it calculates the IC score using the calculate_max_information_content function, and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2), it updates the maximum IC value. Thus, at the end of the iterations, max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons, representing the best match between entity1 and entity2.
+
+    let mut entity1_to_entity2_sum_resnik_sim = 0.0;
+
+    for e1_term in entity1.clone().into_iter() {
+
+        let mut max_resnik_sim_e1_e2 = 0.0;
+        for e2_term in entity2.clone().into_iter() {
+
+            // if e1_term != e2_term { // preventing self comparison --> but this would change all test results
+                // Calculate the max IC and all ancestors with that IC using the provided function
+                let (_max_ic_ancestors, max_ic) =
+                    calculate_max_information_content(closure_map, ic_map, &e1_term, &e2_term, predicates);
+
+
+                // Use the max IC as the similarity score
+                if max_ic > max_resnik_sim_e1_e2 {
+                    max_resnik_sim_e1_e2 = max_ic;
+
+                }
+            // }
+        }
+        entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
+
+    }
+    // The final result will be the average Resnik similarity score between the two sets
+    let average_resnik_sim = entity1_to_entity2_sum_resnik_sim / entity1.len() as f64;
+    average_resnik_sim
 }
 
-// // finds the maximum information content (IC) score between each term in entity1 and its best match in entity2.
-// pub fn pairwise_entity_resnik_score_carlo(
-//     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-//     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-//     entity1: &HashSet<TermID>, 
-//     entity2: &HashSet<TermID>,
-//     predicates: &Option<HashSet<Predicate>>,
-// ) -> f64 {
-//     // // At each iteration, it calculates the IC score using the calculate_max_information_content function, and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2), it updates the maximum IC value. Thus, at the end of the iterations, max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons, representing the best match between entity1 and entity2.
+pub fn calculate_phenomizer_score_carlo_adjusted(
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    entity1: &HashSet<TermID>,
+    entity2: &HashSet<TermID>,
+    predicates: &Option<Vec<Predicate>>,
+) -> f64 {
+    let predicate_set_key = predicate_set_to_key(predicates);
 
-//     let mut entity1_to_entity2_sum_resnik_sim = 0.0;
+    // Get the expanded terms for both entities
+    let entity1_closure = entity1.iter()
+        .map(|term| expand_term_using_closure(term, closure_map, predicates))
+        .flatten()
+        .collect();
 
-//     for e1_term in entity1.clone().into_iter() {
+    let entity2_closure = entity2.iter()
+        .map(|term| expand_term_using_closure(term, closure_map, predicates))
+        .flatten()
+        .collect();
 
-//         let mut max_resnik_sim_e1_e2 = 0.0;
-//         for e2_term in entity2.clone().into_iter() {
+    // Get the closure_map and ic_map for the specific predicate_set_key
+    // unwrap() could panic if key not given
+    let specific_closure_map = closure_map.get(&predicate_set_key).unwrap().clone(); // clone because we make sure it matches the types
+    let specific_ic_map = ic_map.get(&predicate_set_key).unwrap().clone();
 
-//             // if e1_term != e2_term { // preventing self comparison --> but this would change all test results
-//                 // Calculate the max IC and all ancestors with that IC using the provided function
-//                 let (_max_ic_ancestors, max_ic) =
-//                     calculate_max_information_content(closure_map, ic_map, &e1_term, &e2_term, predicates);
+    // Wrap the specific maps in new HashMaps with the PredicateSetKey
+    let mut specific_closure_map_with_key = HashMap::new();
+    specific_closure_map_with_key.insert(predicate_set_key.clone(), specific_closure_map);
 
+    let mut specific_ic_map_with_key = HashMap::new();
+    specific_ic_map_with_key.insert(predicate_set_key.clone(), specific_ic_map);
 
-//                 // Use the max IC as the similarity score
-//                 if max_ic > max_resnik_sim_e1_e2 {
-//                     max_resnik_sim_e1_e2 = max_ic;
-
-//                 }
-//             // }
-//         }
-//         entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
-
-//     }
-//     // The final result will be the average Resnik similarity score between the two sets
-//     let average_resnik_sim = entity1_to_entity2_sum_resnik_sim / entity1.len() as f64;
-//     average_resnik_sim
-// }
-
-// pub fn calculate_phenomizer_score_carlo_adjusted(
-//     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-//     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-//     entity1: &HashSet<TermID>,
-//     entity2: &HashSet<TermID>,
-//     predicates: &Option<HashSet<Predicate>>,
-// ) -> f64 {
-//     let predicate_set_key = predicate_set_to_key(predicates);
-
-//     // Get the expanded terms for both entities
-//     let entity1_closure = entity1.iter()
-//         .map(|term| expand_term_using_closure(term, closure_map, predicates))
-//         .flatten()
-//         .collect();
-
-//     let entity2_closure = entity2.iter()
-//         .map(|term| expand_term_using_closure(term, closure_map, predicates))
-//         .flatten()
-//         .collect();
-
-//     // Get the closure_map and ic_map for the specific predicate_set_key
-//     // unwrap() could panic if key not given
-//     let specific_closure_map = closure_map.get(&predicate_set_key).unwrap().clone(); // clone because we make sure it matches the types
-//     let specific_ic_map = ic_map.get(&predicate_set_key).unwrap().clone();
-
-//     // Wrap the specific maps in new HashMaps with the PredicateSetKey
-//     let mut specific_closure_map_with_key = HashMap::new();
-//     specific_closure_map_with_key.insert(predicate_set_key.clone(), specific_closure_map);
-
-//     let mut specific_ic_map_with_key = HashMap::new();
-//     specific_ic_map_with_key.insert(predicate_set_key.clone(), specific_ic_map);
-
-//     // calculate average resnik sim of all terms in entity1 and their best match in entity2
-//     let entity1_to_entity2_average_resnik_sim: f64 =
-//         pairwise_entity_resnik_score_carlo(&specific_closure_map_with_key, &specific_ic_map_with_key, &entity1_closure, &entity2_closure, &predicates);
+    // calculate average resnik sim of all terms in entity1 and their best match in entity2
+    let entity1_to_entity2_average_resnik_sim: f64 =
+        pairwise_entity_resnik_score_carlo(&specific_closure_map_with_key, &specific_ic_map_with_key, &entity1_closure, &entity2_closure, &predicates);
 
 
-//     // now do the same for entity2 to entity1
-//     let entity2_to_entity1_average_resnik_sim: f64 =
-//         pairwise_entity_resnik_score_carlo(&specific_closure_map_with_key, &specific_ic_map_with_key, &entity2_closure, &entity1_closure, &predicates);
+    // now do the same for entity2 to entity1
+    let entity2_to_entity1_average_resnik_sim: f64 =
+        pairwise_entity_resnik_score_carlo(&specific_closure_map_with_key, &specific_ic_map_with_key, &entity2_closure, &entity1_closure, &predicates);
 
      
-//     // return the average of the two
-//     let average_score = (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0;
-//     average_score
-// }    
+    // return the average of the two
+    let average_score = (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0;
+    average_score
+}    
 
 pub fn calculate_max_information_content(
     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
@@ -553,159 +553,159 @@ mod tests {
         assert_eq!(similarity, 0.0);
     }
 
-    // #[test]
-    // fn test_pairwise_entity_resnik_score_carlo() {
-    //     let predicates: Option<HashSet<Predicate>> = Some(
-    //         vec![Predicate::from("subClassOf")]
-    //             .into_iter()
-    //             .collect()
-    //     );
+    #[test]
+    fn test_pairwise_entity_resnik_score_carlo() {
+        let predicates: Option<Vec<Predicate>> = Some(
+            vec![Predicate::from("subClassOf")]
+                .into_iter()
+                .collect()
+        );
         
-    //     // Test case 1: Normal case, entities have terms.
-    //     let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        // Test case 1: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let resnik_score = pairwise_entity_resnik_score_carlo(
-    //         &CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates
-    //     );
-    //     let expected_value = 1.0;
+        let resnik_score = pairwise_entity_resnik_score_carlo(
+            &CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates
+        );
+        let expected_value = 1.0;
 
-    //     println!("CASE 1 resnik_score: {resnik_score}"); 
-    //     assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+        println!("CASE 1 resnik_score: {resnik_score}"); 
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
         
-    //     // Test case 2: Normal case, entities have terms.
-    //     let entity1: HashSet<TermID> = vec!["CARO:0000000"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
-    //     let entity2: HashSet<TermID> = vec!["BFO:0000002"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let resnik_score = pairwise_entity_resnik_score_carlo(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
-    //     let expected_value = 1.585;
+        let resnik_score = pairwise_entity_resnik_score_carlo(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let expected_value = 1.585;
 
-    //     println!("Case 2 resnik_score: {resnik_score}"); 
-    //     assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+        println!("Case 2 resnik_score: {resnik_score}"); 
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
 
-    //     // Test case 3: Normal case, entities have terms.
-    //     let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004" , "BFO:0000003"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
-    //     let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        // Test case 3: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004" , "BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let resnik_score = pairwise_entity_resnik_score_carlo(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
-    //     let expected_value = 0.6666666666666666;
+        let resnik_score = pairwise_entity_resnik_score_carlo(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let expected_value = 0.6666666666666666;
 
-    //     println!("Case 3 resnik_score: {resnik_score}");
-    //     assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+        println!("Case 3 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
 
-    //     // Test case 4: Normal case, entities have terms.
-    //     let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        // Test case 4: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let resnik_score = pairwise_entity_resnik_score_carlo(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
-    //     let expected_value = 1.0566666666666666;
+        let resnik_score = pairwise_entity_resnik_score_carlo(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let expected_value = 1.0566666666666666;
 
-    //     println!("Case 4 resnik_score: {resnik_score}"); 
-    //     assert!((resnik_score - expected_value).abs() < f64::EPSILON);
-    // }
+        println!("Case 4 resnik_score: {resnik_score}"); 
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+    }
 
-    // #[test]
-    // fn test_calculate_phenomizer_score_carlo_adjusted() {
-    //     let predicates: Option<HashSet<Predicate>> = Some(
-    //         vec![Predicate::from("subClassOf")]
-    //             .into_iter()
-    //             .collect()
-    //     );
+    #[test]
+    fn test_calculate_phenomizer_score_carlo_adjusted() {
+        let predicates: Option<Vec<Predicate>> = Some(
+            vec![Predicate::from("subClassOf")]
+                .into_iter()
+                .collect()
+        );
 
-    //     // Test case 1: Normal case, entities have terms.
-    //     let entity1: HashSet<TermID> = vec!["CARO:0000000"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        // Test case 1: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let entity2: HashSet<TermID> = vec!["BFO:0000002"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let pheno_score = calculate_phenomizer_score_carlo_adjusted(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
-    //     let expected_value = 1.34125;
+        let pheno_score = calculate_phenomizer_score_carlo_adjusted(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let expected_value = 1.34125;
 
-    //     println!("Case X pheno_score: {pheno_score}"); 
-    //     assert_eq!(pheno_score, expected_value);
+        println!("Case X pheno_score: {pheno_score}"); 
+        assert_eq!(pheno_score, expected_value);
         
-    //     // Test case 2: Normal case, entities have terms.
-    //     let entity1: HashSet<TermID> = vec!["BFO:0000002"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let entity2: HashSet<TermID> = vec!["BFO:0000003"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let pheno_score = calculate_phenomizer_score_carlo_adjusted(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
-    //     let expected_value = 0.75;
+        let pheno_score = calculate_phenomizer_score_carlo_adjusted(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let expected_value = 0.75;
 
-    //     println!("Case 2 pheno_score: {pheno_score}"); 
-    //     assert_eq!(pheno_score, expected_value);
+        println!("Case 2 pheno_score: {pheno_score}"); 
+        assert_eq!(pheno_score, expected_value);
 
-    //     // Test case 3: Normal case, entities have terms.
-    //     let entity1: HashSet<TermID> = vec!["CARO:0000000", "CARO:0000001", "CARO:0000009", "BFO:0000003"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        // Test case 3: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "CARO:0000001", "CARO:0000009", "BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let entity2: HashSet<TermID> = vec!["BFO:0000004", "BFO:0000002", "BFO:0000001"]
-    //         .into_iter()
-    //         .map(|s| s.to_string())
-    //         .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000004", "BFO:0000002", "BFO:0000001"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
-    //     let pheno_score = calculate_phenomizer_score_carlo_adjusted(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
-    //     let expected_value = 1.1675;
+        let pheno_score = calculate_phenomizer_score_carlo_adjusted(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let expected_value = 1.1675;
 
-    //     println!("Case 3 pheno_score: {pheno_score}"); 
-    //     assert_eq!(pheno_score, expected_value);
+        println!("Case 3 pheno_score: {pheno_score}"); 
+        assert_eq!(pheno_score, expected_value);
         
-    //     // Test case 4: Normal case, entities have terms.
-    //     let entity1: HashSet<String> = vec!["CARO:0000000", "BFO:0000002"]
-    //         .into_iter()
-    //         .map(String::from)
-    //         .collect();
+        // Test case 4: Normal case, entities have terms.
+        let entity1: HashSet<String> = vec!["CARO:0000000", "BFO:0000002"]
+            .into_iter()
+            .map(String::from)
+            .collect();
         
-    //     let entity2: HashSet<String> = vec!["BFO:0000003", "BFO:0000004"]
-    //         .into_iter()
-    //         .map(String::from)
-    //         .collect();
+        let entity2: HashSet<String> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(String::from)
+            .collect();
     
-    //     let pheno_score = calculate_phenomizer_score_carlo_adjusted(
-    //         &CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates
-    //     );
-    //     let expected_value = 0.75;
+        let pheno_score = calculate_phenomizer_score_carlo_adjusted(
+            &CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates
+        );
+        let expected_value = 0.75;
 
-    //     println!("Case 4 pheno_score: {pheno_score}"); 
-    //     assert_eq!(pheno_score, expected_value);
-    // }
+        println!("Case 4 pheno_score: {pheno_score}"); 
+        assert_eq!(pheno_score, expected_value);
+    }
 }
