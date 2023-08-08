@@ -353,7 +353,7 @@ impl RustSemsimian {
         pb.finish_with_message("done");
     }
 
-    pub fn phenomizer_score(
+    pub fn termset_comparison(
         &self,
         entity1: HashSet<TermID>,
         entity2: HashSet<TermID>,
@@ -549,7 +549,7 @@ impl Semsimian {
         entity1: HashSet<TermID>,
         entity2: HashSet<TermID>,
     ) -> PyResult<f64> {
-        match self.ss.phenomizer_score(entity1, entity2) {
+        match self.ss.termset_comparison(entity1, entity2) {
             Ok(score) => Ok(score),
             Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),
         }
@@ -904,7 +904,7 @@ mod tests {
         let entity2: HashSet<TermID> =
             HashSet::from(["BFO:0000030".to_string(), "BFO:0000005".to_string()]);
 
-        let result = rss.phenomizer_score(entity1, entity2); //Result<f64, String>
+        let result = rss.termset_comparison(entity1, entity2); //Result<f64, String>
         let expected_result = 0.35597967325817725;
 
         assert_eq!(result.unwrap(), expected_result);
