@@ -69,7 +69,9 @@ impl RustSemsimian {
         pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
     ) -> RustSemsimian {
-        *RESOURCE_PATH.lock().unwrap() = Some(resource_path.unwrap().to_string().clone());
+        if let Some(resource_path) = resource_path {
+            *RESOURCE_PATH.lock().unwrap() = Some(resource_path.to_string().clone());
+        }
         let spo = match spo {
             Some(spo) => Some(spo),
             None => {
@@ -881,7 +883,7 @@ mod tests {
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
-        ]);
+        ]);       
         let mut rss = RustSemsimian::new(spo, predicates, None, None);
 
         rss.update_closure_and_ic_map();
