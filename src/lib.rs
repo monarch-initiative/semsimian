@@ -363,12 +363,12 @@ impl RustSemsimian {
         let closure_map = self
             .closure_map
             .get(&predicate_set_key)
-            .ok_or_else(|| "Predicate key not found in closure map")?;
+            .ok_or("Predicate key not found in closure map")?;
 
         let ic_map = self
             .ic_map
             .get(&predicate_set_key)
-            .ok_or_else(|| "Predicate key not found in ic map")?;
+            .ok_or("Predicate key not found in ic map")?;
 
         //  wrap maps in new HashMaps with the PredicateSetKey
         let mut specific_closure_map_with_key = HashMap::new();
@@ -378,18 +378,16 @@ impl RustSemsimian {
 
         let entity1_closure = entity1
             .iter()
-            .map(|term| {
+            .flat_map(|term| {
                 expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates)
             })
-            .flatten()
             .collect::<HashSet<TermID>>();
 
         let entity2_closure = entity2
             .iter()
-            .map(|term| {
+            .flat_map(|term| {
                 expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates)
             })
-            .flatten()
             .collect::<HashSet<TermID>>();
 
         Ok(calculate_termset_comparison(
