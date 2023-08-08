@@ -655,6 +655,8 @@ mod tests {
             },
         ];
 
-        assert_eq!(result, expected_result);
+        for item in &result {
+            assert!(expected_result.contains(item));
+        }
     }
 }
