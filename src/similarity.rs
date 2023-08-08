@@ -110,20 +110,14 @@ pub fn pairwise_entity_resnik_score(
         let max_resnik_sim_e1_e2 = entity2
             .iter()
             .map(|e2_term| {
-                calculate_max_information_content(
-                    closure_map,
-                    ic_map,
-                    e1_term,
-                    e2_term,
-                    predicates,
-                )
+                calculate_max_information_content(closure_map, ic_map, e1_term, e2_term, predicates)
             })
             .fold(0.0, |max_ic: f64, (_max_ic_ancestors, ic)| max_ic.max(ic));
 
         entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
     }
     // The final result will be the average Resnik similarity score between the two sets
-    
+
     entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
 }
 
@@ -178,7 +172,7 @@ pub fn calculate_termset_comparison(
     );
 
     // return the average of the two
-    
+
     (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0
 }
 
