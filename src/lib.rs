@@ -62,11 +62,6 @@ pub struct RustSemsimian {
 impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
     // TODO: also, we should support loading "custom" ic
-    // TODO: generate ic map and closure map using (spo).
-    // Carlo Edit:
-    // - placing panic condition at the top for clarity and define constraints
-    // - simplifying the 'spo' logic by using the underlying value directly, avoiding unnecessary wrapping in 'Option'
-    // - seperated concerns for 'resource_path' and 'spo' for better maintainability
 
     pub fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
