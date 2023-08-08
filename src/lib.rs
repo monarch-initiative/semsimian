@@ -63,32 +63,35 @@ impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
     // TODO: also, we should support loading "custom" ic
     // TODO: generate ic map and closure map using (spo).
+    // Carlo Edit:
+    // - placing panic condition at the top for clarity and define constraints
+    // - simplifying the 'spo' logic by using the underlying value directly, avoiding unnecessary wrapping in 'Option'
+    // - seperated concerns for 'resource_path' and 'spo' for better maintainability
+
     pub fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<Predicate>>,
         pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
     ) -> RustSemsimian {
+        if spo.is_none() && resource_path.is_none() {
+            panic!("If no `spo` is provided, `resource_path` is required.");
+        }
         if let Some(resource_path) = resource_path {
             *RESOURCE_PATH.lock().unwrap() = Some(resource_path.to_string().clone());
         }
         let spo = match spo {
-            Some(spo) => Some(spo),
+            Some(spo) => spo,
             None => {
-                if let Some(resource_path) = resource_path {
-                    match get_entailed_edges_for_predicate_list(
-                        resource_path,
-                        predicates.as_ref().unwrap_or(&Vec::new()),
-                    ) {
-                        Ok(edges) => Some(edges),
-                        Err(err) => panic!("Resource returned nothing with predicates: {}", err),
-                    }
-                } else {
-                    panic!("If no `spo` is provided, `resource_path` is required.");
+                match get_entailed_edges_for_predicate_list(
+                    resource_path.unwrap(),
+                    predicates.as_ref().unwrap_or(&Vec::new()),
+                ) {
+                    Ok(edges) => edges,
+                    Err(err) => panic!("Resource returned nothing with predicates: {}", err),
                 }
             }
-        }
-        .unwrap();
+        };
 
         let predicates = match predicates {
             Some(predicates) => Some(predicates),
@@ -110,6 +113,8 @@ impl RustSemsimian {
             embeddings: Vec::new(),
         }
     }
+
+
 
     pub fn update_closure_and_ic_map(&mut self) {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
