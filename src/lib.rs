@@ -407,7 +407,7 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         _outfile: &Option<&str>,
     ) {
-        let all_by_all: HashMap<String, HashMap<String, (f64, f64, f64, f64, HashSet<String>)>> =
+        let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
         let termset_btreemap: BTreeMap<TermID, HashMap<&str, &str>> = BTreeMap::new();
         let db_path = RESOURCE_PATH.lock().unwrap();
