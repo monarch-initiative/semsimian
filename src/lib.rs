@@ -19,7 +19,6 @@ use std::fmt;
 
 use similarity::{
     calculate_cosine_similarity_for_nodes, calculate_max_information_content,
-    calculate_termset_comparison,
 };
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
@@ -394,17 +393,17 @@ impl RustSemsimian {
         &self,
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
-        outfile: &Option<&str>,
+        _outfile: &Option<&str>,
     ) {
-        let all_by_all =
+        let _all_by_all =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
-        let mut termset_btreemap: BTreeMap<TermID, HashMap<&str, &str>> = BTreeMap::new();
+        let _termset_btreemap: BTreeMap<TermID, HashMap<&str, &str>> = BTreeMap::new();
         let db_path = RESOURCE_PATH.lock().unwrap();
         let all_terms = subject_terms
             .union(object_terms)
             .cloned()
             .collect::<Vec<String>>();
-        let term_label_hashmap = get_labels(&db_path.clone().unwrap().as_str(), all_terms).unwrap();
+        let term_label_hashmap = get_labels(db_path.clone().unwrap().as_str(), all_terms).unwrap();
 
         let subject_terms_btreemap: HashSet<BTreeMap<String, String>> = term_label_hashmap
             .iter()
@@ -874,7 +873,7 @@ mod tests {
         let object_terms = HashSet::from(["GO:0044237".to_string(), "GO:0008152".to_string()]);
         let outfile = Some("tests/data/output/termset_similarity_output.tsv");
         let rss = RustSemsimian::new(None, predicates, temset_attributes, db);
-        let tps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &outfile);
+        rss.termset_pairwise_similarity(&subject_terms, &object_terms, &outfile);
     }
 
     // #[test]

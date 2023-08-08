@@ -113,8 +113,8 @@ pub fn pairwise_entity_resnik_score(
                 calculate_max_information_content(
                     closure_map,
                     ic_map,
-                    &e1_term,
-                    &e2_term,
+                    e1_term,
+                    e2_term,
                     predicates,
                 )
             })
@@ -123,8 +123,8 @@ pub fn pairwise_entity_resnik_score(
         entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
     }
     // The final result will be the average Resnik similarity score between the two sets
-    let average_resnik_sim = entity1_to_entity2_sum_resnik_sim / entity1.len() as f64;
-    average_resnik_sim
+    
+    entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
 }
 
 pub fn calculate_termset_comparison(
@@ -165,7 +165,7 @@ pub fn calculate_termset_comparison(
         &specific_ic_map_with_key,
         &entity1_closure,
         &entity2_closure,
-        &predicates,
+        predicates,
     );
 
     // now do the same for entity2 to entity1
@@ -174,13 +174,12 @@ pub fn calculate_termset_comparison(
         &specific_ic_map_with_key,
         &entity2_closure,
         &entity1_closure,
-        &predicates,
+        predicates,
     );
 
     // return the average of the two
-    let average_score =
-        (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0;
-    average_score
+    
+    (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0
 }
 
 pub fn calculate_max_information_content(
