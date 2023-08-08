@@ -40,11 +40,13 @@ pub fn get_entailed_edges_for_predicate_list(
     entailed_edges
 }
 
-pub fn get_labels(path: &str, terms: Vec<TermID>) -> Result<HashMap<TermID, String>, rusqlite::Error>{
+pub fn get_labels(
+    path: &str,
+    terms: Vec<TermID>,
+) -> Result<HashMap<TermID, String>, rusqlite::Error> {
     let table_name = "statements";
     let joined_terms = format!("'{}'", terms.join("', '"));
     let query = format!("SELECT subject, value FROM {table_name} WHERE predicate='rdfs:label' AND subject IN ({joined_terms})");
-        
 
     // Open a connection to the SQLite database file
     let conn = Connection::open(path)?;
@@ -68,7 +70,6 @@ pub fn get_labels(path: &str, terms: Vec<TermID>) -> Result<HashMap<TermID, Stri
     }
 
     Ok(result_map)
-
 }
 
 #[cfg(test)]
@@ -88,8 +89,7 @@ mod tests {
         let expected_length: usize = 1302;
 
         // Call the function with the test parameters
-        let result =
-            get_entailed_edges_for_predicate_list(db, &PREDICATE_VEC);
+        let result = get_entailed_edges_for_predicate_list(db, &PREDICATE_VEC);
 
         // dbg!(&result);
         // Assert that the function executed successfully
@@ -97,11 +97,10 @@ mod tests {
     }
 
     #[test]
-    fn test_get_labels(){
+    fn test_get_labels() {
         let db = &DB_PATH;
-        let expected_result: HashMap<String, String> = HashMap::from([
-            ("GO:0099568".to_string(),"cytoplasmic region".to_string())
-        ]);
+        let expected_result: HashMap<String, String> =
+            HashMap::from([("GO:0099568".to_string(), "cytoplasmic region".to_string())]);
         let result = get_labels(db, vec!["GO:0099568".to_string()]);
         assert_eq!(result.unwrap(), expected_result);
     }

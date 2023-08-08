@@ -183,7 +183,7 @@ pub fn rearrange_columns_and_rewrite(
 ) -> Result<(), Box<dyn Error>> {
     // Get the parent directory of the input file
     let parent_dir = Path::new(filename).parent().ok_or("Invalid file path")?;
-    
+
     // Create a temporary file in the same directory as the input file
     let temp_filename = parent_dir.join("temp_file.tmp");
     let temp_file = File::create(&temp_filename)?;
