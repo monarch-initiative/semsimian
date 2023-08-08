@@ -1,5 +1,5 @@
 use indicatif::{ProgressBar, ProgressStyle};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use csv::{ReaderBuilder, WriterBuilder};
@@ -236,6 +236,72 @@ pub fn rearrange_columns_and_rewrite(
 
     Ok(())
 }
+
+pub fn get_termset_vector(
+    terms: &HashSet<String>,
+    term_label_hashmap: &HashMap<String, String>,
+) -> Vec<BTreeMap<String, BTreeMap<String, String>>> {
+    term_label_hashmap
+        .iter()
+        .filter(|(key, _)| terms.contains(*key))
+        .map(|(key, value)| {
+            let mut inner_btreemap = BTreeMap::new();
+            inner_btreemap.insert("id".to_string(), key.clone());
+            inner_btreemap.insert("label".to_string(), value.clone());
+
+            let mut outer_btreemap = BTreeMap::new();
+            outer_btreemap.insert(key.clone(), inner_btreemap);
+
+            outer_btreemap
+        })
+        .collect()
+}
+
+// fn get_best_matches(subject_termset: &[HashMap<String, HashMap<String, String>>], all_by_all: &HashMap<String, HashMap<String, (f64, f64, f64, Vec<String>)>>) -> HashMap<String, HashMap<String, HashMap<String, String>>> {
+//     let mut subject_best_matches: HashMap<String, HashMap<String, HashMap<String, String>>> = HashMap::new();
+
+//     for term in subject_termset {
+//         let term_id = term.keys().next().unwrap();
+//         let term_label = term[term_id]["label"].clone();
+
+//         if let Some(matches) = all_by_all.get(term_id) {
+//             let best_match = matches
+//                 .iter()
+//                 .max_by(|(_, v1), (_, v2)| v1.1.partial_cmp(&v2.1).unwrap())
+//                 .unwrap();
+//             let object_id = *best_match.0;
+//             let score = best_match.1.1;
+//             let ancestor_id = best_match.1.3.last().cloned().unwrap();
+//             let ancestor_label = subject_termset[0][&ancestor_id]["label"].clone();
+//             let ancestor_information_content = score;
+//             let jaccard_similarity = best_match.1.0;
+//             let phenodigm_score = best_match.1.2;
+//             let match_source_label = term_label.clone();
+//             let match_target = object_id;
+//             let match_target_label = subject_termset[0][&object_id]["label"].clone();
+
+//             let similarity = HashMap::from([
+//                 ("subject_id".to_string(), term_id.to_string()),
+//                 ("object_id".to_string(), object_id.to_string()),
+//                 ("ancestor_id".to_string(), ancestor_id.to_string()),
+//                 ("ancestor_label".to_string(), ancestor_label),
+//                 ("ancestor_information_content".to_string(), ancestor_information_content.to_string()),
+//                 ("jaccard_similarity".to_string(), jaccard_similarity.to_string()),
+//                 ("phenodigm_score".to_string(), phenodigm_score.to_string()),
+//             ]);
+
+//             let subject_match = HashMap::from([
+//                 ("match_source".to_string(), term_id.to_string()),
+//                 ("score".to_string(), score.to_string()),
+//                 ("similarity".to_string(), similarity),
+//             ]);
+
+//             subject_best_matches.insert(term_id.clone(), subject_match);
+//         }
+//     }
+
+//     subject_best_matches
+// }
 
 #[cfg(test)]
 mod tests {
@@ -549,5 +615,46 @@ mod tests {
 
         // Clean up the temporary file
         // std::fs::remove_file(filename).expect("Failed to remove file");
+    }
+
+    #[test]
+    fn test_get_termset_vector() {
+        let mut term_label_hashmap = HashMap::new();
+        term_label_hashmap.insert("GO:0005575".to_string(), "cellular_component".to_string());
+        term_label_hashmap.insert("GO:0099568".to_string(), "cytoplasmic region".to_string());
+        term_label_hashmap.insert("GO:0016020".to_string(), "membrane".to_string());
+
+        let terms: HashSet<String> = vec!["GO:0005575".to_string(), "GO:0099568".to_string()]
+            .into_iter()
+            .collect();
+
+        let result = get_termset_vector(&terms, &term_label_hashmap);
+
+        assert_eq!(result.len(), 2);
+
+        let expected_result: Vec<BTreeMap<String, BTreeMap<String, String>>> = vec![
+            {
+                let mut inner_btreemap = BTreeMap::new();
+                inner_btreemap.insert("id".to_string(), "GO:0005575".to_string());
+                inner_btreemap.insert("label".to_string(), "cellular_component".to_string());
+
+                let mut outer_btreemap = BTreeMap::new();
+                outer_btreemap.insert("GO:0005575".to_string(), inner_btreemap);
+
+                outer_btreemap
+            },
+            {
+                let mut inner_btreemap = BTreeMap::new();
+                inner_btreemap.insert("id".to_string(), "GO:0099568".to_string());
+                inner_btreemap.insert("label".to_string(), "cytoplasmic region".to_string());
+
+                let mut outer_btreemap = BTreeMap::new();
+                outer_btreemap.insert("GO:0099568".to_string(), inner_btreemap);
+
+                outer_btreemap
+            },
+        ];
+
+        assert_eq!(result, expected_result);
     }
 }
