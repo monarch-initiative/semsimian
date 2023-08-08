@@ -542,7 +542,7 @@ impl Semsimian {
         Ok(self.ss.spo.to_vec())
     }
 
-    fn phenomizer_score(
+    fn termset_comparison(
         &mut self,
         entity1: HashSet<TermID>,
         entity2: HashSet<TermID>,
@@ -887,7 +887,7 @@ mod tests {
     }
 
     #[test]
-    fn test_phenomizer_score() {
+    fn test_termset_comparison() {
         let spo = Some(BFO_SPO.clone());
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
