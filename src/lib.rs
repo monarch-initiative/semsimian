@@ -422,9 +422,9 @@ impl RustSemsimian {
         let term_label_hashmap = get_labels(db_path.clone().unwrap().as_str(), all_terms).unwrap();
 
         let _subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-            get_termset_vector(&subject_terms, &term_label_hashmap);
+            get_termset_vector(subject_terms, &term_label_hashmap);
         let _object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-            get_termset_vector(&object_terms, &term_label_hashmap);
+            get_termset_vector(object_terms, &term_label_hashmap);
         let _average_termset_information_content =
             &self.termset_comparison(subject_terms, object_terms);
 
