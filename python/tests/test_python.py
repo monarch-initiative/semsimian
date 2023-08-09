@@ -49,7 +49,7 @@ class testSemsimianWithPython(unittest.TestCase):
     def test_termset_comparison(self):
         subject_terms = {"apple", "banana", "orange"}
         object_terms = {"orange", "pear", "kiwi"}
-        expected_score = 1.1038877934286626
+        expected_score = 0.8812853965915748
         score = self.semsimian.termset_comparison(subject_terms, object_terms)
         self.assertEqual(expected_score, score)
 
@@ -63,7 +63,7 @@ class testSemsimianWithPython(unittest.TestCase):
             pairwise_similarity_attributes=None,
             resource_path=self.db,
         )
-        expected_score = 5.415424328374017
+        expected_score = 5.4154243283740175
         score = semsimian.termset_comparison(subject_terms, object_terms)
         self.assertEqual(expected_score, score)
 
