@@ -7,6 +7,8 @@ use std::error::Error;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
+// use crate::SimilarityMap;
+
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
@@ -257,28 +259,33 @@ pub fn get_termset_vector(
         .collect()
 }
 
-// fn get_best_matches(subject_termset: &[HashMap<String, HashMap<String, String>>], all_by_all: &HashMap<String, HashMap<String, (f64, f64, f64, Vec<String>)>>) -> HashMap<String, HashMap<String, HashMap<String, String>>> {
-//     let mut subject_best_matches: HashMap<String, HashMap<String, HashMap<String, String>>> = HashMap::new();
+// pub fn get_best_matches(termset: &Vec<BTreeMap<String, BTreeMap<String, String>>>, all_by_all: &SimilarityMap) {
+//     let mut best_matches: HashMap<String, HashMap<String, HashMap<String, String>>> = HashMap::new();
 
-//     for term in subject_termset {
+//     for term in termset {
 //         let term_id = term.keys().next().unwrap();
-//         let term_label = term[term_id]["label"].clone();
+//         let term_label = &term[term_id]["label"];
 
 //         if let Some(matches) = all_by_all.get(term_id) {
 //             let best_match = matches
 //                 .iter()
-//                 .max_by(|(_, v1), (_, v2)| v1.1.partial_cmp(&v2.1).unwrap())
+//                 .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(&v2).unwrap())
 //                 .unwrap();
-//             let object_id = *best_match.0;
+//             let object_id = best_match.0;
 //             let score = best_match.1.1;
-//             let ancestor_id = best_match.1.3.last().cloned().unwrap();
-//             let ancestor_label = subject_termset[0][&ancestor_id]["label"].clone();
+//             let ancestor_id = best_match.1.4.iter().last().unwrap();
+//             let ancestor_label = termset.iter()
+//                 .find(|map| map.contains_key(ancestor_id))
+//                 .and_then(|inner_map| inner_map.get("label"))
+//                 .cloned();
 //             let ancestor_information_content = score;
 //             let jaccard_similarity = best_match.1.0;
 //             let phenodigm_score = best_match.1.2;
 //             let match_source_label = term_label.clone();
 //             let match_target = object_id;
-//             let match_target_label = subject_termset[0][&object_id]["label"].clone();
+            // ! The code above is confirmed for this function.
+            // ! The code below needs to be reviewed.
+            // let match_target_label = subject_termset[0][&object_id]["label"].clone();
 
 //             let similarity = HashMap::from([
 //                 ("subject_id".to_string(), term_id.to_string()),
@@ -297,10 +304,10 @@ pub fn get_termset_vector(
 //             ]);
 
 //             subject_best_matches.insert(term_id.clone(), subject_match);
-//         }
-//     }
+        // }
+    // }
 
-//     subject_best_matches
+    // best_matches
 // }
 
 #[cfg(test)]

@@ -52,7 +52,7 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
 }
 
 //finds the maximum information content (IC) score between each term in entity1 and its best match in entity2.
-pub fn pairwise_entity_resnik_score(
+pub fn calculate_term_pairwise_information_content(
     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     entity1: &HashSet<TermID>,
@@ -82,8 +82,7 @@ pub fn pairwise_entity_resnik_score(
     entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
 }
 
-// ! Would this be just 'termset_comparison` or `avg_termset_comparison`?
-pub fn calculate_termset_comparison(
+pub fn calculate_average_termset_information_content(
     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     entity1: &HashSet<TermID>,
@@ -116,7 +115,7 @@ pub fn calculate_termset_comparison(
     specific_ic_map_with_key.insert(predicate_set_key.clone(), specific_ic_map);
 
     // calculate average resnik sim of all terms in entity1 and their best match in entity2
-    let entity1_to_entity2_average_resnik_sim: f64 = pairwise_entity_resnik_score(
+    let entity1_to_entity2_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
         &specific_closure_map_with_key,
         &specific_ic_map_with_key,
         &entity1_closure,
@@ -125,7 +124,7 @@ pub fn calculate_termset_comparison(
     );
 
     // now do the same for entity2 to entity1
-    let entity2_to_entity1_average_resnik_sim: f64 = pairwise_entity_resnik_score(
+    let entity2_to_entity1_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
         &specific_closure_map_with_key,
         &specific_ic_map_with_key,
         &entity2_closure,
@@ -502,7 +501,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pairwise_entity_resnik_score() {
+    fn test_calculate_term_pairwise_information_content() {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("subClassOf")]);
 
         // Test case 1: Normal case, entities have terms.
@@ -517,7 +516,7 @@ mod tests {
             .collect();
 
         let resnik_score =
-            pairwise_entity_resnik_score(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+            calculate_term_pairwise_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
         let expected_value = 1.0;
 
         println!("CASE 1 resnik_score: {resnik_score}");
@@ -534,7 +533,7 @@ mod tests {
             .collect();
 
         let resnik_score =
-            pairwise_entity_resnik_score(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+            calculate_term_pairwise_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
         let expected_value = 1.585;
 
         println!("Case 2 resnik_score: {resnik_score}");
@@ -551,7 +550,7 @@ mod tests {
             .collect();
 
         let resnik_score =
-            pairwise_entity_resnik_score(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+            calculate_term_pairwise_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
         let expected_value = 0.6666666666666666;
 
         println!("Case 3 resnik_score: {resnik_score}");
@@ -569,7 +568,7 @@ mod tests {
             .collect();
 
         let resnik_score =
-            pairwise_entity_resnik_score(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+            calculate_term_pairwise_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
         let expected_value = 1.0566666666666666;
 
         println!("Case 4 resnik_score: {resnik_score}");
@@ -577,7 +576,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_termset_comparison() {
+    fn test_calculate_average_termset_information_content() {
         let predicates: Option<Vec<Predicate>> =
             Some(vec![Predicate::from("subClassOf")].into_iter().collect());
 
@@ -593,7 +592,7 @@ mod tests {
             .collect();
 
         let pheno_score =
-            calculate_termset_comparison(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+            calculate_average_termset_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
         let expected_value = 1.34125;
 
         println!("Case X pheno_score: {pheno_score}");
@@ -611,7 +610,7 @@ mod tests {
             .collect();
 
         let pheno_score =
-            calculate_termset_comparison(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+            calculate_average_termset_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
         let expected_value = 0.75;
 
         println!("Case 2 pheno_score: {pheno_score}");
@@ -634,7 +633,7 @@ mod tests {
             .collect();
 
         let pheno_score =
-            calculate_termset_comparison(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+            calculate_average_termset_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
         let expected_value = 1.1675;
 
         println!("Case 3 pheno_score: {pheno_score}");
@@ -652,7 +651,7 @@ mod tests {
             .collect();
 
         let pheno_score =
-            calculate_termset_comparison(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+            calculate_average_termset_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
         let expected_value = 0.75;
 
         println!("Case 4 pheno_score: {pheno_score}");
