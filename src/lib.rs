@@ -455,13 +455,13 @@ impl Semsimian {
     fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<String>>,
-        term_pairwise_similarity_attributes: Option<Vec<String>>,
+        pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
     ) -> PyResult<Self> {
         let ss = RustSemsimian::new(
             spo,
             predicates,
-            term_pairwise_similarity_attributes,
+            pairwise_similarity_attributes,
             resource_path,
         );
         Ok(Semsimian { ss })

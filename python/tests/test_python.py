@@ -1,5 +1,6 @@
 import unittest
 from semsimian import Semsimian
+from pathlib import Path
 
 
 class testSemsimianWithPython(unittest.TestCase):
@@ -17,6 +18,7 @@ class testSemsimianWithPython(unittest.TestCase):
         predicates = ["related_to"]
 
         self.semsimian = Semsimian(spo, predicates)
+        self.db = str(Path(__file__).parents[2] / "tests/data/go-nucleus.db")
 
     def test_jaccard_similarity(self):
         term1 = "apple"
@@ -49,6 +51,20 @@ class testSemsimianWithPython(unittest.TestCase):
         object_terms = {"orange", "pear", "kiwi"}
         expected_score = 1.1038877934286626
         score = self.semsimian.termset_comparison(subject_terms, object_terms)
+        self.assertEqual(expected_score, score)
+
+    def test_termset_comparison_with_test_file(self):
+        subject_terms = {"GO:0005634", "GO:0016020"}
+        object_terms = {"GO:0031965", "GO:0005773"}
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            term_pairwise_similarity_attributes=None,
+            resource_path=self.db,
+        )
+        expected_score = 3.4798303674881463
+        score = semsimian.termset_comparison(subject_terms, object_terms)
         self.assertEqual(expected_score, score)
 
 
