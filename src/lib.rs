@@ -923,4 +923,26 @@ mod tests {
 
         assert_eq!(result.unwrap(), expected_result);
     }
+
+    #[test]
+    fn test_termset_comparison_with_db() {
+        let db = Some("tests/data/go-nucleus.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+ 
+        let entity1: HashSet<TermID> =
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
+        let expected_result = 5.415424328374017;
+        dbg!(&result);
+        assert_eq!(result.unwrap(), expected_result);
+    }
 }

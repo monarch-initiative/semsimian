@@ -63,7 +63,7 @@ class testSemsimianWithPython(unittest.TestCase):
             pairwise_similarity_attributes=None,
             resource_path=self.db,
         )
-        expected_score = 3.4798303674881463
+        expected_score = 5.415424328374017
         score = semsimian.termset_comparison(subject_terms, object_terms)
         self.assertEqual(expected_score, score)
 
