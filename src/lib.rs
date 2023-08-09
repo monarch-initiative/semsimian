@@ -18,12 +18,15 @@ mod test_utils;
 use std::fmt;
 
 use similarity::{
-    calculate_cosine_similarity_for_nodes, calculate_max_information_content,
-    calculate_average_termset_information_content,
+    calculate_average_termset_information_content, calculate_cosine_similarity_for_nodes,
+    calculate_max_information_content,
 };
 use utils::{
-    convert_list_of_tuples_to_hashmap, expand_term_using_closure,
-    generate_progress_bar_of_length_and_message, get_termset_vector, predicate_set_to_key,
+    convert_list_of_tuples_to_hashmap,
+    expand_term_using_closure,
+    generate_progress_bar_of_length_and_message,
+    get_termset_vector,
+    predicate_set_to_key,
     rearrange_columns_and_rewrite, // get_best_matches
 };
 
@@ -422,7 +425,8 @@ impl RustSemsimian {
             get_termset_vector(&subject_terms, &term_label_hashmap);
         let _object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(&object_terms, &term_label_hashmap);
-        let _average_termset_information_content = &self.termset_comparison(subject_terms, object_terms);
+        let _average_termset_information_content =
+            &self.termset_comparison(subject_terms, object_terms);
 
         // for attribute in &self.pairwise_similarity_attributes.unwrap() {
         //     // Add 2 key-value pairs.
@@ -554,6 +558,8 @@ impl Semsimian {
         entity1: HashSet<TermID>,
         entity2: HashSet<TermID>,
     ) -> PyResult<f64> {
+        self.ss.update_closure_and_ic_map();
+
         match self.ss.termset_comparison(&entity1, &entity2) {
             Ok(score) => Ok(score),
             Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),

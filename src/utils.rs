@@ -283,9 +283,9 @@ pub fn get_termset_vector(
 //             let phenodigm_score = best_match.1.2;
 //             let match_source_label = term_label.clone();
 //             let match_target = object_id;
-            // ! The code above is confirmed for this function.
-            // ! The code below needs to be reviewed.
-            // let match_target_label = subject_termset[0][&object_id]["label"].clone();
+// ! The code above is confirmed for this function.
+// ! The code below needs to be reviewed.
+// let match_target_label = subject_termset[0][&object_id]["label"].clone();
 
 //             let similarity = HashMap::from([
 //                 ("subject_id".to_string(), term_id.to_string()),
@@ -304,10 +304,10 @@ pub fn get_termset_vector(
 //             ]);
 
 //             subject_best_matches.insert(term_id.clone(), subject_match);
-        // }
-    // }
+// }
+// }
 
-    // best_matches
+// best_matches
 // }
 
 #[cfg(test)]

@@ -44,6 +44,13 @@ class testSemsimianWithPython(unittest.TestCase):
         )
         self.assertEqual(result2["orange"]["orange"][4], orange_mica)
 
+    def test_termset_comparison(self):
+        subject_terms = {"apple", "banana", "orange"}
+        object_terms = {"orange", "pear", "kiwi"}
+        expected_score = 1.1038877934286626
+        score = self.semsimian.termset_comparison(subject_terms, object_terms)
+        self.assertEqual(expected_score, score)
+
 
 if __name__ == "__main__":
     unittest.main()

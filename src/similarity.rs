@@ -515,8 +515,13 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score =
-            calculate_term_pairwise_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
         let expected_value = 1.0;
 
         println!("CASE 1 resnik_score: {resnik_score}");
@@ -532,8 +537,13 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score =
-            calculate_term_pairwise_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
         let expected_value = 1.585;
 
         println!("Case 2 resnik_score: {resnik_score}");
@@ -549,8 +559,13 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score =
-            calculate_term_pairwise_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
         let expected_value = 0.6666666666666666;
 
         println!("Case 3 resnik_score: {resnik_score}");
@@ -567,8 +582,13 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score =
-            calculate_term_pairwise_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
         let expected_value = 1.0566666666666666;
 
         println!("Case 4 resnik_score: {resnik_score}");
@@ -591,8 +611,13 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let pheno_score =
-            calculate_average_termset_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let pheno_score = calculate_average_termset_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
         let expected_value = 1.34125;
 
         println!("Case X pheno_score: {pheno_score}");
@@ -609,8 +634,13 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let pheno_score =
-            calculate_average_termset_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let pheno_score = calculate_average_termset_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
         let expected_value = 0.75;
 
         println!("Case 2 pheno_score: {pheno_score}");
@@ -632,8 +662,13 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let pheno_score =
-            calculate_average_termset_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let pheno_score = calculate_average_termset_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
         let expected_value = 1.1675;
 
         println!("Case 3 pheno_score: {pheno_score}");
@@ -650,8 +685,13 @@ mod tests {
             .map(String::from)
             .collect();
 
-        let pheno_score =
-            calculate_average_termset_information_content(&CLOSURE_MAP, &IC_MAP, &entity1, &entity2, &predicates);
+        let pheno_score = calculate_average_termset_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
         let expected_value = 0.75;
 
         println!("Case 4 pheno_score: {pheno_score}");
