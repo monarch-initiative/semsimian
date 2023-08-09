@@ -360,8 +360,8 @@ impl RustSemsimian {
 
     pub fn termset_comparison(
         &self,
-        entity1: &HashSet<TermID>,
-        entity2: &HashSet<TermID>,
+        subject_terms: &HashSet<TermID>,
+        object_terms: &HashSet<TermID>,
     ) -> Result<f64, String> {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
 
@@ -381,14 +381,14 @@ impl RustSemsimian {
         let mut specific_ic_map_with_key = HashMap::new();
         specific_ic_map_with_key.insert(predicate_set_key.clone(), ic_map.clone());
 
-        let entity1_closure = entity1
+        let subject_terms_closure = subject_terms
             .iter()
             .flat_map(|term| {
                 expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates)
             })
             .collect::<HashSet<TermID>>();
 
-        let entity2_closure = entity2
+        let object_terms_closure = object_terms
             .iter()
             .flat_map(|term| {
                 expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates)
@@ -398,8 +398,8 @@ impl RustSemsimian {
         Ok(calculate_average_termset_information_content(
             &specific_closure_map_with_key,
             &specific_ic_map_with_key,
-            &entity1_closure,
-            &entity2_closure,
+            &subject_terms_closure,
+            &object_terms_closure,
             &self.predicates,
         ))
     }
@@ -555,12 +555,12 @@ impl Semsimian {
 
     fn termset_comparison(
         &mut self,
-        entity1: HashSet<TermID>,
-        entity2: HashSet<TermID>,
+        subject_terms: HashSet<TermID>,
+        object_terms: HashSet<TermID>,
     ) -> PyResult<f64> {
         self.ss.update_closure_and_ic_map();
 
-        match self.ss.termset_comparison(&entity1, &entity2) {
+        match self.ss.termset_comparison(&subject_terms, &object_terms) {
             Ok(score) => Ok(score),
             Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),
         }

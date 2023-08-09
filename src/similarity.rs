@@ -85,19 +85,19 @@ pub fn calculate_term_pairwise_information_content(
 pub fn calculate_average_termset_information_content(
     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-    entity1: &HashSet<TermID>,
-    entity2: &HashSet<TermID>,
+    subject_terms: &HashSet<TermID>,
+    object_terms: &HashSet<TermID>,
     predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
     let predicate_set_key = predicate_set_to_key(predicates);
 
     // Get the expanded terms for both entities
-    let entity1_closure = entity1
+    let subject_terms_closure = subject_terms
         .iter()
         .flat_map(|term| expand_term_using_closure(term, closure_map, predicates))
         .collect();
 
-    let entity2_closure = entity2
+    let object_terms_closure = object_terms
         .iter()
         .flat_map(|term| expand_term_using_closure(term, closure_map, predicates))
         .collect();
@@ -115,26 +115,26 @@ pub fn calculate_average_termset_information_content(
     specific_ic_map_with_key.insert(predicate_set_key.clone(), specific_ic_map);
 
     // calculate average resnik sim of all terms in entity1 and their best match in entity2
-    let entity1_to_entity2_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
+    let subject_to_object_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
         &specific_closure_map_with_key,
         &specific_ic_map_with_key,
-        &entity1_closure,
-        &entity2_closure,
+        &subject_terms_closure,
+        &object_terms_closure,
         predicates,
     );
 
     // now do the same for entity2 to entity1
-    let entity2_to_entity1_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
+    let object_to_subject_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
         &specific_closure_map_with_key,
         &specific_ic_map_with_key,
-        &entity2_closure,
-        &entity1_closure,
+        &object_terms_closure,
+        &subject_terms_closure,
         predicates,
     );
 
     // return the average of the two
 
-    (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0
+    (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
 }
 
 pub fn calculate_max_information_content(
