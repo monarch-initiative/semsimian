@@ -364,7 +364,7 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
     ) -> Result<f64, String> {
         Ok(calculate_average_termset_information_content(
-            &self,
+            self,
             subject_terms,
             object_terms,
         ))
