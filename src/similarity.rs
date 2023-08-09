@@ -1,5 +1,6 @@
 use crate::Predicate;
 use crate::PredicateSetKey;
+use crate::RustSemsimian;
 use crate::TermID;
 use crate::{
     utils::expand_term_using_closure, utils::find_embedding_index, utils::predicate_set_to_key,
@@ -83,57 +84,25 @@ pub fn calculate_term_pairwise_information_content(
 }
 
 pub fn calculate_average_termset_information_content(
-    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    semsimian: &RustSemsimian,
     subject_terms: &HashSet<TermID>,
     object_terms: &HashSet<TermID>,
-    predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
-    let predicate_set_key = predicate_set_to_key(predicates);
-
-    // Get the expanded terms for both entities
-    let subject_terms_closure = subject_terms
-        .iter()
-        .flat_map(|term| expand_term_using_closure(term, closure_map, predicates))
-        .collect();
-
-    let object_terms_closure = object_terms
-        .iter()
-        .flat_map(|term| expand_term_using_closure(term, closure_map, predicates))
-        .collect();
-
-    // Get the closure_map and ic_map for the specific predicate_set_key
-    // unwrap() could panic if key not given
-    let specific_closure_map = closure_map.get(&predicate_set_key).unwrap().clone(); // clone because we make sure it matches the types
-    let specific_ic_map = ic_map.get(&predicate_set_key).unwrap().clone();
-
-    // Wrap the specific maps in new HashMaps with the PredicateSetKey
-    let mut specific_closure_map_with_key = HashMap::new();
-    specific_closure_map_with_key.insert(predicate_set_key.clone(), specific_closure_map);
-
-    let mut specific_ic_map_with_key = HashMap::new();
-    specific_ic_map_with_key.insert(predicate_set_key.clone(), specific_ic_map);
-
-    // calculate average resnik sim of all terms in entity1 and their best match in entity2
     let subject_to_object_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
-        &specific_closure_map_with_key,
-        &specific_ic_map_with_key,
-        &subject_terms_closure,
-        &object_terms_closure,
-        predicates,
+        &semsimian.closure_map,
+        &semsimian.ic_map,
+        subject_terms,
+        object_terms,
+        &semsimian.predicates,
     );
 
-    // now do the same for entity2 to entity1
     let object_to_subject_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
-        &specific_closure_map_with_key,
-        &specific_ic_map_with_key,
-        &object_terms_closure,
-        &subject_terms_closure,
-        predicates,
+        &semsimian.closure_map,
+        &semsimian.ic_map,
+        object_terms,
+        subject_terms,
+        &semsimian.predicates,
     );
-
-    // return the average of the two
-
     (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
 }
 
@@ -597,104 +566,37 @@ mod tests {
 
     #[test]
     fn test_calculate_average_termset_information_content() {
-        let predicates: Option<Vec<Predicate>> =
-            Some(vec![Predicate::from("subClassOf")].into_iter().collect());
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
 
         // Test case 1: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["CARO:0000000"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+        let entity1: HashSet<TermID> = HashSet::from(["GO:0005634".to_string()]);
 
-        let entity2: HashSet<TermID> = vec!["BFO:0000002"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+        let entity2: HashSet<TermID> = HashSet::from(["GO:0031965".to_string()]);
 
-        let pheno_score = calculate_average_termset_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &entity1,
-            &entity2,
-            &predicates,
-        );
-        let expected_value = 1.34125;
+        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 5.8496657269155685;
 
-        println!("Case X pheno_score: {pheno_score}");
-        assert_eq!(pheno_score, expected_value);
+        println!("Case X pheno_score: {phenio_score}");
+        assert_eq!(phenio_score, expected_value);
 
         // Test case 2: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["BFO:0000002"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+        let entity1: HashSet<TermID> =
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
 
-        let entity2: HashSet<TermID> = vec!["BFO:0000003"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
-        let pheno_score = calculate_average_termset_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &entity1,
-            &entity2,
-            &predicates,
-        );
-        let expected_value = 0.75;
+        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 5.4154243283740175;
 
-        println!("Case 2 pheno_score: {pheno_score}");
-        assert_eq!(pheno_score, expected_value);
-
-        // Test case 3: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec![
-            "CARO:0000000",
-            "CARO:0000001",
-            "CARO:0000009",
-            "BFO:0000003",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect();
-
-        let entity2: HashSet<TermID> = vec!["BFO:0000004", "BFO:0000002", "BFO:0000001"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let pheno_score = calculate_average_termset_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &entity1,
-            &entity2,
-            &predicates,
-        );
-        let expected_value = 1.1675;
-
-        println!("Case 3 pheno_score: {pheno_score}");
-        assert_eq!(pheno_score, expected_value);
-
-        // Test case 4: Normal case, entities have terms.
-        let entity1: HashSet<String> = vec!["CARO:0000000", "BFO:0000002"]
-            .into_iter()
-            .map(String::from)
-            .collect();
-
-        let entity2: HashSet<String> = vec!["BFO:0000003", "BFO:0000004"]
-            .into_iter()
-            .map(String::from)
-            .collect();
-
-        let pheno_score = calculate_average_termset_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &entity1,
-            &entity2,
-            &predicates,
-        );
-        let expected_value = 0.75;
-
-        println!("Case 4 pheno_score: {pheno_score}");
-        assert_eq!(pheno_score, expected_value);
+        println!("Case 3 pheno_score: {phenio_score}");
+        assert_eq!(phenio_score, expected_value);
     }
 }

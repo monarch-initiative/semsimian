@@ -363,44 +363,10 @@ impl RustSemsimian {
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
     ) -> Result<f64, String> {
-        let predicate_set_key = predicate_set_to_key(&self.predicates);
-
-        let closure_map = self
-            .closure_map
-            .get(&predicate_set_key)
-            .ok_or("Predicate key not found in closure map")?;
-
-        let ic_map = self
-            .ic_map
-            .get(&predicate_set_key)
-            .ok_or("Predicate key not found in ic map")?;
-
-        //  wrap maps in new HashMaps with the PredicateSetKey
-        let mut specific_closure_map_with_key = HashMap::new();
-        specific_closure_map_with_key.insert(predicate_set_key.clone(), closure_map.clone());
-        let mut specific_ic_map_with_key = HashMap::new();
-        specific_ic_map_with_key.insert(predicate_set_key.clone(), ic_map.clone());
-
-        let subject_terms_closure = subject_terms
-            .iter()
-            .flat_map(|term| {
-                expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates)
-            })
-            .collect::<HashSet<TermID>>();
-
-        let object_terms_closure = object_terms
-            .iter()
-            .flat_map(|term| {
-                expand_term_using_closure(term, &specific_closure_map_with_key, &self.predicates)
-            })
-            .collect::<HashSet<TermID>>();
-
         Ok(calculate_average_termset_information_content(
-            &specific_closure_map_with_key,
-            &specific_ic_map_with_key,
-            &subject_terms_closure,
-            &object_terms_closure,
-            &self.predicates,
+            &self,
+            subject_terms,
+            object_terms,
         ))
     }
 
@@ -919,7 +885,7 @@ mod tests {
             HashSet::from(["BFO:0000030".to_string(), "BFO:0000005".to_string()]);
 
         let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
-        let expected_result = 0.35597967325817725;
+        let expected_result = 0.36407012037768127;
 
         assert_eq!(result.unwrap(), expected_result);
     }
@@ -934,14 +900,14 @@ mod tests {
         let mut rss = RustSemsimian::new(None, predicates, None, db);
 
         rss.update_closure_and_ic_map();
- 
+
         let entity1: HashSet<TermID> =
             HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let entity2: HashSet<TermID> =
             HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
         let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
-        let expected_result = 5.415424328374017;
+        let expected_result = 5.4154243283740175;
         dbg!(&result);
         assert_eq!(result.unwrap(), expected_result);
     }
