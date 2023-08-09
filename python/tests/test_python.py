@@ -60,7 +60,7 @@ class testSemsimianWithPython(unittest.TestCase):
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,
-            term_pairwise_similarity_attributes=None,
+            pairwise_similarity_attributes=None,
             resource_path=self.db,
         )
         expected_score = 3.4798303674881463
