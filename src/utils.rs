@@ -7,7 +7,7 @@ use std::error::Error;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
-// use crate::SimilarityMap;
+use crate::SimilarityMap;
 
 type Predicate = String;
 type TermID = String;
@@ -230,10 +230,6 @@ pub fn rearrange_columns_and_rewrite(
     // Close the input file
     drop(reader);
 
-    // Replace the input file with the temporary file
-    if Path::new(filename).exists() {
-        fs::remove_file(filename)?;
-    }
     fs::rename(&temp_filename, filename)?;
 
     Ok(())
@@ -259,56 +255,116 @@ pub fn get_termset_vector(
         .collect()
 }
 
-// pub fn get_best_matches(termset: &Vec<BTreeMap<String, BTreeMap<String, String>>>, all_by_all: &SimilarityMap) {
-//     let mut best_matches: HashMap<String, HashMap<String, HashMap<String, String>>> = HashMap::new();
+pub fn get_similarity_map(
+    term_id: &str,
+    best_match: (&String, &(f64, f64, f64, f64, HashSet<String>)),
+) -> BTreeMap<String, String> {
+    let mut similarity_map = BTreeMap::new();
+    if let Some((key, value)) = Some(best_match) {
+        similarity_map.insert("jaccard_similarity".to_string(), value.0.to_string());
+        similarity_map.insert(
+            "ancestor_information_content".to_string(),
+            value.1.to_string(),
+        );
+        similarity_map.insert("phenodigm_score".to_string(), value.2.to_string());
+        similarity_map.insert("cosine_similarity".to_string(), value.3.to_string());
+        similarity_map.insert("subject_id".to_string(), term_id.to_string());
+        similarity_map.insert("object_id".to_string(), key.to_string());
 
-//     for term in termset {
-//         let term_id = term.keys().next().unwrap();
-//         let term_label = &term[term_id]["label"];
+        if let Some(ancestor_id) = value.4.iter().next() {
+            similarity_map.insert("ancestor_id".to_string(), ancestor_id.to_string());
+        }
+    } else {
+        println!("The HashMap is empty.");
+    }
 
-//         if let Some(matches) = all_by_all.get(term_id) {
-//             let best_match = matches
-//                 .iter()
-//                 .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(&v2).unwrap())
-//                 .unwrap();
-//             let object_id = best_match.0;
-//             let score = best_match.1.1;
-//             let ancestor_id = best_match.1.4.iter().last().unwrap();
-//             let ancestor_label = termset.iter()
-//                 .find(|map| map.contains_key(ancestor_id))
-//                 .and_then(|inner_map| inner_map.get("label"))
-//                 .cloned();
-//             let ancestor_information_content = score;
-//             let jaccard_similarity = best_match.1.0;
-//             let phenodigm_score = best_match.1.2;
-//             let match_source_label = term_label.clone();
-//             let match_target = object_id;
-// ! The code above is confirmed for this function.
-// ! The code below needs to be reviewed.
-// let match_target_label = subject_termset[0][&object_id]["label"].clone();
+    similarity_map
+}
 
-//             let similarity = HashMap::from([
-//                 ("subject_id".to_string(), term_id.to_string()),
-//                 ("object_id".to_string(), object_id.to_string()),
-//                 ("ancestor_id".to_string(), ancestor_id.to_string()),
-//                 ("ancestor_label".to_string(), ancestor_label),
-//                 ("ancestor_information_content".to_string(), ancestor_information_content.to_string()),
-//                 ("jaccard_similarity".to_string(), jaccard_similarity.to_string()),
-//                 ("phenodigm_score".to_string(), phenodigm_score.to_string()),
-//             ]);
+pub fn get_best_matches(
+    termset: &Vec<BTreeMap<String, BTreeMap<String, String>>>,
+    all_by_all: &SimilarityMap,
+    term_label_map: &HashMap<String, String>,
+    metric: &str,
+) -> (
+    BTreeMap<String, BTreeMap<String, String>>,
+    BTreeMap<String, BTreeMap<String, String>>,
+) {
+    let mut best_matches = BTreeMap::new();
+    let mut best_matches_similarity_map = BTreeMap::new();
+    for term in termset {
+        let term_id = term.keys().next().unwrap();
+        let term_label = &term[term_id]["label"];
 
-//             let subject_match = HashMap::from([
-//                 ("match_source".to_string(), term_id.to_string()),
-//                 ("score".to_string(), score.to_string()),
-//                 ("similarity".to_string(), similarity),
-//             ]);
+        if let Some(matches) = all_by_all.get(term_id) {
+            let best_match = matches
+                .iter()
+                .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(&v2).unwrap())
+                .unwrap();
+            let mut similarity_map = get_similarity_map(&term_id, best_match);
 
-//             subject_best_matches.insert(term_id.clone(), subject_match);
-// }
-// }
+            let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
+            let ancestor_label = term_label_map
+                .get(&ancestor_id)
+                .and_then(|label| Some(label.clone()))
+                .unwrap_or_default();
+            let score = similarity_map.get(metric).unwrap().clone();
 
-// best_matches
-// }
+            let match_source = term_id;
+            let match_source_label = term_label;
+            let match_target = similarity_map.get("object_id").unwrap().clone();
+            let match_target_label = term_label_map.get(&match_target).unwrap().clone();
+
+            similarity_map.insert("ancestor_label".to_string(), ancestor_label);
+            let best_matches_key = term_id.to_owned();
+            let mut best_matches_value: BTreeMap<String, String> = BTreeMap::new();
+            // best_matches_value.insert("similarity".to_string(), Box::new(similarity_map.clone()));
+            best_matches_value.insert("match_source".to_string(), match_source.to_owned());
+            best_matches_value.insert(
+                "match_source_label".to_string(),
+                match_source_label.to_owned(),
+            );
+            best_matches_value.insert("match_target".to_string(), match_target);
+            best_matches_value.insert("match_target_label".to_string(), match_target_label);
+            best_matches_value.insert("score".to_string(), score);
+
+            best_matches.insert(best_matches_key.clone(), best_matches_value);
+            best_matches_similarity_map.insert(best_matches_key, similarity_map);
+        }
+    }
+
+    (best_matches, best_matches_similarity_map)
+}
+
+pub fn get_best_score(
+    subject_best_matches: &BTreeMap<String, BTreeMap<String, String>>,
+    object_best_matches: &BTreeMap<String, BTreeMap<String, String>>,
+) -> f64 {
+    let mut max_score = f64::NEG_INFINITY;
+
+    // Iterate over subject_best_matches
+    for matches in subject_best_matches.values() {
+        if let Some(score) = matches.get("score") {
+            if let Ok(score_value) = score.parse::<f64>() {
+                if score_value > max_score {
+                    max_score = score_value;
+                }
+            }
+        }
+    }
+
+    // Iterate over object_best_matches
+    for matches in object_best_matches.values() {
+        if let Some(score) = matches.get("score") {
+            if let Ok(score_value) = score.parse::<f64>() {
+                if score_value > max_score {
+                    max_score = score_value;
+                }
+            }
+        }
+    }
+    max_score
+}
 
 #[cfg(test)]
 mod tests {
@@ -592,7 +648,7 @@ mod tests {
     #[test]
     fn test_rearrange_columns_and_rewrite() {
         // Create a temporary file for testing
-        let filename = "tests/data/output/test_data.tsv";
+        let filename = "tests/data/output/test_data_2.tsv";
         let mut file = File::create(filename).expect("Failed to create file");
         writeln!(file, "Column A\tColumn B\tColumn C").expect("Failed to write line");
         writeln!(file, "Value 1\tValue 2\tValue 3").expect("Failed to write line");

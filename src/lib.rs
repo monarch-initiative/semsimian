@@ -7,10 +7,11 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-pub mod similarity;
-
 pub mod db_query;
+pub mod similarity;
+pub mod termset_pairwise_similarity;
 pub mod utils;
+
 use rayon::prelude::*;
 
 mod test_utils;
@@ -22,16 +23,16 @@ use similarity::{
     calculate_max_information_content,
 };
 use utils::{
-    convert_list_of_tuples_to_hashmap,
-    expand_term_using_closure,
-    generate_progress_bar_of_length_and_message,
-    get_termset_vector,
-    predicate_set_to_key,
-    rearrange_columns_and_rewrite, // get_best_matches
+    convert_list_of_tuples_to_hashmap, expand_term_using_closure,
+    generate_progress_bar_of_length_and_message, get_best_matches, get_termset_vector,
+    predicate_set_to_key, rearrange_columns_and_rewrite,
 };
 
 use db_query::get_labels;
 use lazy_static::lazy_static;
+use termset_pairwise_similarity::TermsetPairwiseSimilarity;
+
+use crate::utils::get_best_score;
 
 // change to "pub" because it is easier for testing
 pub type Predicate = String;
@@ -375,38 +376,61 @@ impl RustSemsimian {
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
         _outfile: &Option<&str>,
-    ) {
-        // TODO: Complete this function.
-        let _all_by_all: SimilarityMap =
+    ) -> TermsetPairwiseSimilarity {
+        let metric = "ancestor_information_content";
+        let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
-        let _termset_btreemap: BTreeMap<TermID, HashMap<&str, &str>> = BTreeMap::new();
+
+        let mut all_by_all_object_perspective: SimilarityMap = HashMap::new();
+
+        for (key1, value1) in all_by_all.iter() {
+            for (key2, value2) in value1.iter() {
+                if !all_by_all_object_perspective.contains_key(key2.as_str()) {
+                    all_by_all_object_perspective.insert(key2.to_owned(), HashMap::new());
+                }
+                all_by_all_object_perspective
+                    .get_mut(key2.as_str())
+                    .unwrap()
+                    .insert(key1.to_owned(), value2.to_owned());
+            }
+        }
         let db_path = RESOURCE_PATH.lock().unwrap();
         let all_terms = subject_terms
             .union(object_terms)
             .cloned()
             .collect::<Vec<String>>();
-        let term_label_hashmap = get_labels(db_path.clone().unwrap().as_str(), all_terms).unwrap();
+        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), all_terms).unwrap();
 
-        let _subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-            get_termset_vector(subject_terms, &term_label_hashmap);
-        let _object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-            get_termset_vector(object_terms, &term_label_hashmap);
-        let _average_termset_information_content =
-            &self.termset_comparison(subject_terms, object_terms);
+        let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+            get_termset_vector(subject_terms, &term_label_map);
+        let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+            get_termset_vector(object_terms, &term_label_map);
+        let average_termset_information_content = &self
+            .termset_comparison(subject_terms, object_terms)
+            .unwrap();
 
-        // for attribute in &self.pairwise_similarity_attributes.unwrap() {
-        //     // Add 2 key-value pairs.
-        //     // key 1: "subject_termset" and key 2: "object_termset"
-        // }
-        // TODO: Complete get_best_matches function in utils.rs
-        // let subject_best_matches = get_best_matches(&subject_termset, &all_by_all);
+        let (subject_best_matches, subject_best_matches_similarity_map) =
+            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+        let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
+            &object_termset,
+            &all_by_all_object_perspective,
+            &term_label_map,
+            metric,
+        );
+        let best_score = get_best_score(&subject_best_matches, &object_best_matches);
+        let tsps = TermsetPairwiseSimilarity::new(
+            subject_termset,
+            subject_best_matches,
+            subject_best_matches_similarity_map,
+            object_termset,
+            object_best_matches,
+            object_best_matches_similarity_map,
+            *average_termset_information_content,
+            best_score,
+            metric.to_string(),
+        );
 
-        // dbg!(subject_termset);
-        // dbg!(object_termset);
-        // dbg!(all_by_all);
-        // dbg!(term_label_hashmap);
-        // dbg!(termset_btreemap);
-        // dbg!(&self.pairwise_similarity_attributes);
+        tsps
     }
 }
 
@@ -507,12 +531,14 @@ impl Semsimian {
         subject_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
         outfile: Option<&str>,
-    ) -> PyResult<()> {
+        py: Python,
+    ) -> PyResult<PyObject> {
         self.ss.update_closure_and_ic_map();
 
-        self.ss
+        let tsps = self
+            .ss
             .termset_pairwise_similarity(&subject_terms, &object_terms, &outfile);
-        Ok(())
+        Ok(tsps.into_py(py))
     }
 
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
@@ -850,22 +876,18 @@ mod tests {
     fn test_termset_pairwise_similarity() {
         let db = Some("tests/data/go-nucleus.db");
         // Call the function with the test parameters
-        let predicates = Some(vec!["rdfs:subClassOf".to_string()]);
-        let temset_attributes = Some(vec![
-            "subject_termset".to_string(),
-            "object_termset".to_string(),
-            "subject_best_matches".to_string(),
-            "object_best_matches".to_string(),
-            "average_score".to_string(),
-            "best_score".to_string(),
-            "metric".to_string(),
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
         ]);
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
         let outfile = Some("tests/data/output/termset_similarity_output.tsv");
-        let mut rss = RustSemsimian::new(None, predicates, temset_attributes, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
         rss.update_closure_and_ic_map();
-        rss.termset_pairwise_similarity(&subject_terms, &object_terms, &outfile);
+        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &outfile);
+        assert_eq!(tsps.average_score, 5.4154243283740175);
+        assert_eq!(tsps.best_score, 5.8496657269155685);
     }
 
     #[test]
@@ -908,7 +930,6 @@ mod tests {
 
         let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
         let expected_result = 5.4154243283740175;
-        dbg!(&result);
         assert_eq!(result.unwrap(), expected_result);
     }
 }

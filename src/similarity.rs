@@ -6,9 +6,8 @@ use crate::{
     utils::expand_term_using_closure, utils::find_embedding_index, utils::predicate_set_to_key,
 };
 use ordered_float::OrderedFloat;
-use std::collections::{HashMap, HashSet};
 use rayon::prelude::*;
-
+use std::collections::{HashMap, HashSet};
 
 pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
@@ -61,18 +60,34 @@ pub fn calculate_term_pairwise_information_content(
     entity2: &HashSet<TermID>,
     predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
-    let entity1_to_entity2_sum_resnik_sim: f64 = entity1.par_iter()
+    // At each iteration, it calculates the IC score using the calculate_max_information_content function,
+    // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
+    // it updates the maximum IC value. Thus, at the end of the iterations,
+    // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
+    // representing the best match between entity1 and entity2.
+    let entity1_to_entity2_sum_resnik_sim: f64 = entity1
+        .par_iter()
         .map(|e1_term| {
-            entity2.par_iter()
+            entity2
+                .par_iter()
                 .map(|e2_term| {
-                    calculate_max_information_content(closure_map, ic_map, e1_term, e2_term, predicates)
+                    calculate_max_information_content(
+                        closure_map,
+                        ic_map,
+                        e1_term,
+                        e2_term,
+                        predicates,
+                    )
                 })
-                .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| ic1.partial_cmp(&ic2).unwrap())
+                .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| {
+                    ic1.partial_cmp(&ic2).unwrap()
+                })
                 .map(|(_max_ic_ancestors, ic)| ic)
                 .unwrap_or(0.0)
         })
         .sum();
 
+    // The final result will be the average Resnik similarity score between the two sets
     entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
 }
 
