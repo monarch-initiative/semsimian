@@ -7,6 +7,8 @@ use crate::{
 };
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, HashSet};
+use rayon::prelude::*;
+
 
 pub fn calculate_semantic_jaccard_similarity(
     closure_table: &HashMap<String, HashMap<String, HashSet<String>>>,
@@ -52,7 +54,6 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
     (curie, max_ic)
 }
 
-//finds the maximum information content (IC) score between each term in entity1 and its best match in entity2.
 pub fn calculate_term_pairwise_information_content(
     closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
@@ -60,25 +61,17 @@ pub fn calculate_term_pairwise_information_content(
     entity2: &HashSet<TermID>,
     predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
-    // At each iteration, it calculates the IC score using the calculate_max_information_content function,
-    // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
-    // it updates the maximum IC value. Thus, at the end of the iterations,
-    // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
-    // representing the best match between entity1 and entity2.
-
-    let mut entity1_to_entity2_sum_resnik_sim = 0.0;
-
-    for e1_term in entity1.iter() {
-        let max_resnik_sim_e1_e2 = entity2
-            .iter()
-            .map(|e2_term| {
-                calculate_max_information_content(closure_map, ic_map, e1_term, e2_term, predicates)
-            })
-            .fold(0.0, |max_ic: f64, (_max_ic_ancestors, ic)| max_ic.max(ic));
-
-        entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
-    }
-    // The final result will be the average Resnik similarity score between the two sets
+    let entity1_to_entity2_sum_resnik_sim: f64 = entity1.par_iter()
+        .map(|e1_term| {
+            entity2.par_iter()
+                .map(|e2_term| {
+                    calculate_max_information_content(closure_map, ic_map, e1_term, e2_term, predicates)
+                })
+                .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| ic1.partial_cmp(&ic2).unwrap())
+                .map(|(_max_ic_ancestors, ic)| ic)
+                .unwrap_or(0.0)
+        })
+        .sum();
 
     entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
 }
