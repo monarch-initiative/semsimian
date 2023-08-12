@@ -232,6 +232,9 @@ pub fn rearrange_columns_and_rewrite(
     drop(reader);
 
     // Replace the input file with the temporary file
+    if Path::new(filename).exists() {
+        fs::remove_file(filename)?;
+    }
     fs::rename(&temp_filename, filename)?;
 
     Ok(())
@@ -288,10 +291,7 @@ pub fn get_best_matches(
     all_by_all: &SimilarityMap,
     term_label_map: &HashMap<String, String>,
     metric: &str,
-) -> (
-    BTreeInBTree,
-    BTreeInBTree,
-) {
+) -> (BTreeInBTree, BTreeInBTree) {
     let mut best_matches = BTreeMap::new();
     let mut best_matches_similarity_map = BTreeMap::new();
     for term in termset {
@@ -307,7 +307,8 @@ pub fn get_best_matches(
 
             let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
             let ancestor_label = term_label_map
-                .get(&ancestor_id).cloned()
+                .get(&ancestor_id)
+                .cloned()
                 .unwrap_or_default();
             let score = similarity_map.get(metric).unwrap().clone();
 

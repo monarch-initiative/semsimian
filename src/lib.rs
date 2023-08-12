@@ -418,7 +418,6 @@ impl RustSemsimian {
             metric,
         );
         let best_score = get_best_score(&subject_best_matches, &object_best_matches);
-        
 
         TermsetPairwiseSimilarity::new(
             subject_termset,
