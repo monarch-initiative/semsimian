@@ -807,7 +807,7 @@ mod tests {
         let banana = "banana".to_string();
         let apple = "apple".to_string();
         let pear = "pear".to_string();
-        let outfile = Some("tests/data/output/similarity_test_output.tsv");
+        let outfile = Some("tests/data/output/pairwise_similarity_test_output.tsv");
         let embeddings_file = Some("tests/data/test_embeddings.tsv");
 
         let mut subject_terms: HashSet<String> = HashSet::new();
@@ -837,7 +837,7 @@ mod tests {
         assert_eq!(line_count, 3);
 
         // Clean up the temporary file
-        // std::fs::remove_file(outfile.unwrap()).expect("Failed to remove file");
+        std::fs::remove_file(outfile.unwrap()).expect("Failed to remove file");
     }
 
     #[test]

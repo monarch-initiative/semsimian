@@ -230,6 +230,7 @@ pub fn rearrange_columns_and_rewrite(
     // Close the input file
     drop(reader);
 
+    // Replace the input file with the temporary file
     fs::rename(&temp_filename, filename)?;
 
     Ok(())
@@ -648,7 +649,7 @@ mod tests {
     #[test]
     fn test_rearrange_columns_and_rewrite() {
         // Create a temporary file for testing
-        let filename = "tests/data/output/test_data_2.tsv";
+        let filename = "tests/data/test_rearrange_data.tsv";
         let mut file = File::create(filename).expect("Failed to create file");
         writeln!(file, "Column A\tColumn B\tColumn C").expect("Failed to write line");
         writeln!(file, "Value 1\tValue 2\tValue 3").expect("Failed to write line");
@@ -669,15 +670,16 @@ mod tests {
         let mut contents = String::new();
         file.read_to_string(&mut contents)
             .expect("Failed to read file");
-
+        
         println!("{contents:?}");
         assert_eq!(
             contents,
             "Column C\tColumn A\tColumn B\nValue 3\tValue 1\tValue 2\nValue 6\tValue 4\tValue 5\n"
         );
+        
 
         // Clean up the temporary file
-        // std::fs::remove_file(filename).expect("Failed to remove file");
+        std::fs::remove_file(filename).expect("Failed to remove file");
     }
 
     #[test]
