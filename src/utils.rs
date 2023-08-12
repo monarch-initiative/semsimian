@@ -670,13 +670,12 @@ mod tests {
         let mut contents = String::new();
         file.read_to_string(&mut contents)
             .expect("Failed to read file");
-        
+
         println!("{contents:?}");
         assert_eq!(
             contents,
             "Column C\tColumn A\tColumn B\nValue 3\tValue 1\tValue 2\nValue 6\tValue 4\tValue 5\n"
         );
-        
 
         // Clean up the temporary file
         std::fs::remove_file(filename).expect("Failed to remove file");
