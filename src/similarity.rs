@@ -80,7 +80,7 @@ pub fn calculate_term_pairwise_information_content(
                     )
                 })
                 .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| {
-                    ic1.partial_cmp(&ic2).unwrap()
+                    ic1.partial_cmp(ic2).unwrap()
                 })
                 .map(|(_max_ic_ancestors, ic)| ic)
                 .unwrap_or(0.0)

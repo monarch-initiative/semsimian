@@ -418,7 +418,9 @@ impl RustSemsimian {
             metric,
         );
         let best_score = get_best_score(&subject_best_matches, &object_best_matches);
-        let tsps = TermsetPairwiseSimilarity::new(
+        
+
+        TermsetPairwiseSimilarity::new(
             subject_termset,
             subject_best_matches,
             subject_best_matches_similarity_map,
@@ -428,9 +430,7 @@ impl RustSemsimian {
             *average_termset_information_content,
             best_score,
             metric.to_string(),
-        );
-
-        tsps
+        )
     }
 }
 

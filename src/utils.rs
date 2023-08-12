@@ -14,6 +14,7 @@ type TermID = String;
 type PredicateSetKey = String;
 type ClosureMap = HashMap<String, HashMap<String, HashSet<String>>>;
 type ICMap = HashMap<String, HashMap<String, f64>>;
+type BTreeInBTree = BTreeMap<String, BTreeMap<String, String>>;
 
 pub fn predicate_set_to_key(predicates: &Option<Vec<Predicate>>) -> PredicateSetKey {
     let mut result = String::new();
@@ -239,7 +240,7 @@ pub fn rearrange_columns_and_rewrite(
 pub fn get_termset_vector(
     terms: &HashSet<String>,
     term_label_hashmap: &HashMap<String, String>,
-) -> Vec<BTreeMap<String, BTreeMap<String, String>>> {
+) -> Vec<BTreeInBTree> {
     term_label_hashmap
         .iter()
         .filter(|(key, _)| terms.contains(*key))
@@ -283,13 +284,13 @@ pub fn get_similarity_map(
 }
 
 pub fn get_best_matches(
-    termset: &Vec<BTreeMap<String, BTreeMap<String, String>>>,
+    termset: &Vec<BTreeInBTree>,
     all_by_all: &SimilarityMap,
     term_label_map: &HashMap<String, String>,
     metric: &str,
 ) -> (
-    BTreeMap<String, BTreeMap<String, String>>,
-    BTreeMap<String, BTreeMap<String, String>>,
+    BTreeInBTree,
+    BTreeInBTree,
 ) {
     let mut best_matches = BTreeMap::new();
     let mut best_matches_similarity_map = BTreeMap::new();
@@ -300,14 +301,13 @@ pub fn get_best_matches(
         if let Some(matches) = all_by_all.get(term_id) {
             let best_match = matches
                 .iter()
-                .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(&v2).unwrap())
+                .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(v2).unwrap())
                 .unwrap();
-            let mut similarity_map = get_similarity_map(&term_id, best_match);
+            let mut similarity_map = get_similarity_map(term_id, best_match);
 
             let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
             let ancestor_label = term_label_map
-                .get(&ancestor_id)
-                .and_then(|label| Some(label.clone()))
+                .get(&ancestor_id).cloned()
                 .unwrap_or_default();
             let score = similarity_map.get(metric).unwrap().clone();
 
@@ -338,8 +338,8 @@ pub fn get_best_matches(
 }
 
 pub fn get_best_score(
-    subject_best_matches: &BTreeMap<String, BTreeMap<String, String>>,
-    object_best_matches: &BTreeMap<String, BTreeMap<String, String>>,
+    subject_best_matches: &BTreeInBTree,
+    object_best_matches: &BTreeInBTree,
 ) -> f64 {
     let mut max_score = f64::NEG_INFINITY;
 
@@ -696,7 +696,7 @@ mod tests {
 
         assert_eq!(result.len(), 2);
 
-        let expected_result: Vec<BTreeMap<String, BTreeMap<String, String>>> = vec![
+        let expected_result: Vec<BTreeInBTree> = vec![
             {
                 let mut inner_btreemap = BTreeMap::new();
                 inner_btreemap.insert("id".to_string(), "GO:0005575".to_string());
