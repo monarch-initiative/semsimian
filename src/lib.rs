@@ -447,6 +447,15 @@ impl Semsimian {
         pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
     ) -> PyResult<Self> {
+        //Check if OS is Windows and if so do this.
+        #[cfg(target_os = "windows")]
+        let resource_path = match resource_path {
+            Some(path) => {
+                let (drive, path) = std::path::Path::new(path).split_drive();
+                Some(path.to_owned())
+            },
+            None => None,
+        };
         let ss = RustSemsimian::new(
             spo,
             predicates,
