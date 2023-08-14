@@ -20,8 +20,6 @@ class testSemsimianWithPython(unittest.TestCase):
 
         self.semsimian = Semsimian(spo, predicates)
         self.db = str(Path(__file__).parents[2] / "tests/data/go-nucleus.db")
-        if os.name == "nt":
-            _, self.db = os.path.splitdrive(self.db)
 
     def test_jaccard_similarity(self):
         term1 = "apple"
