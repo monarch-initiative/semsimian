@@ -460,7 +460,7 @@ impl Semsimian {
             spo,
             predicates,
             pairwise_similarity_attributes,
-            resource_path,
+            resource_path.as_ref().map(|s| s.as_str()),
         );
         Ok(Semsimian { ss })
     }
