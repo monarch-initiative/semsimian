@@ -456,10 +456,7 @@ impl Semsimian {
             format!("{}", remaining_path)
         });
         #[cfg(target_os = "windows")]
-        if drive.is_some() {
-            let resource_path = processed_path.as_ref().map(|s| s.as_str());
-        }
-
+        let resource_path = processed_path.as_ref().map(|s| s.as_str());
         dbg!(&resource_path.unwrap());
         let ss = RustSemsimian::new(
             spo,
