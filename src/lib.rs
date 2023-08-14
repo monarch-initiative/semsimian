@@ -449,18 +449,19 @@ impl Semsimian {
     ) -> PyResult<Self> {
         //Check if OS is Windows and if so do this.
         #[cfg(target_os = "windows")]
-        let resource_path = match resource_path {
-            Some(path) => {
-                let (drive, path) = std::path::Path::new(path).split_drive();
-                Some(path.to_owned())
-            }
-            None => None,
-        };
+        let resource_path = resource_path.map(|path| {
+            let path_buf = std::path::PathBuf::from(path);
+            // let drive = path_buf.parent().unwrap().to_str().unwrap();
+            let remaining_path = path_buf.file_stem().unwrap().to_str().unwrap();
+            format!("{}", remaining_path)
+        });
+        dbg!(&resource_path);
+
         let ss = RustSemsimian::new(
             spo,
             predicates,
             pairwise_similarity_attributes,
-            resource_path,
+            resource_path.as_deref(),
         );
         Ok(Semsimian { ss })
     }
