@@ -453,11 +453,15 @@ impl Semsimian {
             let path_buf = std::path::PathBuf::from(path);
             let drive = path_buf.parent().unwrap().to_str().unwrap();
             let remaining_path = path_buf.file_stem().unwrap().to_str().unwrap();
+            if drive.is_some() {
             format!("{}", remaining_path)
+            } else {
+                path
+            }
         });
         #[cfg(target_os = "windows")]
         let resource_path = processed_path.as_ref().map(|s| s.as_str());
-        dbg!(&resource_path.unwrap());
+
         let ss = RustSemsimian::new(
             spo,
             predicates,
