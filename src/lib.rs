@@ -455,7 +455,6 @@ impl Semsimian {
             let remaining_path = path_buf.file_stem().unwrap().to_str().unwrap();
             format!("{}", remaining_path)
         });
-        dbg!(&resource_path);
 
         let ss = RustSemsimian::new(
             spo,
