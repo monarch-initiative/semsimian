@@ -453,7 +453,7 @@ impl Semsimian {
             Some(path) => {
                 let (drive, path) = std::path::Path::new(path).split_drive();
                 Some(path.to_owned())
-            },
+            }
             None => None,
         };
         let ss = RustSemsimian::new(
