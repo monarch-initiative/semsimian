@@ -453,10 +453,10 @@ impl Semsimian {
             let path_buf = std::path::PathBuf::from(path);
             let drive = path_buf.parent().unwrap().to_str().unwrap();
             let remaining_path = path_buf.file_stem().unwrap().to_str().unwrap();
-            if drive.is_some() {
+            if drive.is_empty() {
             format!("{}", remaining_path)
             } else {
-                path
+                path.to_string()
             }
         });
         #[cfg(target_os = "windows")]
