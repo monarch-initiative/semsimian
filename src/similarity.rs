@@ -1,10 +1,12 @@
 use crate::Predicate;
 use crate::PredicateSetKey;
+use crate::RustSemsimian;
 use crate::TermID;
 use crate::{
     utils::expand_term_using_closure, utils::find_embedding_index, utils::predicate_set_to_key,
 };
 use ordered_float::OrderedFloat;
+use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 pub fn calculate_semantic_jaccard_similarity(
@@ -51,41 +53,65 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
     (curie, max_ic)
 }
 
-pub fn calculate_phenomizer_score(
-    map: HashMap<String, HashMap<String, f64>>,
-    entity1: HashSet<String>,
-    entity2: HashSet<String>,
+pub fn calculate_term_pairwise_information_content(
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    entity1: &HashSet<TermID>,
+    entity2: &HashSet<TermID>,
+    predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
-    // calculate average resnik sim of all terms in entity1 and their best match in entity2
-    let entity1_to_entity2_average_resnik_sim: f64 =
-        pairwise_entity_resnik_score(&map, &entity1, &entity2);
-    // now do the same for entity2 to entity1
-    let entity2_to_entity1_average_resnik_sim: f64 =
-        pairwise_entity_resnik_score(&map, &entity2, &entity1);
-    // return the average of the two
-    (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0
+    // At each iteration, it calculates the IC score using the calculate_max_information_content function,
+    // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
+    // it updates the maximum IC value. Thus, at the end of the iterations,
+    // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
+    // representing the best match between entity1 and entity2.
+    let entity1_to_entity2_sum_resnik_sim: f64 = entity1
+        .par_iter()
+        .map(|e1_term| {
+            entity2
+                .par_iter()
+                .map(|e2_term| {
+                    calculate_max_information_content(
+                        closure_map,
+                        ic_map,
+                        e1_term,
+                        e2_term,
+                        predicates,
+                    )
+                })
+                .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| {
+                    ic1.partial_cmp(ic2).unwrap()
+                })
+                .map(|(_max_ic_ancestors, ic)| ic)
+                .unwrap_or(0.0)
+        })
+        .sum();
+
+    // The final result will be the average Resnik similarity score between the two sets
+    entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
 }
 
-pub fn pairwise_entity_resnik_score(
-    map: &HashMap<String, HashMap<String, f64>>,
-    entity1: &HashSet<String>,
-    entity2: &HashSet<String>,
+pub fn calculate_average_termset_information_content(
+    semsimian: &RustSemsimian,
+    subject_terms: &HashSet<TermID>,
+    object_terms: &HashSet<TermID>,
 ) -> f64 {
-    let mut entity1_to_entity2_sum_resnik_sim = 0.0;
+    let subject_to_object_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
+        &semsimian.closure_map,
+        &semsimian.ic_map,
+        subject_terms,
+        object_terms,
+        &semsimian.predicates,
+    );
 
-    for e1_term in entity1.clone().into_iter() {
-        let mut max_resnik_sim_e1_e2 = 0.0;
-        for e2_term in entity2.clone().into_iter() {
-            // NB: this will definitely fail if the term is not in the map
-            let mica = map.get(&e1_term).unwrap().get(&e2_term).unwrap();
-            if mica > &max_resnik_sim_e1_e2 {
-                max_resnik_sim_e1_e2 = *mica;
-            }
-        }
-        entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
-    }
-
-    entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
+    let object_to_subject_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
+        &semsimian.closure_map,
+        &semsimian.ic_map,
+        object_terms,
+        subject_terms,
+        &semsimian.predicates,
+    );
+    (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
 }
 
 pub fn calculate_max_information_content(
@@ -322,23 +348,6 @@ mod tests {
         assert_eq!(result, expected_tuple);
     }
 
-    #[test]
-    fn test_calculate_phenomizer_score() {
-        let mut entity_one = HashSet::new();
-        entity_one.insert(String::from("CARO:0000000")); // resnik of best match = 5
-        entity_one.insert(String::from("BFO:0000002")); // resnik of best match = 4
-
-        let mut entity_two = HashSet::new();
-        entity_two.insert(String::from("BFO:0000003")); // resnik of best match = 3
-        entity_two.insert(String::from("BFO:0000002")); // resnik of best match = 4
-        entity_two.insert(String::from("CARO:0000000")); // resnik of best match = 5
-
-        let expected = ((5.0 + 4.0) / 2.0 + (3.0 + 4.0 + 5.0) / 3.0) / 2.0;
-
-        let result = calculate_phenomizer_score(MAP.clone(), entity_one, entity_two);
-        assert_eq!(result, expected);
-    }
-
     // TODO: test that closure map in Semsimian object is correct
     // TODO: test that ic map in Semsimian object is correct
 
@@ -466,5 +475,136 @@ mod tests {
         let embed_2 = vec![0.0, 1.0, 0.0];
         let similarity = calculate_cosine_similarity_for_embeddings(&embed_1, &embed_2);
         assert_eq!(similarity, 0.0);
+    }
+
+    #[test]
+    fn test_calculate_term_pairwise_information_content() {
+        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("subClassOf")]);
+
+        // Test case 1: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
+        let expected_value = 1.0;
+
+        println!("CASE 1 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
+        let expected_value = 1.585;
+
+        println!("Case 2 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 3: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
+        let expected_value = 0.6666666666666666;
+
+        println!("Case 3 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 4: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
+        let expected_value = 1.0566666666666666;
+
+        println!("Case 4 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_calculate_average_termset_information_content() {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        // Test case 1: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = HashSet::from(["GO:0005634".to_string()]);
+
+        let entity2: HashSet<TermID> = HashSet::from(["GO:0031965".to_string()]);
+
+        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 5.8496657269155685;
+
+        println!("Case X pheno_score: {phenio_score}");
+        assert_eq!(phenio_score, expected_value);
+
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> =
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 5.4154243283740175;
+
+        println!("Case 3 pheno_score: {phenio_score}");
+        assert_eq!(phenio_score, expected_value);
     }
 }

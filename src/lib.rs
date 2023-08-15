@@ -7,10 +7,11 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-pub mod similarity;
-
 pub mod db_query;
+pub mod similarity;
+pub mod termset_pairwise_similarity;
 pub mod utils;
+
 use rayon::prelude::*;
 
 mod test_utils;
@@ -18,14 +19,20 @@ mod test_utils;
 use std::fmt;
 
 use similarity::{
-    calculate_cosine_similarity_for_nodes, calculate_max_information_content,
-    calculate_phenomizer_score,
+    calculate_average_termset_information_content, calculate_cosine_similarity_for_nodes,
+    calculate_max_information_content,
 };
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
-    generate_progress_bar_of_length_and_message, predicate_set_to_key,
-    rearrange_columns_and_rewrite,
+    generate_progress_bar_of_length_and_message, get_best_matches, get_termset_vector,
+    predicate_set_to_key, rearrange_columns_and_rewrite,
 };
+
+use db_query::get_labels;
+use lazy_static::lazy_static;
+use termset_pairwise_similarity::TermsetPairwiseSimilarity;
+
+use crate::utils::get_best_score;
 
 // change to "pub" because it is easier for testing
 pub type Predicate = String;
@@ -36,9 +43,15 @@ pub type Resnik = f64;
 pub type Phenodigm = f64;
 pub type Cosine = f64;
 pub type MostInformativeAncestors = HashSet<TermID>;
-type SimilarityMap =
-    HashMap<TermID, HashMap<TermID, (Jaccard, Resnik, Phenodigm, MostInformativeAncestors)>>;
+type SimilarityMap = HashMap<
+    TermID,
+    HashMap<TermID, (Jaccard, Resnik, Phenodigm, Cosine, MostInformativeAncestors)>,
+>;
 type Embeddings = Vec<(String, Vec<f64>)>;
+
+lazy_static! {
+    static ref RESOURCE_PATH: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+}
 
 #[derive(Clone)]
 pub struct RustSemsimian {
@@ -49,36 +62,37 @@ pub struct RustSemsimian {
     closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     // closure_map is something like {("is_a_+_part_of"), {"GO:1234": {"GO:1234", "GO:5678"}}}
     embeddings: Embeddings,
-    term_pairwise_similarity_attributes: Option<Vec<String>>,
+    pairwise_similarity_attributes: Option<Vec<String>>,
 }
 
 impl RustSemsimian {
     // TODO: this is tied directly to Oak, and should be made more generic
     // TODO: also, we should support loading "custom" ic
-    // TODO: generate ic map and closure map using (spo).
+
     pub fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<Predicate>>,
-        term_pairwise_similarity_attributes: Option<Vec<String>>,
+        pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
     ) -> RustSemsimian {
+        if spo.is_none() && resource_path.is_none() {
+            panic!("If no `spo` is provided, `resource_path` is required.");
+        }
+        if let Some(resource_path) = resource_path {
+            *RESOURCE_PATH.lock().unwrap() = Some(resource_path.to_string().clone());
+        }
         let spo = match spo {
-            Some(spo) => Some(spo),
+            Some(spo) => spo,
             None => {
-                if let Some(resource_path) = resource_path {
-                    match get_entailed_edges_for_predicate_list(
-                        resource_path,
-                        predicates.as_ref().unwrap_or(&Vec::new()),
-                    ) {
-                        Ok(edges) => Some(edges),
-                        Err(err) => panic!("Resource returned nothing with predicates: {}", err),
-                    }
-                } else {
-                    panic!("If no `spo` is provided, `resource_path` is required.");
+                match get_entailed_edges_for_predicate_list(
+                    resource_path.unwrap(),
+                    predicates.as_ref().unwrap_or(&Vec::new()),
+                ) {
+                    Ok(edges) => edges,
+                    Err(err) => panic!("Resource returned nothing with predicates: {}", err),
                 }
             }
-        }
-        .unwrap();
+        };
 
         let predicates = match predicates {
             Some(predicates) => Some(predicates),
@@ -94,7 +108,7 @@ impl RustSemsimian {
         RustSemsimian {
             spo,
             predicates,
-            term_pairwise_similarity_attributes,
+            pairwise_similarity_attributes,
             ic_map: HashMap::new(),
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
@@ -180,23 +194,30 @@ impl RustSemsimian {
             .map(|subject| {
                 let mut subject_similarities: HashMap<
                     TermID,
-                    (Jaccard, Resnik, Phenodigm, MostInformativeAncestors),
+                    (Jaccard, Resnik, Phenodigm, Cosine, MostInformativeAncestors),
                 > = HashMap::new();
                 for object in object_terms.iter() {
                     let self_read = self_shared.read().unwrap();
-                    let jaccard_sim = self_read.jaccard_similarity(subject, object);
-                    let (mica, resnik_sim) = self_read.resnik_similarity(subject, object);
+                    let jaccard_similarity = self_read.jaccard_similarity(subject, object);
+                    let (ancestor_id, ancestor_information_content) =
+                        self_read.resnik_similarity(subject, object);
+                    let cosine_similarity = match !self_read.embeddings.is_empty() {
+                        true => self_read.cosine_similarity(subject, object, &self_read.embeddings),
+                        false => std::f64::NAN,
+                    };
 
-                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_sim > t)
-                        && minimum_resnik_threshold.map_or(true, |t| resnik_sim > t)
+                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
+                        && minimum_resnik_threshold
+                            .map_or(true, |t| ancestor_information_content > t)
                     {
                         subject_similarities.insert(
                             object.clone(),
                             (
-                                jaccard_sim,
-                                resnik_sim,
-                                (resnik_sim * jaccard_sim).sqrt(),
-                                mica,
+                                jaccard_similarity,
+                                ancestor_information_content,
+                                (ancestor_information_content * jaccard_similarity).sqrt(),
+                                cosine_similarity,
+                                ancestor_id,
                             ),
                         );
                     }
@@ -236,7 +257,7 @@ impl RustSemsimian {
             "ancestor_id".to_string(),
         ];
         column_names.sort();
-        let sorted_attributes = match &self.term_pairwise_similarity_attributes {
+        let sorted_attributes = match &self.pairwise_similarity_attributes {
             Some(attributes) => {
                 let mut cloned_attributes = attributes.clone();
                 cloned_attributes.sort();
@@ -327,7 +348,7 @@ impl RustSemsimian {
                 }
             });
         drop(writer);
-        if let Some(output_columns_vector) = &self.term_pairwise_similarity_attributes {
+        if let Some(output_columns_vector) = &self.pairwise_similarity_attributes {
             let _ = rearrange_columns_and_rewrite(outfile, output_columns_vector.to_owned());
         } else {
             let _ = rearrange_columns_and_rewrite(
@@ -338,13 +359,77 @@ impl RustSemsimian {
         pb.finish_with_message("done");
     }
 
-    // TODO: make this predicate aware, and make it work with the new closure map
-    pub fn phenomizer_score(
-        map: HashMap<String, HashMap<String, f64>>,
-        entity1: HashSet<String>,
-        entity2: HashSet<String>,
-    ) -> PyResult<f64> {
-        Ok(calculate_phenomizer_score(map, entity1, entity2))
+    pub fn termset_comparison(
+        &self,
+        subject_terms: &HashSet<TermID>,
+        object_terms: &HashSet<TermID>,
+    ) -> Result<f64, String> {
+        Ok(calculate_average_termset_information_content(
+            self,
+            subject_terms,
+            object_terms,
+        ))
+    }
+
+    pub fn termset_pairwise_similarity(
+        &self,
+        subject_terms: &HashSet<TermID>,
+        object_terms: &HashSet<TermID>,
+        _outfile: &Option<&str>,
+    ) -> TermsetPairwiseSimilarity {
+        let metric = "ancestor_information_content";
+        let all_by_all: SimilarityMap =
+            self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
+
+        let mut all_by_all_object_perspective: SimilarityMap = HashMap::new();
+
+        for (key1, value1) in all_by_all.iter() {
+            for (key2, value2) in value1.iter() {
+                if !all_by_all_object_perspective.contains_key(key2.as_str()) {
+                    all_by_all_object_perspective.insert(key2.to_owned(), HashMap::new());
+                }
+                all_by_all_object_perspective
+                    .get_mut(key2.as_str())
+                    .unwrap()
+                    .insert(key1.to_owned(), value2.to_owned());
+            }
+        }
+        let db_path = RESOURCE_PATH.lock().unwrap();
+        let all_terms = subject_terms
+            .union(object_terms)
+            .cloned()
+            .collect::<Vec<String>>();
+        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), all_terms).unwrap();
+
+        let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+            get_termset_vector(subject_terms, &term_label_map);
+        let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+            get_termset_vector(object_terms, &term_label_map);
+        let average_termset_information_content = &self
+            .termset_comparison(subject_terms, object_terms)
+            .unwrap();
+
+        let (subject_best_matches, subject_best_matches_similarity_map) =
+            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+        let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
+            &object_termset,
+            &all_by_all_object_perspective,
+            &term_label_map,
+            metric,
+        );
+        let best_score = get_best_score(&subject_best_matches, &object_best_matches);
+
+        TermsetPairwiseSimilarity::new(
+            subject_termset,
+            subject_best_matches,
+            subject_best_matches_similarity_map,
+            object_termset,
+            object_best_matches,
+            object_best_matches_similarity_map,
+            *average_termset_information_content,
+            best_score,
+            metric.to_string(),
+        )
     }
 }
 
@@ -359,13 +444,28 @@ impl Semsimian {
     fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<String>>,
-        term_pairwise_similarity_attributes: Option<Vec<String>>,
+        pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
     ) -> PyResult<Self> {
+        //Check if OS is Windows and if so do this.
+        #[cfg(target_os = "windows")]
+        let processed_path = resource_path.map(|path| {
+            let path_buf = std::path::PathBuf::from(path);
+            let drive = path_buf.parent().unwrap().to_str().unwrap();
+            let remaining_path = path_buf.file_stem().unwrap().to_str().unwrap();
+            if drive.is_empty() {
+            format!("{}", remaining_path)
+            } else {
+                path.to_string()
+            }
+        });
+        #[cfg(target_os = "windows")]
+        let resource_path = processed_path.as_ref().map(|s| s.as_str());
+
         let ss = RustSemsimian::new(
             spo,
             predicates,
-            term_pairwise_similarity_attributes,
+            pairwise_similarity_attributes,
             resource_path,
         );
         Ok(Semsimian { ss })
@@ -440,8 +540,36 @@ impl Semsimian {
         Ok(())
     }
 
+    fn termset_pairwise_similarity(
+        &mut self,
+        subject_terms: HashSet<TermID>,
+        object_terms: HashSet<TermID>,
+        outfile: Option<&str>,
+        py: Python,
+    ) -> PyResult<PyObject> {
+        self.ss.update_closure_and_ic_map();
+
+        let tsps = self
+            .ss
+            .termset_pairwise_similarity(&subject_terms, &object_terms, &outfile);
+        Ok(tsps.into_py(py))
+    }
+
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
         Ok(self.ss.spo.to_vec())
+    }
+
+    fn termset_comparison(
+        &mut self,
+        subject_terms: HashSet<TermID>,
+        object_terms: HashSet<TermID>,
+    ) -> PyResult<f64> {
+        self.ss.update_closure_and_ic_map();
+
+        match self.ss.termset_comparison(&subject_terms, &object_terms) {
+            Ok(score) => Ok(score),
+            Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),
+        }
     }
 }
 
@@ -620,6 +748,7 @@ mod tests {
             apple_fruit_jaccard_from_similarity,
             apple_fruit_resnik_from_similarity,
             apple_fruit_phenodigm_from_similarity,
+            _, // Cosine similarity
             apple_fruit_mica_from_similarity,
         ) = apple_similarities.get(&fruit).unwrap();
 
@@ -650,6 +779,7 @@ mod tests {
             fruit_fruit_jaccard_from_similarity,
             fruit_fruit_resnik_from_similarity,
             fruit_fruit_phenodigm_from_similarity,
+            _, // cosine similarity
             fruit_fruit_mica_from_similarity,
         ) = fruit_similarities.get(&fruit).unwrap();
 
@@ -691,7 +821,7 @@ mod tests {
         let banana = "banana".to_string();
         let apple = "apple".to_string();
         let pear = "pear".to_string();
-        let outfile = Some("tests/data/output/similarity_test_output.tsv");
+        let outfile = Some("tests/data/output/pairwise_similarity_test_output.tsv");
         let embeddings_file = Some("tests/data/test_embeddings.tsv");
 
         let mut subject_terms: HashSet<String> = HashSet::new();
@@ -721,7 +851,7 @@ mod tests {
         assert_eq!(line_count, 3);
 
         // Clean up the temporary file
-        // std::fs::remove_file(outfile.unwrap()).expect("Failed to remove file");
+        std::fs::remove_file(outfile.unwrap()).expect("Failed to remove file");
     }
 
     #[test]
@@ -754,5 +884,66 @@ mod tests {
             rss.cosine_similarity("BFO:0000040", "BFO:0000002", &rss.embeddings);
         println!("DO THE print {cosine_similarity}");
         assert_eq!(cosine_similarity, 0.09582515104047208);
+    }
+
+    #[test]
+    fn test_termset_pairwise_similarity() {
+        let db = Some("tests/data/go-nucleus.db");
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+        let outfile = Some("tests/data/output/termset_similarity_output.tsv");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.update_closure_and_ic_map();
+        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &outfile);
+        assert_eq!(tsps.average_score, 5.4154243283740175);
+        assert_eq!(tsps.best_score, 5.8496657269155685);
+    }
+
+    #[test]
+    fn test_termset_comparison() {
+        let spo = Some(BFO_SPO.clone());
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let mut rss = RustSemsimian::new(spo, predicates, None, None);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> =
+            HashSet::from(["BFO:0000020".to_string(), "BFO:0000002".to_string()]);
+        let entity2: HashSet<TermID> =
+            HashSet::from(["BFO:0000030".to_string(), "BFO:0000005".to_string()]);
+
+        let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
+        let expected_result = 0.36407012037768127;
+
+        assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_termset_comparison_with_db() {
+        let db = Some("tests/data/go-nucleus.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> =
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
+        let expected_result = 5.4154243283740175;
+        assert_eq!(result.unwrap(), expected_result);
     }
 }
