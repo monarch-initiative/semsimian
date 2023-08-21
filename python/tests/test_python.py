@@ -95,13 +95,14 @@ class testSemsimianWithPython(unittest.TestCase):
             resource_path=self.db,
         )
         _ = semsimian.termset_pairwise_similarity(subject_terms, object_terms)
-        interval_1 = time.time() - load_start
+        interval_1 = round((time.time() - load_start), 10)
         logging.debug(f"Warmup time: {interval_1} sec")
         second_compare_time = time.time()
         _ = semsimian.termset_pairwise_similarity(subject_terms, object_terms)
-        interval_2 = time.time() - second_compare_time
+        interval_2 = round((time.time() - second_compare_time), 10)
         logging.debug(f"Second compare time: {interval_2} sec")
         self.assertGreater(interval_1, interval_2)
+
 
 if __name__ == "__main__":
     unittest.main()
