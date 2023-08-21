@@ -117,16 +117,21 @@ impl RustSemsimian {
 
     pub fn update_closure_and_ic_map(&mut self) {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
-        let (this_closure_map, this_ic_map) =
-            convert_list_of_tuples_to_hashmap(&self.spo, &self.predicates);
-        self.closure_map.insert(
-            predicate_set_key.clone(),
-            this_closure_map.get(&predicate_set_key).unwrap().clone(),
-        );
-        self.ic_map.insert(
-            predicate_set_key.clone(),
-            this_ic_map.get(&predicate_set_key).unwrap().clone(),
-        );
+
+        if !self.closure_map.contains_key(&predicate_set_key)
+            || !self.ic_map.contains_key(&predicate_set_key)
+        {
+            let (this_closure_map, this_ic_map) =
+                convert_list_of_tuples_to_hashmap(&self.spo, &self.predicates);
+            self.closure_map.insert(
+                predicate_set_key.clone(),
+                this_closure_map.get(&predicate_set_key).unwrap().clone(),
+            );
+            self.ic_map.insert(
+                predicate_set_key.clone(),
+                this_ic_map.get(&predicate_set_key).unwrap().clone(),
+            );
+        }
     }
 
     pub fn load_embeddings(&mut self, embeddings_file: &str) {
@@ -186,7 +191,7 @@ impl RustSemsimian {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
-            "Building all X all pairwise similarity:",
+            "Building (all subjects X all objects) pairwise similarity:",
         );
 
         let similarity_map: SimilarityMap = subject_terms
@@ -242,7 +247,7 @@ impl RustSemsimian {
         let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
-            "Building all X all pairwise similarity:",
+            "Building (all subjects X all objects) pairwise similarity:",
         );
         let outfile = outfile.unwrap_or("similarity_map.tsv");
         let file = File::create(outfile).unwrap();
