@@ -104,8 +104,10 @@ pub fn convert_list_of_tuples_to_hashmap(
     );
 
     for (s, p, o) in list_of_tuples.iter() {
-        if predicates.is_some() && !predicates.as_ref().unwrap().contains(p) {
-            continue;
+        if let Some(predicates) = predicates {
+            if !predicates.contains(p) {
+                continue;
+            }
         }
 
         // ! As per this below, the frequency map gets populated ONLY if the node is an object (o)
@@ -128,15 +130,16 @@ pub fn convert_list_of_tuples_to_hashmap(
 
     progress_bar.finish_with_message("done");
 
-    let number_of_nodes = freq_map.keys().len() as f64;
-    for (k, v) in &freq_map {
-        ic_map
-            .entry(predicate_set_key.clone())
-            .or_insert_with(HashMap::new)
-            .entry(k.to_string())
-            .and_modify(|x| *x = -(*v as f64 / number_of_nodes).log2())
-            .or_insert_with(|| -(*v as f64 / number_of_nodes).log2());
-    }
+    let number_of_nodes = freq_map.len() as f64;
+
+    ic_map
+        .entry(predicate_set_key.clone())
+        .or_insert_with(HashMap::new)
+        .extend(
+            freq_map
+                .iter()
+                .map(|(k, v)| (k.to_string(), -(*v as f64 / number_of_nodes).log2())),
+        );
 
     // println!("FREQ:{freq_map:?}");
     (closure_map, ic_map)

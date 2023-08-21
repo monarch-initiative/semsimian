@@ -1,4 +1,5 @@
-import os
+import logging
+import time
 import unittest
 from semsimian import Semsimian
 from pathlib import Path
@@ -81,6 +82,26 @@ class testSemsimianWithPython(unittest.TestCase):
         tsps = semsimian.termset_pairwise_similarity(subject_terms, object_terms)
         self.assertEqual(tsps["average_score"], 5.4154243283740175)
         self.assertEqual(tsps["best_score"], 5.8496657269155685)
+
+    def test_building_closure_ic_map_once(self):
+        load_start = time.time()
+        subject_terms = {"GO:0005634", "GO:0016020"}
+        object_terms = {"GO:0031965", "GO:0005773"}
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            pairwise_similarity_attributes=None,
+            resource_path=self.db,
+        )
+        _ = semsimian.termset_pairwise_similarity(subject_terms, object_terms)
+        interval_1 = round((time.time() - load_start), 10)
+        logging.debug(f"Warmup time: {interval_1} sec")
+        second_compare_time = time.time()
+        _ = semsimian.termset_pairwise_similarity(subject_terms, object_terms)
+        interval_2 = round((time.time() - second_compare_time), 10)
+        logging.debug(f"Second compare time: {interval_2} sec")
+        self.assertGreater(interval_1, interval_2)
 
 
 if __name__ == "__main__":
