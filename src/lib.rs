@@ -953,8 +953,8 @@ mod tests {
     }
 }
 
-//  #[cfg(not(all(target_env = "github", any(target_os = "linux", target_os = "windows"))))]
- #[cfg(test)]
+// ! All local tests that need not be run on github actions.
+#[cfg(test)]
 mod tests_local {
 
     use super::*;
@@ -968,9 +968,9 @@ mod tests_local {
         if let Some(home) = std::env::var_os("HOME") {
             db_path.push(home);
             db_path.push(".data/oaklib/phenio.db");
-            } else {
-                panic!("Failed to get home directory");
-            }
+        } else {
+            panic!("Failed to get home directory");
+        }
         // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
         let db = Some(db_path.to_str().expect("Failed to convert path to string"));
         let predicates: Option<Vec<Predicate>> = Some(vec![
@@ -983,14 +983,20 @@ mod tests_local {
         let mut start_time = Instant::now();
 
         let mut rss = RustSemsimian::new(None, predicates, None, db);
-    
+
         let mut elapsed_time = start_time.elapsed();
-        println!("Time taken for RustSemsimian object generation: {:?}", elapsed_time);
+        println!(
+            "Time taken for RustSemsimian object generation: {:?}",
+            elapsed_time
+        );
         start_time = Instant::now();
 
         rss.update_closure_and_ic_map();
         elapsed_time = start_time.elapsed();
-        println!("Time taken for closure table and ic_map generation: {:?}", elapsed_time);
+        println!(
+            "Time taken for closure table and ic_map generation: {:?}",
+            elapsed_time
+        );
 
         let entity1: HashSet<TermID> = HashSet::from([
             "MP:0010771".to_string(),
@@ -1008,18 +1014,26 @@ mod tests_local {
         start_time = Instant::now();
         let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &outfile);
         elapsed_time = start_time.elapsed();
-        println!("Time taken for termset_pairwise_similarity: {:?}", elapsed_time);
+        println!(
+            "Time taken for termset_pairwise_similarity: {:?}",
+            elapsed_time
+        );
 
         start_time = Instant::now();
 
         rss.update_closure_and_ic_map();
         elapsed_time = start_time.elapsed();
-        println!("Time taken for second closure and ic_map generation: {:?}", elapsed_time);
+        println!(
+            "Time taken for second closure and ic_map generation: {:?}",
+            elapsed_time
+        );
 
         start_time = Instant::now();
         _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &outfile);
         elapsed_time = start_time.elapsed();
-        println!("Time taken for second termset_pairwise_similarity: {:?}", elapsed_time);
-        
+        println!(
+            "Time taken for second termset_pairwise_similarity: {:?}",
+            elapsed_time
+        );
     }
 }
