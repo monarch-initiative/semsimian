@@ -953,7 +953,7 @@ mod tests {
     }
 }
 
- #[cfg(not(all(target_env = "github", any(target_os = "linux", target_os = "windows"))))]
+//  #[cfg(not(all(target_env = "github", any(target_os = "linux", target_os = "windows"))))]
  #[cfg(test)]
 mod tests_local {
 
@@ -962,6 +962,7 @@ mod tests_local {
     use std::time::Instant;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_termset_pairwise_similarity_2() {
         let mut db_path = PathBuf::new();
         if let Some(home) = std::env::var_os("HOME") {
