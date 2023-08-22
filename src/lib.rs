@@ -600,8 +600,6 @@ mod tests {
     use super::*;
     use crate::test_utils::test_constants::BFO_SPO;
     use crate::{test_utils::test_constants::SPO_FRUITS, RustSemsimian};
-    use std::path::PathBuf;
-    use std::time::Instant;
     use std::{
         collections::HashSet,
         io::{BufRead, BufReader},
@@ -953,9 +951,17 @@ mod tests {
         let expected_result = 5.4154243283740175;
         assert_eq!(result.unwrap(), expected_result);
     }
+}
+
+ #[cfg(not(all(target_env = "github", any(target_os = "linux", target_os = "windows"))))]
+ #[cfg(test)]
+mod tests_local {
+
+    use super::*;
+    use std::path::PathBuf;
+    use std::time::Instant;
 
     #[test]
-    #[cfg(not(all(target_env = "github", any(target_os = "linux", target_os = "windows"))))]
     fn test_termset_pairwise_similarity_2() {
         let mut db_path = PathBuf::new();
         if let Some(home) = std::env::var_os("HOME") {
