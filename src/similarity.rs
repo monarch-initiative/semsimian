@@ -6,7 +6,6 @@ use crate::{
     utils::expand_term_using_closure, utils::find_embedding_index, utils::predicate_set_to_key,
 };
 use ordered_float::OrderedFloat;
-// use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 pub fn calculate_semantic_jaccard_similarity(
