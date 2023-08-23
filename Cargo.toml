@@ -26,3 +26,7 @@ ci = []
 [profile.release]
 codegen-units = 1
 lto = true
+debug = true
+
+[dev-dependencies]
+flamegraph = "0.6.3"
