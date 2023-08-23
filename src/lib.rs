@@ -976,7 +976,6 @@ mod tests_local {
             "BFO:0000050".to_string(),
             "UPHENO:0000001".to_string(),
         ]);
-        let outfile = Some("tests/data/output/termset_similarity_output_2.tsv");
         // Start measuring time
         let mut start_time = Instant::now();
 
@@ -1010,7 +1009,7 @@ mod tests_local {
         ]);
 
         start_time = Instant::now();
-        let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &outfile);
+        let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
         elapsed_time = start_time.elapsed();
         println!(
             "Time taken for termset_pairwise_similarity: {:?}",
@@ -1027,7 +1026,7 @@ mod tests_local {
         );
 
         start_time = Instant::now();
-        _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &outfile);
+        _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
         elapsed_time = start_time.elapsed();
         println!(
             "Time taken for second termset_pairwise_similarity: {:?}",
