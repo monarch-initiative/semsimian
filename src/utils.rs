@@ -93,8 +93,9 @@ pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
     predicates: &Option<Vec<String>>,
 ) -> (ClosureMap, ICMap) {
-    let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-    let mut freq_map: HashMap<String, usize> = HashMap::new();
+    let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> =
+        HashMap::with_capacity(list_of_tuples.len());
+    let mut freq_map: HashMap<String, usize> = HashMap::with_capacity(list_of_tuples.len());
     let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
 
     let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
@@ -110,21 +111,18 @@ pub fn convert_list_of_tuples_to_hashmap(
                 continue;
             }
         }
-
         // ! As per this below, the frequency map gets populated ONLY if the node is an object (o)
         // ! in the (s, p, o). If the node is a subject (s), it does not count towards the frequency.
         // ! Only with this implemented will the results match with `oaklib`'s `sqlite` implementation
         // ! of semantic similarity.
-
-        // *freq_map.entry(s.clone()).or_insert(0) += 1;
         *freq_map.entry(o.clone()).or_insert(0) += 1;
 
         closure_map
             .entry(predicate_set_key.clone())
             .or_insert_with(HashMap::new)
-            .entry(s.clone())
+            .entry(String::from(s))
             .or_insert_with(HashSet::new)
-            .insert(o.clone());
+            .insert(String::from(o));
 
         progress_bar.inc(1);
     }
@@ -139,10 +137,9 @@ pub fn convert_list_of_tuples_to_hashmap(
         .extend(
             freq_map
                 .iter()
-                .map(|(k, v)| (k.to_string(), -(*v as f64 / number_of_nodes).log2())),
+                .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
         );
 
-    // println!("FREQ:{freq_map:?}");
     (closure_map, ic_map)
 }
 

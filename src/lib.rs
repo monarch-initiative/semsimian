@@ -123,14 +123,16 @@ impl RustSemsimian {
         {
             let (this_closure_map, this_ic_map) =
                 convert_list_of_tuples_to_hashmap(&self.spo, &self.predicates);
-            self.closure_map.insert(
-                predicate_set_key.clone(),
-                this_closure_map.get(&predicate_set_key).unwrap().clone(),
-            );
-            self.ic_map.insert(
-                predicate_set_key.clone(),
-                this_ic_map.get(&predicate_set_key).unwrap().clone(),
-            );
+
+            if let Some(closure_value) = this_closure_map.get(&predicate_set_key) {
+                self.closure_map
+                    .insert(predicate_set_key.clone(), closure_value.clone());
+            }
+
+            if let Some(ic_value) = this_ic_map.get(&predicate_set_key) {
+                self.ic_map
+                    .insert(predicate_set_key.clone(), ic_value.clone());
+            }
         }
     }
 
