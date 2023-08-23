@@ -66,8 +66,6 @@ pub struct RustSemsimian {
 }
 
 impl RustSemsimian {
-    // TODO: this is tied directly to Oak, and should be made more generic
-    // TODO: also, we should support loading "custom" ic
 
     pub fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
@@ -79,35 +77,27 @@ impl RustSemsimian {
             panic!("If no `spo` is provided, `resource_path` is required.");
         }
         if let Some(resource_path) = resource_path {
-            *RESOURCE_PATH.lock().unwrap() = Some(resource_path.to_string().clone());
+            *RESOURCE_PATH.lock().unwrap() = Some(resource_path.to_owned());
         }
-        let spo = match spo {
-            Some(spo) => spo,
-            None => {
-                match get_entailed_edges_for_predicate_list(
-                    resource_path.unwrap(),
-                    predicates.as_ref().unwrap_or(&Vec::new()),
-                ) {
-                    Ok(edges) => edges,
-                    Err(err) => panic!("Resource returned nothing with predicates: {}", err),
-                }
+        let spo = spo.unwrap_or_else(|| {
+            match get_entailed_edges_for_predicate_list(
+                resource_path.unwrap(),
+                predicates.as_ref().unwrap_or(&Vec::new()),
+            ) {
+                Ok(edges) => edges,
+                Err(err) => panic!("Resource returned nothing with predicates: {}", err),
             }
-        };
+        });
 
-        let predicates = match predicates {
-            Some(predicates) => Some(predicates),
-            None => {
-                let mut unique_predicates = HashSet::new();
-                for (_, predicate, _) in &spo {
-                    unique_predicates.insert(predicate.to_owned());
-                }
-                Some(unique_predicates.into_iter().collect())
-            }
-        };
+        let predicates = predicates.unwrap_or_else(|| {
+            let mut unique_predicates = HashSet::new();
+            unique_predicates.extend(spo.iter().map(|(_, predicate, _)| predicate.to_owned()));
+            unique_predicates.into_iter().collect()
+        });
 
         RustSemsimian {
             spo,
-            predicates,
+            predicates: Some(predicates),
             pairwise_similarity_attributes,
             ic_map: HashMap::new(),
             closure_map: HashMap::new(),
@@ -161,12 +151,16 @@ impl RustSemsimian {
     }
 
     pub fn jaccard_similarity(&self, term1: &str, term2: &str) -> f64 {
-        let apple_set = expand_term_using_closure(term1, &self.closure_map, &self.predicates);
-        let fruit_set = expand_term_using_closure(term2, &self.closure_map, &self.predicates);
-
-        let intersection = apple_set.intersection(&fruit_set).count() as f64;
-        let union = apple_set.union(&fruit_set).count() as f64;
-        intersection / union
+        let termset_1 = expand_term_using_closure(term1, &self.closure_map, &self.predicates)
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let termset_2 = expand_term_using_closure(term2, &self.closure_map, &self.predicates)
+            .into_iter()
+            .collect::<HashSet<_>>();
+    
+        let intersection = termset_1.intersection(&termset_2).count() as f64;
+        let union = termset_1.len() as f64 + termset_2.len() as f64 - intersection;
+        intersection / union as f64
     }
 
     pub fn resnik_similarity(&self, term1: &str, term2: &str) -> (HashSet<String>, f64) {
