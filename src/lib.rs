@@ -194,44 +194,45 @@ impl RustSemsimian {
             "Building (all subjects X all objects) pairwise similarity:",
         );
 
-        let similarity_map: SimilarityMap = subject_terms
-            .par_iter() // parallelize computations
-            .map(|subject| {
-                let mut subject_similarities: HashMap<
-                    TermID,
-                    (Jaccard, Resnik, Phenodigm, Cosine, MostInformativeAncestors),
-                > = HashMap::new();
-                for object in object_terms.iter() {
-                    let self_read = self_shared.read().unwrap();
-                    let jaccard_similarity = self_read.jaccard_similarity(subject, object);
-                    let (ancestor_id, ancestor_information_content) =
-                        self_read.resnik_similarity(subject, object);
-                    let cosine_similarity = match !self_read.embeddings.is_empty() {
-                        true => self_read.cosine_similarity(subject, object, &self_read.embeddings),
-                        false => std::f64::NAN,
-                    };
+        let mut similarity_map: SimilarityMap = HashMap::new();
 
-                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
-                        && minimum_resnik_threshold
-                            .map_or(true, |t| ancestor_information_content > t)
-                    {
-                        subject_similarities.insert(
-                            object.clone(),
-                            (
-                                jaccard_similarity,
-                                ancestor_information_content,
-                                (ancestor_information_content * jaccard_similarity).sqrt(),
-                                cosine_similarity,
-                                ancestor_id,
-                            ),
-                        );
-                    }
+        for subject in subject_terms.iter() {
+            let mut subject_similarities: HashMap<
+                TermID,
+                (Jaccard, Resnik, Phenodigm, Cosine, MostInformativeAncestors),
+            > = HashMap::new();
 
-                    pb.inc(1);
+            for object in object_terms.iter() {
+                let self_read = self_shared.read().unwrap();
+                let jaccard_similarity = self_read.jaccard_similarity(subject, object);
+                let (ancestor_id, ancestor_information_content) =
+                    self_read.resnik_similarity(subject, object);
+                let cosine_similarity = match !self_read.embeddings.is_empty() {
+                    true => self_read.cosine_similarity(subject, object, &self_read.embeddings),
+                    false => std::f64::NAN,
+                };
+
+                if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
+                    && minimum_resnik_threshold.map_or(true, |t| ancestor_information_content > t)
+                {
+                    subject_similarities.insert(
+                        object.clone(),
+                        (
+                            jaccard_similarity,
+                            ancestor_information_content,
+                            (ancestor_information_content * jaccard_similarity).sqrt(),
+                            cosine_similarity,
+                            ancestor_id,
+                        ),
+                    );
                 }
-                (subject.clone(), subject_similarities)
-            })
-            .collect();
+
+                pb.inc(1);
+            }
+
+            similarity_map.insert(subject.clone(), subject_similarities);
+        }
+
         pb.finish_with_message("done");
         similarity_map
     }
