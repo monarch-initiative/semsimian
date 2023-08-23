@@ -42,7 +42,7 @@ pub fn get_entailed_edges_for_predicate_list(
 
 pub fn get_labels(
     path: &str,
-    terms: &Vec<TermID>,
+    terms: &[TermID],
 ) -> Result<HashMap<TermID, String>, rusqlite::Error> {
     let table_name = "statements";
     let joined_terms = format!("'{}'", terms.join("', '"));
