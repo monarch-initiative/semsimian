@@ -360,29 +360,15 @@ pub fn get_best_score(
     subject_best_matches: &BTreeInBTree,
     object_best_matches: &BTreeInBTree,
 ) -> f64 {
-    let mut max_score = f64::NEG_INFINITY;
+    let max_score = [subject_best_matches, object_best_matches]
+        .iter()
+        .flat_map(|matches| matches.values())
+        .filter_map(|matches| matches.get("score"))
+        .filter_map(|score| score.parse::<f64>().ok())
+        .fold(f64::NEG_INFINITY, |max_score, score_value| {
+            max_score.max(score_value)
+        });
 
-    // Iterate over subject_best_matches
-    for matches in subject_best_matches.values() {
-        if let Some(score) = matches.get("score") {
-            if let Ok(score_value) = score.parse::<f64>() {
-                if score_value > max_score {
-                    max_score = score_value;
-                }
-            }
-        }
-    }
-
-    // Iterate over object_best_matches
-    for matches in object_best_matches.values() {
-        if let Some(score) = matches.get("score") {
-            if let Ok(score_value) = score.parse::<f64>() {
-                if score_value > max_score {
-                    max_score = score_value;
-                }
-            }
-        }
-    }
     max_score
 }
 
