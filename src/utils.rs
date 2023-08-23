@@ -8,7 +8,8 @@ use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
 use crate::SimilarityMap;
-
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
@@ -247,20 +248,23 @@ pub fn get_termset_vector(
     terms: &HashSet<String>,
     term_label_hashmap: &HashMap<String, String>,
 ) -> Vec<BTreeInBTree> {
-    term_label_hashmap
+    let mut termset_vector = Vec::new();
+
+    for (key, value) in term_label_hashmap
         .iter()
         .filter(|(key, _)| terms.contains(*key))
-        .map(|(key, value)| {
-            let mut inner_btreemap = BTreeMap::new();
-            inner_btreemap.insert("id".to_string(), key.clone());
-            inner_btreemap.insert("label".to_string(), value.clone());
+    {
+        let mut inner_btreemap = BTreeMap::new();
+        inner_btreemap.insert("id".to_string(), key.clone());
+        inner_btreemap.insert("label".to_string(), value.clone());
 
-            let mut outer_btreemap = BTreeMap::new();
-            outer_btreemap.insert(key.clone(), inner_btreemap);
+        let mut outer_btreemap = BTreeMap::new();
+        outer_btreemap.insert(key.clone(), inner_btreemap);
 
-            outer_btreemap
-        })
-        .collect()
+        termset_vector.push(outer_btreemap);
+    }
+
+    termset_vector
 }
 
 pub fn get_similarity_map(
@@ -295,9 +299,10 @@ pub fn get_best_matches(
     term_label_map: &HashMap<String, String>,
     metric: &str,
 ) -> (BTreeInBTree, BTreeInBTree) {
-    let mut best_matches = BTreeMap::new();
-    let mut best_matches_similarity_map = BTreeMap::new();
-    for term in termset {
+    let best_matches = Arc::new(Mutex::new(BTreeMap::new()));
+    let best_matches_similarity_map = Arc::new(Mutex::new(BTreeMap::new()));
+
+    termset.par_iter().for_each(|term| {
         let term_id = term.keys().next().unwrap();
         let term_label = &term[term_id]["label"];
 
@@ -306,6 +311,7 @@ pub fn get_best_matches(
                 .iter()
                 .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(v2).unwrap())
                 .unwrap();
+
             let mut similarity_map = get_similarity_map(term_id, best_match);
 
             let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
@@ -333,12 +339,21 @@ pub fn get_best_matches(
             best_matches_value.insert("match_target_label".to_string(), match_target_label);
             best_matches_value.insert("score".to_string(), score);
 
-            best_matches.insert(best_matches_key.clone(), best_matches_value);
-            best_matches_similarity_map.insert(best_matches_key, similarity_map);
-        }
-    }
+            let mut best_matches_guard = best_matches.lock().unwrap();
+            best_matches_guard.insert(best_matches_key.clone(), best_matches_value);
 
-    (best_matches, best_matches_similarity_map)
+            let mut best_matches_similarity_map_guard = best_matches_similarity_map.lock().unwrap();
+            best_matches_similarity_map_guard.insert(best_matches_key, similarity_map);
+        }
+    });
+
+    let best_matches_guard = Arc::try_unwrap(best_matches).unwrap().into_inner().unwrap();
+    let best_matches_similarity_map_guard = Arc::try_unwrap(best_matches_similarity_map)
+        .unwrap()
+        .into_inner()
+        .unwrap();
+
+    (best_matches_guard, best_matches_similarity_map_guard)
 }
 
 pub fn get_best_score(

@@ -6,7 +6,7 @@ use crate::{
     utils::expand_term_using_closure, utils::find_embedding_index, utils::predicate_set_to_key,
 };
 use ordered_float::OrderedFloat;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 pub fn calculate_semantic_jaccard_similarity(
@@ -65,27 +65,45 @@ pub fn calculate_term_pairwise_information_content(
     // it updates the maximum IC value. Thus, at the end of the iterations,
     // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
     // representing the best match between entity1 and entity2.
-    let entity1_to_entity2_sum_resnik_sim: f64 = entity1
-        .par_iter()
-        .map(|e1_term| {
-            entity2
-                .par_iter()
-                .map(|e2_term| {
-                    calculate_max_information_content(
-                        closure_map,
-                        ic_map,
-                        e1_term,
-                        e2_term,
-                        predicates,
-                    )
-                })
-                .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| {
-                    ic1.partial_cmp(ic2).unwrap()
-                })
-                .map(|(_max_ic_ancestors, ic)| ic)
-                .unwrap_or(0.0)
-        })
-        .sum();
+
+    // let entity1_to_entity2_sum_resnik_sim: f64 = entity1
+    //     .par_iter()
+    //     .map(|e1_term| {
+    //         entity2
+    //             .par_iter()
+    //             .map(|e2_term| {
+    //                 calculate_max_information_content(
+    //                     closure_map,
+    //                     ic_map,
+    //                     e1_term,
+    //                     e2_term,
+    //                     predicates,
+    //                 )
+    //             })
+    //             .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| {
+    //                 ic1.partial_cmp(ic2).unwrap()
+    //             })
+    //             .map(|(_max_ic_ancestors, ic)| ic)
+    //             .unwrap_or(0.0)
+    //     })
+    //     .sum();
+
+    let mut entity1_to_entity2_sum_resnik_sim = 0.0;
+
+    for e1_term in entity1.iter() {
+        let max_ic = entity2
+            .iter()
+            .map(|e2_term| {
+                calculate_max_information_content(closure_map, ic_map, e1_term, e2_term, predicates)
+            })
+            .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| {
+                ic1.partial_cmp(ic2).unwrap()
+            })
+            .map(|(_max_ic_ancestors, ic)| ic)
+            .unwrap_or(0.0);
+
+        entity1_to_entity2_sum_resnik_sim += max_ic;
+    }
 
     // The final result will be the average Resnik similarity score between the two sets
     entity1_to_entity2_sum_resnik_sim / entity1.len() as f64

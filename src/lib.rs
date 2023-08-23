@@ -386,25 +386,23 @@ impl RustSemsimian {
         let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
 
-        let mut all_by_all_object_perspective: SimilarityMap = HashMap::new();
-
+        let mut all_by_all_object_perspective: SimilarityMap =
+            HashMap::with_capacity(all_by_all.len());
         for (key1, value1) in all_by_all.iter() {
             for (key2, value2) in value1.iter() {
-                if !all_by_all_object_perspective.contains_key(key2.as_str()) {
-                    all_by_all_object_perspective.insert(key2.to_owned(), HashMap::new());
-                }
                 all_by_all_object_perspective
-                    .get_mut(key2.as_str())
-                    .unwrap()
+                    .entry(key2.to_owned())
+                    .or_insert_with(HashMap::new)
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
         let db_path = RESOURCE_PATH.lock().unwrap();
-        let all_terms = subject_terms
-            .union(object_terms)
+        let all_terms: Vec<String> = subject_terms
+            .iter()
+            .chain(object_terms.iter())
             .cloned()
-            .collect::<Vec<String>>();
-        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), all_terms).unwrap();
+            .collect();
+        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(subject_terms, &term_label_map);
