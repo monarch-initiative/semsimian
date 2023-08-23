@@ -3,7 +3,7 @@ use semsimian::{Predicate, RustSemsimian, TermID};
 
 #[test]
 #[cfg_attr(feature = "ci", ignore)]
-fn test_termset_pairwise_similarity_2() {
+fn test_termset_pairwise_similarity() {
     let mut db_path = PathBuf::new();
     if let Some(home) = std::env::var_os("HOME") {
         db_path.push(home);
