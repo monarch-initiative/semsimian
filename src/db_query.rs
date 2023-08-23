@@ -101,7 +101,7 @@ mod tests {
         let db = &DB_PATH;
         let expected_result: HashMap<String, String> =
             HashMap::from([("GO:0099568".to_string(), "cytoplasmic region".to_string())]);
-        let result = get_labels(db, &vec!["GO:0099568".to_string()]);
+        let result = get_labels(db, &["GO:0099568".to_string()]);
         assert_eq!(result.unwrap(), expected_result);
     }
 }
