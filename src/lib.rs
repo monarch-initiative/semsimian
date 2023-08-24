@@ -66,7 +66,6 @@ pub struct RustSemsimian {
 }
 
 impl RustSemsimian {
-
     pub fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<Predicate>>,
@@ -157,7 +156,7 @@ impl RustSemsimian {
         let termset_2 = expand_term_using_closure(term2, &self.closure_map, &self.predicates)
             .into_iter()
             .collect::<HashSet<_>>();
-    
+
         let intersection = termset_1.intersection(&termset_2).count() as f64;
         let union = termset_1.len() as f64 + termset_2.len() as f64 - intersection;
         intersection / union as f64

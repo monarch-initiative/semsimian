@@ -42,31 +42,31 @@ pub fn predicate_set_to_key(predicates: &Option<Vec<Predicate>>) -> PredicateSet
 }
 
 pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
-    let mut result = HashMap::new();
-    for (idx, item) in set1.iter().enumerate() {
-        result.insert(idx as i32 + 1, String::from(item));
-    }
-    result
+    set1.iter()
+        .enumerate()
+        .map(|(idx, item)| (idx as i32 + 1, item.clone()))
+        .collect()
 }
 
 pub fn numericize_sets(
     set1: &HashSet<String>,
     set2: &HashSet<String>,
 ) -> (HashSet<i32>, HashSet<i32>, HashMap<i32, String>) {
-    let mut union_set = set1.clone();
-    union_set.extend(set2.clone());
+    let union_set: HashSet<_> = set1.union(set2).cloned().collect();
     let union_set_hashmap = convert_set_to_hashmap(&union_set);
-    let mut num_set1 = HashSet::new();
-    let mut num_set2 = HashSet::new();
 
-    for (k, v) in union_set_hashmap.iter() {
-        if set1.contains(v) {
-            num_set1.insert(*k);
-        }
-        if set2.contains(v) {
-            num_set2.insert(*k);
-        }
-    }
+    let num_set1: HashSet<_> = union_set_hashmap
+        .iter()
+        .filter(|(_, v)| set1.contains(*v))
+        .map(|(k, _)| *k)
+        .collect();
+
+    let num_set2: HashSet<_> = union_set_hashmap
+        .iter()
+        .filter(|(_, v)| set2.contains(*v))
+        .map(|(k, _)| *k)
+        .collect();
+
     (num_set1, num_set2, union_set_hashmap)
 }
 
@@ -75,17 +75,28 @@ pub fn _stringify_sets_using_map(
     set2: &HashSet<i32>,
     map: &HashMap<i32, String>,
 ) -> (HashSet<String>, HashSet<String>) {
-    let mut str_set1 = HashSet::new();
-    let mut str_set2 = HashSet::new();
+    let str_set1: HashSet<_> = map
+        .iter()
+        .filter_map(|(k, v)| {
+            if set1.contains(k) {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
 
-    for (k, v) in map.iter() {
-        if set1.contains(k) {
-            str_set1.insert(v.clone());
-        }
-        if set2.contains(k) {
-            str_set2.insert(v.clone());
-        }
-    }
+    let str_set2: HashSet<_> = map
+        .iter()
+        .filter_map(|(k, v)| {
+            if set2.contains(k) {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
     (str_set1, str_set2)
 }
 
@@ -245,20 +256,25 @@ pub fn get_termset_vector(
     terms: &HashSet<String>,
     term_label_hashmap: &HashMap<String, String>,
 ) -> Vec<BTreeInBTree> {
-    let mut termset_vector = Vec::new();
+    let filtered_keys: Vec<&String> = term_label_hashmap
+        .keys()
+        .filter(|key| terms.contains(*key))
+        .collect();
 
-    for (key, value) in term_label_hashmap
-        .iter()
-        .filter(|(key, _)| terms.contains(*key))
-    {
-        let mut inner_btreemap = BTreeMap::new();
-        inner_btreemap.insert("id".to_string(), key.clone());
-        inner_btreemap.insert("label".to_string(), value.clone());
+    let mut termset_vector = Vec::with_capacity(filtered_keys.len());
 
-        let mut outer_btreemap = BTreeMap::new();
-        outer_btreemap.insert(key.clone(), inner_btreemap);
+    for key in filtered_keys {
+        if let Some(value) = term_label_hashmap.get(key) {
+            let inner_btreemap = BTreeMap::from_iter(vec![
+                ("id".to_string(), key.clone()),
+                ("label".to_string(), value.clone()),
+            ]);
 
-        termset_vector.push(outer_btreemap);
+            let mut outer_btreemap = BTreeMap::new();
+            outer_btreemap.insert(key.clone(), inner_btreemap);
+
+            termset_vector.push(outer_btreemap);
+        }
     }
 
     termset_vector
@@ -278,10 +294,10 @@ pub fn get_similarity_map(
         similarity_map.insert("phenodigm_score".to_string(), value.2.to_string());
         similarity_map.insert("cosine_similarity".to_string(), value.3.to_string());
         similarity_map.insert("subject_id".to_string(), term_id.to_string());
-        similarity_map.insert("object_id".to_string(), key.to_string());
+        similarity_map.insert("object_id".to_string(), key.clone());
 
         if let Some(ancestor_id) = value.4.iter().next() {
-            similarity_map.insert("ancestor_id".to_string(), ancestor_id.to_string());
+            similarity_map.insert("ancestor_id".to_string(), ancestor_id.clone());
         }
     } else {
         println!("The HashMap is empty.");

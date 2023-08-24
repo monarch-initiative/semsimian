@@ -30,7 +30,7 @@ pub fn calculate_semantic_jaccard_similarity(
 pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
     let intersection = set1.intersection(set2).count();
-    let union_measure = set1.union(set2).count();
+    let union_measure = set1.len() + set2.len() - intersection;
 
     intersection as f64 / union_measure as f64
 }
@@ -38,7 +38,7 @@ pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<S
 pub fn calculate_jaccard_similarity(set1: &HashSet<i32>, set2: &HashSet<i32>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
     let intersection = set1.intersection(set2).count();
-    let union_measure = set1.union(set2).count();
+    let union_measure = set1.len() + set2.len() - intersection;
 
     intersection as f64 / union_measure as f64
 }
@@ -47,7 +47,7 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
     // Returns Inomration Content (IC) for entities.
     let (curie, max_ic) = map
         .into_iter()
-        .max_by_key(|&(_, v)| OrderedFloat(v.abs()))
+        .max_by_key(|&(_, v)| OrderedFloat::from(v.abs()))
         .unwrap();
     (curie, max_ic)
 }
@@ -64,25 +64,24 @@ pub fn calculate_term_pairwise_information_content(
     // it updates the maximum IC value. Thus, at the end of the iterations,
     // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
     // representing the best match between entity1 and entity2.
-    let mut entity1_to_entity2_sum_resnik_sim = 0.0;
+    let entity1_len = entity1.len() as f64;
 
-    for e1_term in entity1.iter() {
-        let max_ic = entity2
-            .iter()
-            .map(|e2_term| {
-                calculate_max_information_content(closure_map, ic_map, e1_term, e2_term, predicates)
-            })
-            .max_by(|(_max_ic_ancestors1, ic1), (_max_ic_ancestors2, ic2)| {
-                ic1.partial_cmp(ic2).unwrap()
-            })
-            .map(|(_max_ic_ancestors, ic)| ic)
-            .unwrap_or(0.0);
+    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, e1_term| {
+        let max_ic = entity2.iter().fold(0.0, |max_ic, e2_term| {
+            let (_max_ic_ancestors1, ic) = calculate_max_information_content(
+                closure_map,
+                ic_map,
+                e1_term,
+                e2_term,
+                predicates,
+            );
+            f64::max(max_ic, ic)
+        });
 
-        entity1_to_entity2_sum_resnik_sim += max_ic;
-    }
+        sum + max_ic
+    });
 
-    // The final result will be the average Resnik similarity score between the two sets
-    entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
+    entity1_to_entity2_sum_resnik_sim / entity1_len
 }
 
 pub fn calculate_average_termset_information_content(
@@ -114,7 +113,7 @@ pub fn calculate_max_information_content(
     entity1: &str,
     entity2: &str,
     predicates: &Option<Vec<Predicate>>,
-) -> (HashSet<TermID>, f64) {
+) -> (HashSet<String>, f64) {
     // Code to calculate max IC and all ancestors that correspond to the IC.
     // The reason a HashSet<TermID> is returned instead of just TermID is
     // explained through the example used for the test in lib.rs named
@@ -123,33 +122,32 @@ pub fn calculate_max_information_content(
     // This during the execution of this test. Each time it runs, it randomly
     // picks on or the other. This is expected in a real-world scenario
     // and hence we return a set of all ancestors with the max resnik score rather than one.
-    let filtered_common_ancestors: Vec<String> =
-        common_ancestors(closure_map, entity1, entity2, predicates);
-
+    let filtered_common_ancestors = common_ancestors(closure_map, entity1, entity2, predicates);
     let predicate_set_key = predicate_set_to_key(predicates);
 
-    // for each member of filtered_common_ancestors, find the entry for it in ic_map
-    let mut max_ic: f64 = 0.0;
-    // let mut mica: Option<TermID> = None;
-    let mut ancestor_ic_map = HashMap::new();
-    for ancestor in filtered_common_ancestors.iter() {
-        if let Some(ic) = ic_map
-            .get(&predicate_set_key)
-            .expect("Finding ancestor in ic map")
-            .get(ancestor)
-        {
-            if *ic > max_ic {
-                max_ic = *ic;
+    let (max_ic_ancestors, max_ic) = filtered_common_ancestors.into_iter().fold(
+        (HashSet::new(), 0.0),
+        |(mut max_ic_ancestors, max_ic), ancestor| {
+            if let Some(ic) = ic_map
+                .get(&predicate_set_key)
+                .and_then(|ic_map| ic_map.get(&ancestor))
+            {
+                if *ic > max_ic {
+                    max_ic_ancestors.clear();
+                    max_ic_ancestors.insert(ancestor.clone());
+                    (max_ic_ancestors, *ic)
+                } else if *ic == max_ic {
+                    max_ic_ancestors.insert(ancestor.clone());
+                    (max_ic_ancestors, max_ic)
+                } else {
+                    (max_ic_ancestors, max_ic)
+                }
+            } else {
+                (max_ic_ancestors, max_ic)
             }
-            ancestor_ic_map.insert(ancestor.clone(), *ic);
-        }
-    }
-    // filter out only those ancestors that have the maximum IC value and return them as a vector
-    let max_ic_ancestors = ancestor_ic_map
-        .into_iter()
-        .filter(|(_, ic)| *ic == max_ic)
-        .map(|(anc, _)| anc)
-        .collect();
+        },
+    );
+
     (max_ic_ancestors, max_ic)
 }
 
@@ -174,8 +172,9 @@ fn common_ancestors(
     let entity2_closure = expand_term_using_closure(entity2, closure_map, predicates);
 
     entity1_closure
-        .into_iter()
-        .filter(|ancestor| entity2_closure.contains(ancestor))
+        .iter()
+        .filter(|ancestor| entity2_closure.contains(*ancestor))
+        .cloned()
         .collect()
 }
 
@@ -194,11 +193,11 @@ pub fn calculate_cosine_similarity_for_nodes(
             Some(calculate_cosine_similarity_for_embeddings(embed_1, embed_2))
         }
         _ => {
-            if find_embedding_index(embeddings, term1).is_none() {
-                eprintln!("Embedding for term '{term1}' not found");
+            if let None = find_embedding_index(embeddings, term1) {
+                eprintln!("Embedding for term '{}' not found", term1);
             }
-            if find_embedding_index(embeddings, term2).is_none() {
-                eprintln!("Embedding for term '{term2}' not found");
+            if let None = find_embedding_index(embeddings, term2) {
+                eprintln!("Embedding for term '{}' not found", term2);
             }
             None
         }
@@ -206,13 +205,19 @@ pub fn calculate_cosine_similarity_for_nodes(
 }
 
 fn calculate_cosine_similarity_for_embeddings(embed_1: &[f64], embed_2: &[f64]) -> f64 {
-    let dot_product = embed_1
-        .iter()
-        .zip(embed_2.iter())
-        .map(|(&a, &b)| a * b)
-        .sum::<f64>();
-    let norm_embed_1 = (embed_1.iter().map(|&a| a * a).sum::<f64>()).sqrt();
-    let norm_embed_2 = (embed_2.iter().map(|&a| a * a).sum::<f64>()).sqrt();
+    let (dot_product, norm_embed_1, norm_embed_2) = embed_1.iter().zip(embed_2.iter()).fold(
+        (0.0, 0.0, 0.0),
+        |(dot_product, norm_embed_1, norm_embed_2), (&a, &b)| {
+            (
+                dot_product + a * b,
+                norm_embed_1 + a * a,
+                norm_embed_2 + b * b,
+            )
+        },
+    );
+
+    let norm_embed_1 = norm_embed_1.sqrt();
+    let norm_embed_2 = norm_embed_2.sqrt();
 
     if norm_embed_1 == 0.0 || norm_embed_2 == 0.0 {
         return 0.0;
