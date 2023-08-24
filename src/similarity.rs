@@ -193,10 +193,10 @@ pub fn calculate_cosine_similarity_for_nodes(
             Some(calculate_cosine_similarity_for_embeddings(embed_1, embed_2))
         }
         _ => {
-            if let None = find_embedding_index(embeddings, term1) {
+            if find_embedding_index(embeddings, term1).is_none() {
                 eprintln!("Embedding for term '{}' not found", term1);
             }
-            if let None = find_embedding_index(embeddings, term2) {
+            if find_embedding_index(embeddings, term2).is_none() {
                 eprintln!("Embedding for term '{}' not found", term2);
             }
             None

@@ -159,7 +159,7 @@ impl RustSemsimian {
 
         let intersection = termset_1.intersection(&termset_2).count() as f64;
         let union = termset_1.len() as f64 + termset_2.len() as f64 - intersection;
-        intersection / union as f64
+        intersection / union
     }
 
     pub fn resnik_similarity(&self, term1: &str, term2: &str) -> (HashSet<String>, f64) {
