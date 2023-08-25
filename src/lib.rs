@@ -211,7 +211,7 @@ impl RustSemsimian {
                     && minimum_resnik_threshold.map_or(true, |t| ancestor_information_content > t)
                 {
                     subject_similarities.insert(
-                        object.clone(),
+                        object.to_owned(),
                         (
                             jaccard_similarity,
                             ancestor_information_content,
@@ -225,7 +225,7 @@ impl RustSemsimian {
                 pb.inc(1);
             }
 
-            similarity_map.insert(subject.clone(), subject_similarities);
+            similarity_map.insert(subject.to_owned(), subject_similarities);
         }
 
         pb.finish_with_message("done");
