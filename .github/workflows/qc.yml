@@ -57,7 +57,7 @@ jobs:
         # genhtml -o output coverage.lcov
 
         # run python tests
-        pytest python/tests --cov-report xml --cov-report term-missing
+        pytest python/tests --cov-report xml --cov-report term-missing --capture=no
 
     # - name: Upload coverage to Codecov
     #   uses: codecov/codecov-action@v3.1.1
