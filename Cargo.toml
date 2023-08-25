@@ -29,4 +29,9 @@ lto = true
 debug = true
 
 [dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
 flamegraph = "0.6.3"
+
+[[bench]]
+name = "termset_pairwise_similarity_benchmark"
+harness = false
