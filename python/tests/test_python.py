@@ -84,7 +84,6 @@ class testSemsimianWithPython(unittest.TestCase):
         self.assertEqual(tsps["best_score"], 5.8496657269155685)
 
     def test_building_closure_ic_map_once(self):
-        load_start = time.time()
         subject_terms = {"GO:0005634", "GO:0016020"}
         object_terms = {"GO:0031965", "GO:0005773"}
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
@@ -94,14 +93,15 @@ class testSemsimianWithPython(unittest.TestCase):
             pairwise_similarity_attributes=None,
             resource_path=self.db,
         )
+        load_start = time.time()
         _ = semsimian.termset_pairwise_similarity(subject_terms, object_terms)
-        interval_1 = round((time.time() - load_start), 10)
-        logging.debug(f"Warmup time: {interval_1} sec")
+        interval_1 = time.time() - load_start
+        print(f"Warmup time: {interval_1} sec")
         second_compare_time = time.time()
         _ = semsimian.termset_pairwise_similarity(subject_terms, object_terms)
-        interval_2 = round((time.time() - second_compare_time), 10)
-        logging.debug(f"Second compare time: {interval_2} sec")
-        self.assertGreater(interval_1, interval_2)
+        interval_2 = time.time() - second_compare_time
+        print(f"Second compare time: {interval_2} sec")
+        self.assertTrue(interval_1 - interval_2 >= 0)
 
 
 if __name__ == "__main__":

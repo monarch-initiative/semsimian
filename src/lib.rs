@@ -66,9 +66,6 @@ pub struct RustSemsimian {
 }
 
 impl RustSemsimian {
-    // TODO: this is tied directly to Oak, and should be made more generic
-    // TODO: also, we should support loading "custom" ic
-
     pub fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<Predicate>>,
@@ -79,35 +76,27 @@ impl RustSemsimian {
             panic!("If no `spo` is provided, `resource_path` is required.");
         }
         if let Some(resource_path) = resource_path {
-            *RESOURCE_PATH.lock().unwrap() = Some(resource_path.to_string().clone());
+            *RESOURCE_PATH.lock().unwrap() = Some(resource_path.to_owned());
         }
-        let spo = match spo {
-            Some(spo) => spo,
-            None => {
-                match get_entailed_edges_for_predicate_list(
-                    resource_path.unwrap(),
-                    predicates.as_ref().unwrap_or(&Vec::new()),
-                ) {
-                    Ok(edges) => edges,
-                    Err(err) => panic!("Resource returned nothing with predicates: {}", err),
-                }
+        let spo = spo.unwrap_or_else(|| {
+            match get_entailed_edges_for_predicate_list(
+                resource_path.unwrap(),
+                predicates.as_ref().unwrap_or(&Vec::new()),
+            ) {
+                Ok(edges) => edges,
+                Err(err) => panic!("Resource returned nothing with predicates: {}", err),
             }
-        };
+        });
 
-        let predicates = match predicates {
-            Some(predicates) => Some(predicates),
-            None => {
-                let mut unique_predicates = HashSet::new();
-                for (_, predicate, _) in &spo {
-                    unique_predicates.insert(predicate.to_owned());
-                }
-                Some(unique_predicates.into_iter().collect())
-            }
-        };
+        let predicates = predicates.unwrap_or_else(|| {
+            let mut unique_predicates = HashSet::new();
+            unique_predicates.extend(spo.iter().map(|(_, predicate, _)| predicate.to_owned()));
+            unique_predicates.into_iter().collect()
+        });
 
         RustSemsimian {
             spo,
-            predicates,
+            predicates: Some(predicates),
             pairwise_similarity_attributes,
             ic_map: HashMap::new(),
             closure_map: HashMap::new(),
@@ -123,14 +112,16 @@ impl RustSemsimian {
         {
             let (this_closure_map, this_ic_map) =
                 convert_list_of_tuples_to_hashmap(&self.spo, &self.predicates);
-            self.closure_map.insert(
-                predicate_set_key.clone(),
-                this_closure_map.get(&predicate_set_key).unwrap().clone(),
-            );
-            self.ic_map.insert(
-                predicate_set_key.clone(),
-                this_ic_map.get(&predicate_set_key).unwrap().clone(),
-            );
+
+            if let Some(closure_value) = this_closure_map.get(&predicate_set_key) {
+                self.closure_map
+                    .insert(predicate_set_key.clone(), closure_value.clone());
+            }
+
+            if let Some(ic_value) = this_ic_map.get(&predicate_set_key) {
+                self.ic_map
+                    .insert(predicate_set_key.clone(), ic_value.clone());
+            }
         }
     }
 
@@ -159,11 +150,15 @@ impl RustSemsimian {
     }
 
     pub fn jaccard_similarity(&self, term1: &str, term2: &str) -> f64 {
-        let apple_set = expand_term_using_closure(term1, &self.closure_map, &self.predicates);
-        let fruit_set = expand_term_using_closure(term2, &self.closure_map, &self.predicates);
+        let termset_1 = expand_term_using_closure(term1, &self.closure_map, &self.predicates)
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let termset_2 = expand_term_using_closure(term2, &self.closure_map, &self.predicates)
+            .into_iter()
+            .collect::<HashSet<_>>();
 
-        let intersection = apple_set.intersection(&fruit_set).count() as f64;
-        let union = apple_set.union(&fruit_set).count() as f64;
+        let intersection = termset_1.intersection(&termset_2).count() as f64;
+        let union = termset_1.len() as f64 + termset_2.len() as f64 - intersection;
         intersection / union
     }
 
@@ -194,44 +189,45 @@ impl RustSemsimian {
             "Building (all subjects X all objects) pairwise similarity:",
         );
 
-        let similarity_map: SimilarityMap = subject_terms
-            .par_iter() // parallelize computations
-            .map(|subject| {
-                let mut subject_similarities: HashMap<
-                    TermID,
-                    (Jaccard, Resnik, Phenodigm, Cosine, MostInformativeAncestors),
-                > = HashMap::new();
-                for object in object_terms.iter() {
-                    let self_read = self_shared.read().unwrap();
-                    let jaccard_similarity = self_read.jaccard_similarity(subject, object);
-                    let (ancestor_id, ancestor_information_content) =
-                        self_read.resnik_similarity(subject, object);
-                    let cosine_similarity = match !self_read.embeddings.is_empty() {
-                        true => self_read.cosine_similarity(subject, object, &self_read.embeddings),
-                        false => std::f64::NAN,
-                    };
+        let mut similarity_map: SimilarityMap = HashMap::new();
 
-                    if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
-                        && minimum_resnik_threshold
-                            .map_or(true, |t| ancestor_information_content > t)
-                    {
-                        subject_similarities.insert(
-                            object.clone(),
-                            (
-                                jaccard_similarity,
-                                ancestor_information_content,
-                                (ancestor_information_content * jaccard_similarity).sqrt(),
-                                cosine_similarity,
-                                ancestor_id,
-                            ),
-                        );
-                    }
+        for subject in subject_terms.iter() {
+            let mut subject_similarities: HashMap<
+                TermID,
+                (Jaccard, Resnik, Phenodigm, Cosine, MostInformativeAncestors),
+            > = HashMap::new();
 
-                    pb.inc(1);
+            for object in object_terms.iter() {
+                let self_read = self_shared.read().unwrap();
+                let jaccard_similarity = self_read.jaccard_similarity(subject, object);
+                let (ancestor_id, ancestor_information_content) =
+                    self_read.resnik_similarity(subject, object);
+                let cosine_similarity = match !self_read.embeddings.is_empty() {
+                    true => self_read.cosine_similarity(subject, object, &self_read.embeddings),
+                    false => std::f64::NAN,
+                };
+
+                if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
+                    && minimum_resnik_threshold.map_or(true, |t| ancestor_information_content > t)
+                {
+                    subject_similarities.insert(
+                        object.clone(),
+                        (
+                            jaccard_similarity,
+                            ancestor_information_content,
+                            (ancestor_information_content * jaccard_similarity).sqrt(),
+                            cosine_similarity,
+                            ancestor_id,
+                        ),
+                    );
                 }
-                (subject.clone(), subject_similarities)
-            })
-            .collect();
+
+                pb.inc(1);
+            }
+
+            similarity_map.insert(subject.clone(), subject_similarities);
+        }
+
         pb.finish_with_message("done");
         similarity_map
     }
@@ -386,25 +382,23 @@ impl RustSemsimian {
         let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
 
-        let mut all_by_all_object_perspective: SimilarityMap = HashMap::new();
-
+        let mut all_by_all_object_perspective: SimilarityMap =
+            HashMap::with_capacity(all_by_all.len());
         for (key1, value1) in all_by_all.iter() {
             for (key2, value2) in value1.iter() {
-                if !all_by_all_object_perspective.contains_key(key2.as_str()) {
-                    all_by_all_object_perspective.insert(key2.to_owned(), HashMap::new());
-                }
                 all_by_all_object_perspective
-                    .get_mut(key2.as_str())
-                    .unwrap()
+                    .entry(key2.to_owned())
+                    .or_insert_with(HashMap::new)
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
         let db_path = RESOURCE_PATH.lock().unwrap();
-        let all_terms = subject_terms
-            .union(object_terms)
+        let all_terms: Vec<String> = subject_terms
+            .iter()
+            .chain(object_terms.iter())
             .cloned()
-            .collect::<Vec<String>>();
-        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), all_terms).unwrap();
+            .collect();
+        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(subject_terms, &term_label_map);
@@ -950,5 +944,89 @@ mod tests {
         let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
         let expected_result = 5.4154243283740175;
         assert_eq!(result.unwrap(), expected_result);
+    }
+}
+
+// ! All local tests that need not be run on github actions.
+#[cfg(test)]
+mod tests_local {
+
+    use super::*;
+    use std::path::PathBuf;
+    use std::time::Instant;
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_termset_pairwise_similarity_2() {
+        let mut db_path = PathBuf::new();
+        if let Some(home) = std::env::var_os("HOME") {
+            db_path.push(home);
+            db_path.push(".data/oaklib/phenio.db");
+        } else {
+            panic!("Failed to get home directory");
+        }
+        // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
+        let db = Some(db_path.to_str().expect("Failed to convert path to string"));
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+            "UPHENO:0000001".to_string(),
+        ]);
+        // Start measuring time
+        let mut start_time = Instant::now();
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        let mut elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for RustSemsimian object generation: {:?}",
+            elapsed_time
+        );
+        start_time = Instant::now();
+
+        rss.update_closure_and_ic_map();
+        elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for closure table and ic_map generation: {:?}",
+            elapsed_time
+        );
+
+        let entity1: HashSet<TermID> = HashSet::from([
+            "MP:0010771".to_string(),
+            "MP:0002169".to_string(),
+            "MP:0005391".to_string(),
+            "MP:0005389".to_string(),
+            "MP:0005367".to_string(),
+        ]);
+        let entity2: HashSet<TermID> = HashSet::from([
+            "HP:0004325".to_string(),
+            "HP:0000093".to_string(),
+            "MP:0006144".to_string(),
+        ]);
+
+        start_time = Instant::now();
+        let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
+        elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for termset_pairwise_similarity: {:?}",
+            elapsed_time
+        );
+
+        start_time = Instant::now();
+
+        rss.update_closure_and_ic_map();
+        elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for second closure and ic_map generation: {:?}",
+            elapsed_time
+        );
+
+        start_time = Instant::now();
+        _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
+        elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for second termset_pairwise_similarity: {:?}",
+            elapsed_time
+        );
     }
 }

@@ -3,3 +3,4 @@
 python/semsimian/semsimian.cpython-39-darwin.so
 .vscode/launch.json
 tests/data/output/*.tsv
+flamegraph.svg

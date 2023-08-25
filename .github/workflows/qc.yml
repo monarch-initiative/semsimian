@@ -49,7 +49,7 @@ jobs:
         # The second provides a plain-text report to the stdout
         # cargo llvm-cov --lcov --output-path coverage.lcov
 
-        cargo llvm-cov
+        cargo llvm-cov --features ci
 
         # Convert the coverage report to more readable html
         
@@ -57,7 +57,7 @@ jobs:
         # genhtml -o output coverage.lcov
 
         # run python tests
-        pytest python/tests --cov-report xml --cov-report term-missing
+        pytest python/tests --cov-report xml --cov-report term-missing --capture=no
 
     # - name: Upload coverage to Codecov
     #   uses: codecov/codecov-action@v3.1.1

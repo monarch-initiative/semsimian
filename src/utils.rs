@@ -8,7 +8,8 @@ use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
 use crate::SimilarityMap;
-
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
@@ -41,31 +42,31 @@ pub fn predicate_set_to_key(predicates: &Option<Vec<Predicate>>) -> PredicateSet
 }
 
 pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
-    let mut result = HashMap::new();
-    for (idx, item) in set1.iter().enumerate() {
-        result.insert(idx as i32 + 1, String::from(item));
-    }
-    result
+    set1.iter()
+        .enumerate()
+        .map(|(idx, item)| (idx as i32 + 1, item.clone()))
+        .collect()
 }
 
 pub fn numericize_sets(
     set1: &HashSet<String>,
     set2: &HashSet<String>,
 ) -> (HashSet<i32>, HashSet<i32>, HashMap<i32, String>) {
-    let mut union_set = set1.clone();
-    union_set.extend(set2.clone());
+    let union_set: HashSet<_> = set1.union(set2).cloned().collect();
     let union_set_hashmap = convert_set_to_hashmap(&union_set);
-    let mut num_set1 = HashSet::new();
-    let mut num_set2 = HashSet::new();
 
-    for (k, v) in union_set_hashmap.iter() {
-        if set1.contains(v) {
-            num_set1.insert(*k);
-        }
-        if set2.contains(v) {
-            num_set2.insert(*k);
-        }
-    }
+    let num_set1: HashSet<_> = union_set_hashmap
+        .iter()
+        .filter(|(_, v)| set1.contains(*v))
+        .map(|(k, _)| *k)
+        .collect();
+
+    let num_set2: HashSet<_> = union_set_hashmap
+        .iter()
+        .filter(|(_, v)| set2.contains(*v))
+        .map(|(k, _)| *k)
+        .collect();
+
     (num_set1, num_set2, union_set_hashmap)
 }
 
@@ -74,17 +75,28 @@ pub fn _stringify_sets_using_map(
     set2: &HashSet<i32>,
     map: &HashMap<i32, String>,
 ) -> (HashSet<String>, HashSet<String>) {
-    let mut str_set1 = HashSet::new();
-    let mut str_set2 = HashSet::new();
+    let str_set1: HashSet<_> = map
+        .iter()
+        .filter_map(|(k, v)| {
+            if set1.contains(k) {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
 
-    for (k, v) in map.iter() {
-        if set1.contains(k) {
-            str_set1.insert(v.clone());
-        }
-        if set2.contains(k) {
-            str_set2.insert(v.clone());
-        }
-    }
+    let str_set2: HashSet<_> = map
+        .iter()
+        .filter_map(|(k, v)| {
+            if set2.contains(k) {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
     (str_set1, str_set2)
 }
 
@@ -92,8 +104,9 @@ pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
     predicates: &Option<Vec<String>>,
 ) -> (ClosureMap, ICMap) {
-    let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-    let mut freq_map: HashMap<String, usize> = HashMap::new();
+    let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> =
+        HashMap::with_capacity(list_of_tuples.len());
+    let mut freq_map: HashMap<String, usize> = HashMap::with_capacity(list_of_tuples.len());
     let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
 
     let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
@@ -109,21 +122,18 @@ pub fn convert_list_of_tuples_to_hashmap(
                 continue;
             }
         }
-
         // ! As per this below, the frequency map gets populated ONLY if the node is an object (o)
         // ! in the (s, p, o). If the node is a subject (s), it does not count towards the frequency.
         // ! Only with this implemented will the results match with `oaklib`'s `sqlite` implementation
         // ! of semantic similarity.
-
-        // *freq_map.entry(s.clone()).or_insert(0) += 1;
         *freq_map.entry(o.clone()).or_insert(0) += 1;
 
         closure_map
             .entry(predicate_set_key.clone())
             .or_insert_with(HashMap::new)
-            .entry(s.clone())
+            .entry(String::from(s))
             .or_insert_with(HashSet::new)
-            .insert(o.clone());
+            .insert(String::from(o));
 
         progress_bar.inc(1);
     }
@@ -138,10 +148,9 @@ pub fn convert_list_of_tuples_to_hashmap(
         .extend(
             freq_map
                 .iter()
-                .map(|(k, v)| (k.to_string(), -(*v as f64 / number_of_nodes).log2())),
+                .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
         );
 
-    // println!("FREQ:{freq_map:?}");
     (closure_map, ic_map)
 }
 
@@ -247,20 +256,28 @@ pub fn get_termset_vector(
     terms: &HashSet<String>,
     term_label_hashmap: &HashMap<String, String>,
 ) -> Vec<BTreeInBTree> {
-    term_label_hashmap
-        .iter()
-        .filter(|(key, _)| terms.contains(*key))
-        .map(|(key, value)| {
-            let mut inner_btreemap = BTreeMap::new();
-            inner_btreemap.insert("id".to_string(), key.clone());
-            inner_btreemap.insert("label".to_string(), value.clone());
+    let filtered_keys: Vec<&String> = term_label_hashmap
+        .keys()
+        .filter(|key| terms.contains(*key))
+        .collect();
+
+    let mut termset_vector = Vec::with_capacity(filtered_keys.len());
+
+    for key in filtered_keys {
+        if let Some(value) = term_label_hashmap.get(key) {
+            let inner_btreemap = BTreeMap::from_iter(vec![
+                ("id".to_string(), key.clone()),
+                ("label".to_string(), value.clone()),
+            ]);
 
             let mut outer_btreemap = BTreeMap::new();
             outer_btreemap.insert(key.clone(), inner_btreemap);
 
-            outer_btreemap
-        })
-        .collect()
+            termset_vector.push(outer_btreemap);
+        }
+    }
+
+    termset_vector
 }
 
 pub fn get_similarity_map(
@@ -277,10 +294,10 @@ pub fn get_similarity_map(
         similarity_map.insert("phenodigm_score".to_string(), value.2.to_string());
         similarity_map.insert("cosine_similarity".to_string(), value.3.to_string());
         similarity_map.insert("subject_id".to_string(), term_id.to_string());
-        similarity_map.insert("object_id".to_string(), key.to_string());
+        similarity_map.insert("object_id".to_string(), key.clone());
 
         if let Some(ancestor_id) = value.4.iter().next() {
-            similarity_map.insert("ancestor_id".to_string(), ancestor_id.to_string());
+            similarity_map.insert("ancestor_id".to_string(), ancestor_id.clone());
         }
     } else {
         println!("The HashMap is empty.");
@@ -295,9 +312,10 @@ pub fn get_best_matches(
     term_label_map: &HashMap<String, String>,
     metric: &str,
 ) -> (BTreeInBTree, BTreeInBTree) {
-    let mut best_matches = BTreeMap::new();
-    let mut best_matches_similarity_map = BTreeMap::new();
-    for term in termset {
+    let best_matches = Arc::new(Mutex::new(BTreeMap::new()));
+    let best_matches_similarity_map = Arc::new(Mutex::new(BTreeMap::new()));
+
+    termset.par_iter().for_each(|term| {
         let term_id = term.keys().next().unwrap();
         let term_label = &term[term_id]["label"];
 
@@ -306,6 +324,7 @@ pub fn get_best_matches(
                 .iter()
                 .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(v2).unwrap())
                 .unwrap();
+
             let mut similarity_map = get_similarity_map(term_id, best_match);
 
             let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
@@ -333,41 +352,36 @@ pub fn get_best_matches(
             best_matches_value.insert("match_target_label".to_string(), match_target_label);
             best_matches_value.insert("score".to_string(), score);
 
-            best_matches.insert(best_matches_key.clone(), best_matches_value);
-            best_matches_similarity_map.insert(best_matches_key, similarity_map);
-        }
-    }
+            let mut best_matches_guard = best_matches.lock().unwrap();
+            best_matches_guard.insert(best_matches_key.clone(), best_matches_value);
 
-    (best_matches, best_matches_similarity_map)
+            let mut best_matches_similarity_map_guard = best_matches_similarity_map.lock().unwrap();
+            best_matches_similarity_map_guard.insert(best_matches_key, similarity_map);
+        }
+    });
+
+    let best_matches_guard = Arc::try_unwrap(best_matches).unwrap().into_inner().unwrap();
+    let best_matches_similarity_map_guard = Arc::try_unwrap(best_matches_similarity_map)
+        .unwrap()
+        .into_inner()
+        .unwrap();
+
+    (best_matches_guard, best_matches_similarity_map_guard)
 }
 
 pub fn get_best_score(
     subject_best_matches: &BTreeInBTree,
     object_best_matches: &BTreeInBTree,
 ) -> f64 {
-    let mut max_score = f64::NEG_INFINITY;
+    let max_score = [subject_best_matches, object_best_matches]
+        .iter()
+        .flat_map(|matches| matches.values())
+        .filter_map(|matches| matches.get("score"))
+        .filter_map(|score| score.parse::<f64>().ok())
+        .fold(f64::NEG_INFINITY, |max_score, score_value| {
+            max_score.max(score_value)
+        });
 
-    // Iterate over subject_best_matches
-    for matches in subject_best_matches.values() {
-        if let Some(score) = matches.get("score") {
-            if let Ok(score_value) = score.parse::<f64>() {
-                if score_value > max_score {
-                    max_score = score_value;
-                }
-            }
-        }
-    }
-
-    // Iterate over object_best_matches
-    for matches in object_best_matches.values() {
-        if let Some(score) = matches.get("score") {
-            if let Ok(score_value) = score.parse::<f64>() {
-                if score_value > max_score {
-                    max_score = score_value;
-                }
-            }
-        }
-    }
     max_score
 }
 
