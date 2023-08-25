@@ -34,7 +34,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         "MP:0006144".to_string(),
     ]));
     
-    c.bench_function("tsps", |b| b.iter(|| {rss.termset_pairwise_similarity(&entity1, &entity2, &None)}).sample_size(10));
+    c.bench_function("tsps", |b| b.iter(|| rss.termset_pairwise_similarity(&entity1, &entity2, &None)));
 
 }
 
