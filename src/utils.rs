@@ -424,7 +424,6 @@ pub fn get_best_matches(
     (best_matches, best_matches_similarity_map)
 }
 
-
 pub fn get_best_score(
     subject_best_matches: &BTreeInBTree,
     object_best_matches: &BTreeInBTree,

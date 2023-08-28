@@ -276,7 +276,7 @@ impl RustSemsimian {
         let mut writer_1 = writer.lock().unwrap();
         writer_1.write_all(column_names_as_str.as_bytes()).unwrap();
         drop(writer_1);
-
+        // TODO: investigate if this par_iter() is necessary or iter() should suffice
         subject_terms
             .par_iter() // parallelize computations
             .for_each(|subject_id| {
