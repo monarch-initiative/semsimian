@@ -38,7 +38,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut bench_grp = c.benchmark_group("tsps_bench_group");
     bench_grp
         .sample_size(10)
-        .measurement_time(Duration::from_secs(30));
+        .measurement_time(Duration::from_secs(5));
     bench_grp.bench_function("tsps", |b| {
         b.iter(|| rss.termset_pairwise_similarity(&entity1, &entity2, &None))
     });
