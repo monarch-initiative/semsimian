@@ -183,13 +183,15 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
     ) -> SimilarityMap {
-        let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
             "Building (all subjects X all objects) pairwise similarity:",
         );
 
         let mut similarity_map: SimilarityMap = HashMap::new();
+
+        // Preload shared data into local variables
+        let embeddings = self.embeddings.clone();
 
         for subject in subject_terms.iter() {
             let mut subject_similarities: HashMap<
@@ -198,12 +200,11 @@ impl RustSemsimian {
             > = HashMap::new();
 
             for object in object_terms.iter() {
-                let self_read = self_shared.read().unwrap();
-                let jaccard_similarity = self_read.jaccard_similarity(subject, object);
+                let jaccard_similarity = self.jaccard_similarity(subject, object);
                 let (ancestor_id, ancestor_information_content) =
-                    self_read.resnik_similarity(subject, object);
-                let cosine_similarity = match !self_read.embeddings.is_empty() {
-                    true => self_read.cosine_similarity(subject, object, &self_read.embeddings),
+                    self.resnik_similarity(subject, object);
+                let cosine_similarity = match !embeddings.is_empty() {
+                    true => self.cosine_similarity(subject, object, &embeddings),
                     false => std::f64::NAN,
                 };
 
@@ -275,7 +276,7 @@ impl RustSemsimian {
         let mut writer_1 = writer.lock().unwrap();
         writer_1.write_all(column_names_as_str.as_bytes()).unwrap();
         drop(writer_1);
-
+        // TODO: investigate if this par_iter() is necessary or iter() should suffice
         subject_terms
             .par_iter() // parallelize computations
             .for_each(|subject_id| {
