@@ -1,4 +1,4 @@
-use std::{path::PathBuf, collections::HashSet, time::Duration};
+use std::{collections::HashSet, path::PathBuf, time::Duration};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use semsimian::{Predicate, RustSemsimian, TermID};
@@ -11,8 +11,10 @@ fn criterion_benchmark(c: &mut Criterion) {
     } else {
         panic!("Failed to get home directory");
     }
-    let db = black_box(Some(db_path.to_str().expect("Failed to convert path to string")));
-    
+    let db = black_box(Some(
+        db_path.to_str().expect("Failed to convert path to string"),
+    ));
+
     let predicates: Option<Vec<Predicate>> = black_box(Some(vec![
         "rdfs:subClassOf".to_string(),
         "BFO:0000050".to_string(),
@@ -34,10 +36,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         "MP:0006144".to_string(),
     ]));
     let mut bench_grp = c.benchmark_group("tsps_bench_group");
-    bench_grp.sample_size(10).measurement_time(Duration::from_secs(30));
-    bench_grp.bench_function("tsps", |b| b.iter(|| rss.termset_pairwise_similarity(&entity1, &entity2, &None)));
+    bench_grp
+        .sample_size(10)
+        .measurement_time(Duration::from_secs(30));
+    bench_grp.bench_function("tsps", |b| {
+        b.iter(|| rss.termset_pairwise_similarity(&entity1, &entity2, &None))
+    });
     bench_grp.finish();
-
 }
 
 criterion_group!(benches, criterion_benchmark);

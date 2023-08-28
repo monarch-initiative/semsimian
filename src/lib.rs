@@ -187,26 +187,27 @@ impl RustSemsimian {
             (subject_terms.len() * object_terms.len()) as u64,
             "Building (all subjects X all objects) pairwise similarity:",
         );
-    
+
         let mut similarity_map: SimilarityMap = HashMap::new();
-    
+
         // Preload shared data into local variables
         let embeddings = self.embeddings.clone();
-    
+
         for subject in subject_terms.iter() {
             let mut subject_similarities: HashMap<
                 TermID,
                 (Jaccard, Resnik, Phenodigm, Cosine, MostInformativeAncestors),
             > = HashMap::new();
-    
+
             for object in object_terms.iter() {
                 let jaccard_similarity = self.jaccard_similarity(subject, object);
-                let (ancestor_id, ancestor_information_content) = self.resnik_similarity(subject, object);
+                let (ancestor_id, ancestor_information_content) =
+                    self.resnik_similarity(subject, object);
                 let cosine_similarity = match !embeddings.is_empty() {
                     true => self.cosine_similarity(subject, object, &embeddings),
                     false => std::f64::NAN,
                 };
-    
+
                 if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
                     && minimum_resnik_threshold.map_or(true, |t| ancestor_information_content > t)
                 {
@@ -221,17 +222,16 @@ impl RustSemsimian {
                         ),
                     );
                 }
-    
+
                 pb.inc(1);
             }
-    
+
             similarity_map.insert(subject.clone(), subject_similarities);
         }
-    
+
         pb.finish_with_message("done");
         similarity_map
     }
-    
 
     pub fn all_by_all_pairwise_similarity_with_output(
         &self,
