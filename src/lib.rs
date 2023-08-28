@@ -183,30 +183,30 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
     ) -> SimilarityMap {
-        let self_shared = Arc::new(RwLock::new(self.clone()));
         let pb = generate_progress_bar_of_length_and_message(
             (subject_terms.len() * object_terms.len()) as u64,
             "Building (all subjects X all objects) pairwise similarity:",
         );
-
+    
         let mut similarity_map: SimilarityMap = HashMap::new();
-
+    
+        // Preload shared data into local variables
+        let embeddings = self.embeddings.clone();
+    
         for subject in subject_terms.iter() {
             let mut subject_similarities: HashMap<
                 TermID,
                 (Jaccard, Resnik, Phenodigm, Cosine, MostInformativeAncestors),
             > = HashMap::new();
-
+    
             for object in object_terms.iter() {
-                let self_read = self_shared.read().unwrap();
-                let jaccard_similarity = self_read.jaccard_similarity(subject, object);
-                let (ancestor_id, ancestor_information_content) =
-                    self_read.resnik_similarity(subject, object);
-                let cosine_similarity = match !self_read.embeddings.is_empty() {
-                    true => self_read.cosine_similarity(subject, object, &self_read.embeddings),
+                let jaccard_similarity = self.jaccard_similarity(subject, object);
+                let (ancestor_id, ancestor_information_content) = self.resnik_similarity(subject, object);
+                let cosine_similarity = match !embeddings.is_empty() {
+                    true => self.cosine_similarity(subject, object, &embeddings),
                     false => std::f64::NAN,
                 };
-
+    
                 if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
                     && minimum_resnik_threshold.map_or(true, |t| ancestor_information_content > t)
                 {
@@ -221,16 +221,17 @@ impl RustSemsimian {
                         ),
                     );
                 }
-
+    
                 pb.inc(1);
             }
-
+    
             similarity_map.insert(subject.clone(), subject_similarities);
         }
-
+    
         pb.finish_with_message("done");
         similarity_map
     }
+    
 
     pub fn all_by_all_pairwise_similarity_with_output(
         &self,
