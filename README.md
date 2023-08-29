@@ -7,6 +7,10 @@ This includes implementation of Jaccard and Resnik similarity of terms in an ont
 as well as a method to calculate the similarity of two sets of terms (so-called
 termset similarity). Other methods will be added in the future.
 
+Semsimian is currently integrated into [OAK](https://github.com/INCATools/ontology-access-kit) and
+the [Monarch app](https://github.com/monarch-initiative/monarch-app) to provide fast semantic 
+similarity calculations.
+
 ## Installation
 
 - Set up your virtual environment of choice.
