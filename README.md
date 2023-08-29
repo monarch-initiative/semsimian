@@ -1,5 +1,12 @@
 # semsimian
 
+Semsimian is a package to provide fast semantic similarity calculations for ontologies. 
+It is a Rust library with a Python interface. 
+
+This includes implementation of Jaccard and Resnik similarity of terms in an ontology,
+as well as a method to calculate the similarity of two sets of terms (so-called
+termset similarity). Other methods will be added in the future.
+
 ## Installation
 
 - Set up your virtual environment of choice.
