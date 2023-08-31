@@ -119,7 +119,7 @@ pub fn get_associations(
         if subjects.is_some() {
             query.push_str("subject IN (");
             query.push_str(&joined_subjects);
-            query.push_str(")");
+            query.push(')');
         }
 
         if predicates.is_some() {
@@ -128,16 +128,16 @@ pub fn get_associations(
             }
             query.push_str("predicate IN (");
             query.push_str(&joined_predicates);
-            query.push_str(")");
+            query.push(')');
         }
 
         if objects.is_some() {
-            if subjects.is_some() || !predicates.is_some() {
+            if subjects.is_some() || predicates.is_none() {
                 query.push_str(" AND ");
             }
             query.push_str("object IN (");
             query.push_str(&joined_objects);
-            query.push_str(")");
+            query.push(')');
         }
     }
     dbg!(&query);
@@ -243,7 +243,7 @@ mod tests {
         let object = "GO:0003674";
         // Test case 1: Query with non-empty subjects, predicates, and objects
         let result = get_associations(
-            &db,
+            db,
             Some(&[subject.to_string()]),
             Some(&[predicate.to_string()]),
             Some(&[object.to_string()]),
@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(associations[0].object, object);
 
         // Test case 2: Query with one subject only
-        let result = get_associations(&db, Some(&[subject.to_string()]), None, None);
+        let result = get_associations(db, Some(&[subject.to_string()]), None, None);
 
         assert!(result.is_ok());
         let associations = result.unwrap();
@@ -265,7 +265,7 @@ mod tests {
         assert_eq!(associations.len(), 3);
 
         // Test case 3: Query with no triple. Should return all!
-        let result = get_associations(&db, None, None, None);
+        let result = get_associations(db, None, None, None);
         assert!(result.is_ok());
         let associations = result.unwrap();
         dbg!(&associations.len());

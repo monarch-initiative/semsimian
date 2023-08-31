@@ -452,12 +452,12 @@ impl RustSemsimian {
             association_predicates.iter().cloned().collect();
 
         let subject_terms_owned = if let Some(subject_prefixes) = subject_prefixes {
-            get_subjects(&db_path.as_ref().unwrap(), Some(subject_prefixes))
+            get_subjects(db_path.as_ref().unwrap(), Some(subject_prefixes))
                 .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
         } else if let Some(subject_terms) = &subject_terms {
             subject_terms.to_owned()
         } else {
-            get_subjects(&db_path.as_ref().unwrap(), None)
+            get_subjects(db_path.as_ref().unwrap(), None)
                 .unwrap_or_else(|_| panic!("Failed to get all subjects"))
         };
 
@@ -465,7 +465,7 @@ impl RustSemsimian {
 
         for subject in &subject_terms_owned {
             let associations: Vec<db_query::TermAssociation> = get_associations(
-                &db_path.as_ref().unwrap(),
+                db_path.as_ref().unwrap(),
                 Some(&[subject.to_owned()]),
                 Some(&assoc_predicate_terms_vec),
                 None,
