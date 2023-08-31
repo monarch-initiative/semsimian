@@ -1,4 +1,4 @@
-use db_query::get_entailed_edges_for_predicate_list;
+use db_query::{get_associations, get_entailed_edges_for_predicate_list, get_subjects};
 use pyo3::prelude::*;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -431,6 +431,70 @@ impl RustSemsimian {
             metric.to_string(),
         )
     }
+
+    pub fn associations_subject_search(
+        &self,
+        association_predicates: &HashSet<TermID>,
+        object_terms: &HashSet<TermID>,
+        include_similarity_object: bool,
+        // _sort_by_similarity: bool,
+        // _property_filter: Option<HashMap<String, String>>,
+        // _subject_closure_predicates: Option<Vec<TermID>>,
+        // _predicate_closure_predicates: Option<Vec<TermID>>,
+        // _object_closure_predicates: Option<Vec<TermID>>,
+        subject_terms: Option<HashSet<TermID>>,
+        subject_prefixes: Option<Vec<TermID>>,
+        // _method: Option<String>,
+        limit: Option<usize>,
+    ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
+        let db_path = RESOURCE_PATH.lock().unwrap();
+        let assoc_predicate_terms_vec: Vec<TermID> =
+            association_predicates.iter().cloned().collect();
+
+        let subject_terms_owned = if let Some(subject_prefixes) = subject_prefixes {
+            get_subjects(&db_path.as_ref().unwrap(), Some(subject_prefixes))
+                .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
+        } else if let Some(subject_terms) = &subject_terms {
+            subject_terms.to_owned()
+        } else {
+            get_subjects(&db_path.as_ref().unwrap(), None)
+                .unwrap_or_else(|_| panic!("Failed to get all subjects"))
+        };
+
+        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
+
+        for subject in &subject_terms_owned {
+            let associations: Vec<db_query::TermAssociation> = get_associations(
+                &db_path.as_ref().unwrap(),
+                Some(&[subject.to_owned()]),
+                Some(&assoc_predicate_terms_vec),
+                None,
+            )
+            .unwrap();
+
+            let terms: HashSet<TermID> = associations.iter().map(|a| a.object.clone()).collect();
+
+            let tsps = self.termset_pairwise_similarity(object_terms, &terms, &None);
+
+            let score = tsps.best_score;
+
+            if include_similarity_object {
+                result.push((score, Some(tsps), subject.clone()));
+            } else {
+                result.push((score, None, subject.clone()));
+            }
+        }
+
+        // Sort the result vector by score in descending order
+        result.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+
+        // Limit the number of objects within result
+        if let Some(limit) = limit {
+            result.truncate(limit);
+        }
+
+        result
+    }
 }
 
 #[pyclass]
@@ -570,6 +634,42 @@ impl Semsimian {
             Ok(score) => Ok(score),
             Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),
         }
+    }
+
+    fn associations_subject_search(
+        &mut self,
+        object_closure_predicate_terms: HashSet<TermID>,
+        object_terms: HashSet<TermID>,
+        include_similarity_object: bool,
+        // sort_by_similarity: bool,
+        // property_filter: Option<HashMap<String, String>>,
+        // subject_closure_predicates: Option<Vec<TermID>>,
+        // predicate_closure_predicates: Option<Vec<TermID>>,
+        // object_closure_predicates: Option<Vec<TermID>>,
+        subject_terms: Option<HashSet<TermID>>,
+        subject_prefixes: Option<Vec<TermID>>,
+        // method: Option<String>,
+        limit: Option<usize>,
+        py: Python,
+    ) -> PyResult<Vec<(f64, PyObject, String)>> {
+        self.ss.update_closure_and_ic_map();
+        let search_results = self.ss.associations_subject_search(
+            &object_closure_predicate_terms,
+            &object_terms,
+            include_similarity_object,
+            subject_terms,
+            subject_prefixes,
+            limit,
+        );
+
+        let py_search_results: Vec<(f64, PyObject, String)> = search_results
+            .into_iter()
+            .map(|(score, similarity, name)| {
+                (score, similarity.unwrap_or_default().into_py(py), name)
+            })
+            .collect();
+
+        Ok(py_search_results)
     }
 }
 
@@ -946,88 +1046,119 @@ mod tests {
         let expected_result = 5.4154243283740175;
         assert_eq!(result.unwrap(), expected_result);
     }
+
+    // #[test]
+    // fn test_associations_subject_search() {
+    //     let db = Some("tests/data/go-nucleus.db");
+    //     let predicates: Option<Vec<Predicate>> = Some(vec![
+    //         "rdfs:subClassOf".to_string(),
+    //         "BFO:0000050".to_string(),
+    //     ]);
+
+    //     let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+    //     rss.update_closure_and_ic_map();
+
+    //     // Define input parameters for the function
+    //     // let subject_terms: HashSet<TermID> = vec![TermID::new(1), TermID::new(2)].into_iter().collect();
+    //     let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:subclass_of".to_string()]);
+    //     let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
+    //     let object_terms: HashSet<TermID> = HashSet::from(["GO:0016020".to_string()]);
+    //     let limit: Option<usize> = Some(10);
+
+    //     // Call the function under test
+    //     let result = rss.associations_subject_search(
+    //         &assoc_predicate,
+    //         &object_terms,
+    //         true,
+    //         None,
+    //         subject_prefixes,
+    //         limit,
+    //     );
+    //     dbg!(&result);
+    // }
 }
 
-// ! All local tests that need not be run on github actions.
-#[cfg(test)]
-mod tests_local {
+// // ! All local tests that need not be run on github actions.
+// #[cfg(test)]
+// mod tests_local {
 
-    use super::*;
-    use std::path::PathBuf;
-    use std::time::Instant;
+//     use super::*;
+//     use std::path::PathBuf;
+//     use std::time::Instant;
 
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_termset_pairwise_similarity_2() {
-        let mut db_path = PathBuf::new();
-        if let Some(home) = std::env::var_os("HOME") {
-            db_path.push(home);
-            db_path.push(".data/oaklib/phenio.db");
-        } else {
-            panic!("Failed to get home directory");
-        }
-        // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
-        let db = Some(db_path.to_str().expect("Failed to convert path to string"));
-        let predicates: Option<Vec<Predicate>> = Some(vec![
-            "rdfs:subClassOf".to_string(),
-            "BFO:0000050".to_string(),
-            "UPHENO:0000001".to_string(),
-        ]);
-        // Start measuring time
-        let mut start_time = Instant::now();
+//     #[test]
+//     #[cfg_attr(feature = "ci", ignore)]
+//     fn test_termset_pairwise_similarity_2() {
+//         let mut db_path = PathBuf::new();
+//         if let Some(home) = std::env::var_os("HOME") {
+//             db_path.push(home);
+//             db_path.push(".data/oaklib/phenio.db");
+//         } else {
+//             panic!("Failed to get home directory");
+//         }
+//         // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
+//         let db = Some(db_path.to_str().expect("Failed to convert path to string"));
+//         let predicates: Option<Vec<Predicate>> = Some(vec![
+//             "rdfs:subClassOf".to_string(),
+//             "BFO:0000050".to_string(),
+//             "UPHENO:0000001".to_string(),
+//         ]);
+//         // Start measuring time
+//         let mut start_time = Instant::now();
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+//         let mut rss = RustSemsimian::new(None, predicates, None, db);
 
-        let mut elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for RustSemsimian object generation: {:?}",
-            elapsed_time
-        );
-        start_time = Instant::now();
+//         let mut elapsed_time = start_time.elapsed();
+//         println!(
+//             "Time taken for RustSemsimian object generation: {:?}",
+//             elapsed_time
+//         );
+//         start_time = Instant::now();
 
-        rss.update_closure_and_ic_map();
-        elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for closure table and ic_map generation: {:?}",
-            elapsed_time
-        );
+//         rss.update_closure_and_ic_map();
+//         elapsed_time = start_time.elapsed();
+//         println!(
+//             "Time taken for closure table and ic_map generation: {:?}",
+//             elapsed_time
+//         );
 
-        let entity1: HashSet<TermID> = HashSet::from([
-            "MP:0010771".to_string(),
-            "MP:0002169".to_string(),
-            "MP:0005391".to_string(),
-            "MP:0005389".to_string(),
-            "MP:0005367".to_string(),
-        ]);
-        let entity2: HashSet<TermID> = HashSet::from([
-            "HP:0004325".to_string(),
-            "HP:0000093".to_string(),
-            "MP:0006144".to_string(),
-        ]);
+//         let entity1: HashSet<TermID> = HashSet::from([
+//             "MP:0010771".to_string(),
+//             "MP:0002169".to_string(),
+//             "MP:0005391".to_string(),
+//             "MP:0005389".to_string(),
+//             "MP:0005367".to_string(),
+//         ]);
+//         let entity2: HashSet<TermID> = HashSet::from([
+//             "HP:0004325".to_string(),
+//             "HP:0000093".to_string(),
+//             "MP:0006144".to_string(),
+//         ]);
 
-        start_time = Instant::now();
-        let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
-        elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for termset_pairwise_similarity: {:?}",
-            elapsed_time
-        );
+//         start_time = Instant::now();
+//         let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
+//         elapsed_time = start_time.elapsed();
+//         println!(
+//             "Time taken for termset_pairwise_similarity: {:?}",
+//             elapsed_time
+//         );
 
-        start_time = Instant::now();
+//         start_time = Instant::now();
 
-        rss.update_closure_and_ic_map();
-        elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for second closure and ic_map generation: {:?}",
-            elapsed_time
-        );
+//         rss.update_closure_and_ic_map();
+//         elapsed_time = start_time.elapsed();
+//         println!(
+//             "Time taken for second closure and ic_map generation: {:?}",
+//             elapsed_time
+//         );
 
-        start_time = Instant::now();
-        _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
-        elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for second termset_pairwise_similarity: {:?}",
-            elapsed_time
-        );
-    }
-}
+//         start_time = Instant::now();
+//         _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
+//         elapsed_time = start_time.elapsed();
+//         println!(
+//             "Time taken for second termset_pairwise_similarity: {:?}",
+//             elapsed_time
+//         );
+//     }
+// }

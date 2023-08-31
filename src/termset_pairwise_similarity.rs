@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict};
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TermsetPairwiseSimilarity {
     pub subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>>,
     pub subject_best_matches: BTreeMap<String, BTreeMap<String, String>>,
