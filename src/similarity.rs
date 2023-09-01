@@ -128,17 +128,18 @@ pub fn calculate_max_information_content(
     let (max_ic_ancestors, max_ic) = filtered_common_ancestors.into_iter().fold(
         (HashSet::new(), 0.0),
         |(mut max_ic_ancestors, max_ic), ancestor| {
-            if let Some(ic) = ic_map
-                .get(&predicate_set_key)
-                .and_then(|ic_map| ic_map.get(&ancestor))
-            {
-                if *ic > max_ic {
-                    max_ic_ancestors.clear();
-                    max_ic_ancestors.insert(ancestor.clone());
-                    (max_ic_ancestors, *ic)
-                } else if *ic == max_ic {
-                    max_ic_ancestors.insert(ancestor.clone());
-                    (max_ic_ancestors, max_ic)
+            if let Some(ic_map) = ic_map.get(&predicate_set_key) {
+                if let Some(ic) = ic_map.get(&ancestor) {
+                    if *ic > max_ic {
+                        max_ic_ancestors.clear();
+                        max_ic_ancestors.insert(ancestor);
+                        (max_ic_ancestors, *ic)
+                    } else if *ic == max_ic {
+                        max_ic_ancestors.insert(ancestor);
+                        (max_ic_ancestors, max_ic)
+                    } else {
+                        (max_ic_ancestors, max_ic)
+                    }
                 } else {
                     (max_ic_ancestors, max_ic)
                 }
@@ -150,6 +151,7 @@ pub fn calculate_max_information_content(
 
     (max_ic_ancestors, max_ic)
 }
+
 
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
 

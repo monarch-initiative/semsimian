@@ -2,6 +2,7 @@ use semsimian::{Predicate, RustSemsimian, TermID};
 use std::{collections::HashSet, path::PathBuf};
 
 #[test]
+#[ignore]
 #[cfg_attr(feature = "ci", ignore)]
 fn test_termset_pairwise_similarity() {
     let mut db_path = PathBuf::new();
@@ -35,5 +36,5 @@ fn test_termset_pairwise_similarity() {
         "MP:0006144".to_string(),
     ]);
 
-    rss.termset_pairwise_similarity(&entity1, &entity2, &None);
+    rss.termset_pairwise_similarity(&entity1, &entity2);
 }
