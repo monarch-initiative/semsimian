@@ -35,3 +35,7 @@ flamegraph = "0.6.3"
 [[bench]]
 name = "termset_pairwise_similarity_benchmark"
 harness = false
+
+[[bench]]
+name = "association_search_benchmark"
+harness = false
