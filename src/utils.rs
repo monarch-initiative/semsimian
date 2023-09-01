@@ -371,7 +371,7 @@ pub fn get_similarity_map(
 // }
 
 pub fn get_best_matches(
-    termset: &Vec<BTreeInBTree>,
+    termset: &[BTreeInBTree],
     all_by_all: &SimilarityMap,
     term_label_map: &HashMap<String, String>,
     metric: &str,
