@@ -152,7 +152,6 @@ pub fn calculate_max_information_content(
     (max_ic_ancestors, max_ic)
 }
 
-
 /// Returns the common ancestors of two entities based on the given closure table and a set of predicates.
 
 fn common_ancestors(

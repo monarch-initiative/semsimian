@@ -1,4 +1,4 @@
-import logging
+import os
 import sys
 import time
 import unittest
@@ -84,8 +84,11 @@ class testSemsimianWithPython(unittest.TestCase):
         self.assertEqual(tsps["average_score"], 5.4154243283740175)
         self.assertEqual(tsps["best_score"], 5.8496657269155685)
 
-    @unittest.skipIf(sys.platform == "win32", "GitHub Windows errors because interval_1=0.0 it\
-                   somehow rounds down in spite of code to avoid it")
+    @unittest.skipIf(
+        sys.platform == "win32",
+        "GitHub Windows errors because interval_1=0.0 it\
+                   somehow rounds down in spite of code to avoid it",
+    )
     def test_building_closure_ic_map_once(self):
         subject_terms = {"GO:0005634", "GO:0016020"}
         object_terms = {"GO:0031965", "GO:0005773"}
@@ -105,6 +108,52 @@ class testSemsimianWithPython(unittest.TestCase):
         interval_2 = time.time() - second_compare_time
         print(f"Second compare time: {interval_2} sec")
         self.assertTrue(interval_1 - interval_2 >= 0)
+
+    def test_association_search(self):
+        subject_prefixes = ["GO:"]
+        object_terms = {"GO:0019222"}
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        assoc_predicate = {"biolink:has_nucleus"}
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            pairwise_similarity_attributes=None,
+            resource_path=self.db,
+        )
+        limit = 10
+        result = semsimian.associations_search(
+            assoc_predicate,
+            object_terms,
+            True,
+            None,
+            subject_prefixes,
+            limit,
+        )
+        self.assertEqual(len(result), limit)
+
+    @unittest.skip("Too long and local db file.")
+    def test_association_search_phenio(self):
+        subject_prefixes = ["MGI:"]
+        object_terms = {"MP:0003143"}
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        assoc_predicate = {"biolink:has_phenotype"}
+        db_path = os.path.expanduser("~/.data/oaklib/phenio.db")
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            pairwise_similarity_attributes=None,
+            resource_path=db_path,
+        )
+        limit = 10
+        result = semsimian.associations_search(
+            assoc_predicate,
+            object_terms,
+            True,
+            None,
+            subject_prefixes,
+            limit,
+        )
+        self.assertEqual(len(result), limit)
 
 
 if __name__ == "__main__":

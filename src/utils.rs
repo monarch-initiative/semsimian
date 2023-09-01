@@ -296,6 +296,8 @@ pub fn get_similarity_map(
 
         if let Some(ancestor_id) = value.4.iter().next() {
             similarity_map.insert("ancestor_id".to_string(), ancestor_id.clone());
+        } else {
+            similarity_map.insert("ancestor_id".to_string(), "NO_ANCESTOR_FOUND".to_string());
         }
     } else {
         println!("The HashMap is empty.");
@@ -401,7 +403,10 @@ pub fn get_best_matches(
             let match_source = term_id;
             let match_source_label = term_label;
             let match_target = similarity_map.get("object_id").unwrap().clone();
-            let match_target_label = term_label_map.get(&match_target).unwrap().clone();
+            let match_target_label = term_label_map
+                .get(&match_target)
+                .unwrap_or(&"NO_LABEL".to_string())
+                .clone();
 
             similarity_map.insert("ancestor_label".to_string(), ancestor_label);
             let best_matches_key = term_id.to_owned();

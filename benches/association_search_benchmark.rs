@@ -24,22 +24,26 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut rss = black_box(RustSemsimian::new(None, predicates, None, db));
     rss.update_closure_and_ic_map();
 
-    let assoc_predicate: HashSet<TermID> = black_box(HashSet::from(["biolink:has_phenotype".to_string()]));
+    let assoc_predicate: HashSet<TermID> =
+        black_box(HashSet::from(["biolink:has_phenotype".to_string()]));
     let subject_prefixes: Option<Vec<TermID>> = black_box(Some(vec!["MGI:".to_string()]));
     let object_terms: HashSet<TermID> = black_box(HashSet::from(["MP:0003143".to_string()]));
     let limit: Option<usize> = black_box(Some(10));
-    
+
     let mut bench_grp = c.benchmark_group("search_bench_group");
-    bench_grp
-        .sample_size(10);
-        // .measurement_time(Duration::from_secs(300));
+    bench_grp.sample_size(10);
+    // .measurement_time(Duration::from_secs(300));
     bench_grp.bench_function("search", move |b| {
-        b.iter(|| rss.associations_search(&assoc_predicate,
-        &object_terms,
-        true,
-        &None,
-        &subject_prefixes,
-        limit,))
+        b.iter(|| {
+            rss.associations_search(
+                &assoc_predicate,
+                &object_terms,
+                true,
+                &None,
+                &subject_prefixes,
+                limit,
+            )
+        })
     });
     bench_grp.finish();
 }

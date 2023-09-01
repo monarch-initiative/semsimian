@@ -265,9 +265,9 @@ mod tests {
     #[test]
     fn test_get_associations() {
         let db = &DB_PATH;
-        let subject = "GO:0004857";
-        let predicate = "biolink:subclass_of";
-        let object = "GO:0003674";
+        let subject = "GO:0005737";
+        let predicate = "biolink:has_nucleus";
+        let object = "GO:0005622";
         // Test case 1: Query with non-empty subjects, predicates, and objects
         let result = get_associations(
             db,
@@ -332,11 +332,11 @@ mod tests {
     fn test_get_subjects_with_prefixes_and_predicates() {
         let db = &DB_PATH;
         let prefixes = vec!["BFO:".to_string()];
-        let predicates = vec!["biolink:inverseOf".to_string()];
+        let predicates = vec!["biolink:has_nucleus".to_string()];
 
         let result = get_subjects(db, Some(&predicates), Some(&prefixes));
         dbg!(&result);
-        assert_eq!(result.unwrap().len(), 3)
+        assert_eq!(result.unwrap().len(), 13)
     }
 
     #[test]

@@ -485,7 +485,6 @@ impl RustSemsimian {
 
         // Iterate over each key-value pair in all_associations
         for (subject, term_associations) in all_associations {
-
             // Clear the terms HashSet for the next iteration
             terms.clear();
 
@@ -505,7 +504,7 @@ impl RustSemsimian {
         }
 
         // Sort the result vector by score in descending order
-        result.par_sort_unstable_by(|(a,_,_), (b, _, _)| b.partial_cmp(a).unwrap());
+        result.par_sort_unstable_by(|(a, _, _), (b, _, _)| b.partial_cmp(a).unwrap());
 
         // Limit the number of objects within result
         if let Some(limit) = limit {
@@ -654,7 +653,7 @@ impl Semsimian {
         }
     }
 
-    fn associations_subject_search(
+    fn associations_search(
         &mut self,
         object_closure_predicate_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
@@ -1150,29 +1149,20 @@ mod tests_local {
     }
 
     #[test]
-    #[ignore]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_associations_subject_search() {
-        // let db = Some("tests/data/go-nucleus.db");
-        // let predicates: Option<Vec<Predicate>> = Some(vec![
-        //     "rdfs:subClassOf".to_string(),
-        //     "BFO:0000050".to_string(),
-        // ]);
-        let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
+    fn test_associations_search() {
+        let db = Some("tests/data/go-nucleus.db");
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
-            "UPHENO:0000001".to_string(),
         ]);
 
         let mut rss = RustSemsimian::new(None, predicates, None, db);
 
         rss.update_closure_and_ic_map();
 
-        // Define input parameters for the function
-        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
-        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MGI:".to_string()]);
-        let object_terms: HashSet<TermID> = HashSet::from(["MP:0003143".to_string()]);
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
+        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
         let limit: Option<usize> = Some(10);
 
         // Call the function under test
@@ -1184,6 +1174,7 @@ mod tests_local {
             &subject_prefixes,
             limit,
         );
+        assert_eq!(result.len() as usize, limit.unwrap());
         dbg!(&result);
     }
 }
