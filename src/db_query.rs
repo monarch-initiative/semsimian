@@ -171,36 +171,53 @@ pub fn get_associations(
 
 pub fn get_subjects(
     path: &str,
-    prefixes: Option<Vec<TermID>>,
+    predicates: Option<&Vec<TermID>>,
+    prefixes: Option<&Vec<TermID>>,
+    
 ) -> Result<HashSet<TermID>, rusqlite::Error> {
     let table_name = "term_association";
+    let joined_predicates = match predicates {
+        Some(predicates) => format!("'{}'", predicates.join("', '")),
+        None => String::new(),
+    };
     let conditions = match prefixes {
         Some(prefixes) => {
-            let conditions: String = prefixes
-                .iter()
-                .map(|prefix| format!("subject LIKE '{}%'", prefix))
-                .collect::<Vec<String>>()
-                .join(" OR ");
+            let mut conditions = String::with_capacity(prefixes.len() * 20); // Preallocate memory
+            for (i, prefix) in prefixes.iter().enumerate() {
+                if i > 0 {
+                    conditions.push_str(" OR ");
+                }
+                conditions.push_str(&format!("subject LIKE '{}%'", prefix));
+            }
             format!("WHERE {}", conditions)
         }
         None => String::new(),
     };
 
     // Build the final query
-    let query = format!("SELECT subject FROM {} {};", table_name, conditions);
+    let mut query = format!("SELECT subject FROM {} {} ", table_name, conditions);
+    if predicates.is_some() {
+        query.push_str("AND predicate IN (");
+        query.push_str(&joined_predicates);
+        query.push_str(");");
+    }
+    dbg!(&query);
 
     // Open a connection to the SQLite database file
     let conn = Connection::open(path)?;
 
     // Prepare the SQL query
     let mut stmt = conn.prepare(&query)?;
-    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
-
+    
     // Collect the subjects into a HashSet<TermID>
-    let subjects: HashSet<TermID> = rows.map(|row| row.unwrap()).collect();
+    let subjects: HashSet<TermID> = stmt.query_and_then([], |row| row.get::<_, String>(0))
+        .unwrap()
+        .map(|result| result.unwrap())
+        .collect();
 
     Ok(subjects)
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -270,5 +287,33 @@ mod tests {
         let associations = result.unwrap();
         dbg!(&associations.len());
         assert_eq!(associations.len(), 464);
+    }
+
+    #[test]
+    fn test_get_subjects_with_prefixes() {
+        let db = &DB_PATH;
+        let prefixes = vec!["BFO:".to_string()];
+
+        let result = get_subjects(db, None, Some(&prefixes));
+        dbg!(&result);
+        assert_eq!(result.unwrap().len(), 13)
+    }
+
+    #[test]
+    fn test_get_subjects_with_prefixes_and_predicates() {
+        let db = &DB_PATH;
+        let prefixes = vec!["BFO:".to_string()];
+        let predicates = vec!["biolink:inverseOf".to_string()];
+
+        let result = get_subjects(db, Some(&predicates), Some(&prefixes));
+        dbg!(&result);
+        assert_eq!(result.unwrap().len(), 3)
+    }
+
+    #[test]
+    fn test_get_subjects_without_prefixes() {
+        let db = &DB_PATH;
+        let result = get_subjects(db, None, None);
+        assert_eq!(result.unwrap().len(), 258)
     }
 }
