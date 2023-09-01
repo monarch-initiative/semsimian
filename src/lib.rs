@@ -1,4 +1,4 @@
-use db_query::{get_associations, get_entailed_edges_for_predicate_list, get_subjects};
+use db_query::{get_associations, get_entailed_edges_for_predicate_list, get_subjects, TermAssociation};
 use pyo3::prelude::*;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -434,32 +434,31 @@ impl RustSemsimian {
 
     pub fn associations_subject_search(
         &self,
-        association_predicates: &HashSet<TermID>,
-        object_terms: &HashSet<TermID>,
+        object_closure_predicates: &HashSet<TermID>,
+        object_set: &HashSet<TermID>,
         include_similarity_object: bool,
         // _sort_by_similarity: bool,
         // _property_filter: Option<HashMap<String, String>>,
         // _subject_closure_predicates: Option<Vec<TermID>>,
         // _predicate_closure_predicates: Option<Vec<TermID>>,
-        // _object_closure_predicates: Option<Vec<TermID>>,
-        subject_terms: Option<HashSet<TermID>>,
+        subject_set: Option<HashSet<TermID>>,
         subject_prefixes: Option<Vec<TermID>>,
         // _method: Option<String>,
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let db_path = RESOURCE_PATH.lock().unwrap();
+        let db_path = RESOURCE_PATH.lock().unwrap().clone();
         let assoc_predicate_terms_vec: Vec<TermID> =
-            association_predicates.iter().cloned().collect();
+            object_closure_predicates.iter().cloned().collect();
 
-        let subject_terms_owned = if let Some(subject_prefixes) = subject_prefixes {
+        let subject_set_owned = if let Some(subject_prefixes) = subject_prefixes {
             get_subjects(
                 db_path.as_ref().unwrap(),
                 Some(&assoc_predicate_terms_vec),
                 Some(&subject_prefixes),
             )
             .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
-        } else if let Some(subject_terms) = &subject_terms {
-            subject_terms.to_owned()
+        } else if let Some(subject_set) = &subject_set {
+            subject_set.to_owned()
         } else {
             get_subjects(
                 db_path.as_ref().unwrap(),
@@ -471,8 +470,8 @@ impl RustSemsimian {
 
         let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
 
-        for subject in &subject_terms_owned {
-            let associations: Vec<db_query::TermAssociation> = get_associations(
+        for subject in &subject_set_owned {
+            let associations: Vec<TermAssociation> = get_associations(
                 db_path.as_ref().unwrap(),
                 Some(&[subject.to_owned()]),
                 Some(&assoc_predicate_terms_vec),
@@ -482,7 +481,7 @@ impl RustSemsimian {
 
             let terms: HashSet<TermID> = associations.iter().map(|a| a.object.clone()).collect();
 
-            let tsps = self.termset_pairwise_similarity(object_terms, &terms, &None);
+            let tsps = self.termset_pairwise_similarity(object_set, &terms, &None);
 
             let score = tsps.best_score;
 
@@ -1057,10 +1056,16 @@ mod tests {
 
     // #[test]
     // fn test_associations_subject_search() {
-    //     let db = Some("tests/data/go-nucleus.db");
+    //     // let db = Some("tests/data/go-nucleus.db");
+    //     // let predicates: Option<Vec<Predicate>> = Some(vec![
+    //     //     "rdfs:subClassOf".to_string(),
+    //     //     "BFO:0000050".to_string(),
+    //     // ]);
+    //     let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
     //     let predicates: Option<Vec<Predicate>> = Some(vec![
     //         "rdfs:subClassOf".to_string(),
     //         "BFO:0000050".to_string(),
+    //         "UPHENO:0000001".to_string(),
     //     ]);
 
     //     let mut rss = RustSemsimian::new(None, predicates, None, db);
@@ -1069,9 +1074,9 @@ mod tests {
 
     //     // Define input parameters for the function
     //     // let subject_terms: HashSet<TermID> = vec![TermID::new(1), TermID::new(2)].into_iter().collect();
-    //     let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:subclass_of".to_string()]);
-    //     let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
-    //     let object_terms: HashSet<TermID> = HashSet::from(["GO:0016020".to_string()]);
+    //     let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
+    //     let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
+    //     let object_terms: HashSet<TermID> = HashSet::from(["MP:0002894".to_string()]);
     //     let limit: Option<usize> = Some(10);
 
     //     // Call the function under test
