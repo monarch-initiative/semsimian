@@ -455,7 +455,7 @@ impl RustSemsimian {
             get_subjects(
                 db_path.as_ref().unwrap(),
                 Some(&assoc_predicate_terms_vec),
-                Some(&subject_prefixes),
+                Some(subject_prefixes),
             )
             .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
         } else if let Some(subject_set) = &subject_set {
@@ -1174,7 +1174,7 @@ mod tests_local {
             &subject_prefixes,
             limit,
         );
-        assert_eq!(result.len() as usize, limit.unwrap());
+        assert_eq!({ result.len() }, limit.unwrap());
         dbg!(&result);
     }
 }

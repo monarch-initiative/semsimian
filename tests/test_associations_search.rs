@@ -39,7 +39,7 @@ fn test_associations_search() {
         limit,
     );
 
-    assert_eq!(result.len() as usize, limit.unwrap());
+    assert_eq!({ result.len() }, limit.unwrap());
 
     dbg!(&result);
 }
