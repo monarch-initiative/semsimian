@@ -140,6 +140,7 @@ pub fn get_associations(
             query.push(')');
         }
     }
+    query.push(';');
     dbg!(&query);
     // Prepare the SQL query
     let mut stmt = conn.prepare(&query)?;
@@ -173,7 +174,6 @@ pub fn get_subjects(
     path: &str,
     predicates: Option<&Vec<TermID>>,
     prefixes: Option<&Vec<TermID>>,
-    
 ) -> Result<HashSet<TermID>, rusqlite::Error> {
     let table_name = "term_association";
     let joined_predicates = match predicates {
@@ -208,16 +208,16 @@ pub fn get_subjects(
 
     // Prepare the SQL query
     let mut stmt = conn.prepare(&query)?;
-    
+
     // Collect the subjects into a HashSet<TermID>
-    let subjects: HashSet<TermID> = stmt.query_and_then([], |row| row.get::<_, String>(0))
+    let subjects: HashSet<TermID> = stmt
+        .query_and_then([], |row| row.get::<_, String>(0))
         .unwrap()
         .map(|result| result.unwrap())
         .collect();
 
     Ok(subjects)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -287,6 +287,13 @@ mod tests {
         let associations = result.unwrap();
         dbg!(&associations.len());
         assert_eq!(associations.len(), 464);
+
+        // Test case 4: Query that yields no results
+        let result = get_associations(db, Some(&["GO:51338".to_string()]), None, None);
+        // Check the result
+        assert!(result.is_ok());
+        let associations = result.unwrap();
+        assert_eq!(associations.len(), 0);
     }
 
     #[test]
