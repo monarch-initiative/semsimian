@@ -88,7 +88,7 @@ pub fn get_associations(
     subjects: Option<&[TermID]>,
     predicates: Option<&[TermID]>,
     objects: Option<&[TermID]>,
-) -> Result<Vec<TermAssociation>, rusqlite::Error> {
+) -> Result<HashMap<TermID, Vec<TermAssociation>>, rusqlite::Error> {
     let table_name = "term_association";
     let joined_subjects = match subjects {
         Some(subjects) => format!("'{}'", subjects.join("', '")),
@@ -110,7 +110,7 @@ pub fn get_associations(
     // table_name where these the columns subject, predicate and object have at least one value in
     // the corresponding plural variable name.
 
-    let mut query = String::from("SELECT * FROM ");
+    let mut query = String::from("SELECT DISTINCT * FROM ");
     query.push_str(table_name);
 
     if subjects.is_some() || predicates.is_some() || objects.is_some() {
@@ -141,7 +141,7 @@ pub fn get_associations(
         }
     }
     query.push(';');
-    dbg!(&query);
+
     // Prepare the SQL query
     let mut stmt = conn.prepare(&query)?;
 
@@ -159,15 +159,23 @@ pub fn get_associations(
     })?;
 
     // Create a HashMap to store the results
-    let mut result_vec: Vec<TermAssociation> = Vec::new();
+    let mut result_map: HashMap<TermID, Vec<TermAssociation>> = HashMap::new();
 
     // Iterate over the rows which is of type Rows and populate the HashMap
     for row in rows {
         let term_assoc = row?;
-        result_vec.push(term_assoc);
+        let subject = &term_assoc.subject;
+
+        // Check if the subject already exists in the HashMap
+        if let Some(associations) = result_map.get_mut(subject) {
+            associations.push(term_assoc);
+        } else {
+            // If the subject doesn't exist, create a new entry in the HashMap
+            result_map.insert(subject.to_owned(), vec![term_assoc]);
+        }
     }
 
-    Ok(result_vec)
+    Ok(result_map)
 }
 
 pub fn get_subjects(
@@ -195,13 +203,15 @@ pub fn get_subjects(
     };
 
     // Build the final query
-    let mut query = format!("SELECT subject FROM {} {} ", table_name, conditions);
+    let mut query = format!(
+        "SELECT DISTINCT subject FROM {} {} ",
+        table_name, conditions
+    );
     if predicates.is_some() {
         query.push_str("AND predicate IN (");
         query.push_str(&joined_predicates);
         query.push_str(");");
     }
-    dbg!(&query);
 
     // Open a connection to the SQLite database file
     let conn = Connection::open(path)?;
@@ -267,11 +277,9 @@ mod tests {
         );
         assert!(result.is_ok());
         let associations = result.unwrap();
-        dbg!(&associations);
+        // dbg!(associations);
         assert_eq!(associations.len(), 1);
-        assert_eq!(associations[0].subject, subject);
-        assert_eq!(associations[0].predicate, predicate);
-        assert_eq!(associations[0].object, object);
+        assert!(associations.contains_key(subject));
 
         // Test case 2: Query with one subject only
         let result = get_associations(db, Some(&[subject.to_string()]), None, None);
@@ -279,14 +287,15 @@ mod tests {
         assert!(result.is_ok());
         let associations = result.unwrap();
         dbg!(&associations);
-        assert_eq!(associations.len(), 3);
+        assert_eq!(associations.len(), 1);
+        assert!(associations.contains_key(subject));
 
         // Test case 3: Query with no triple. Should return all!
         let result = get_associations(db, None, None, None);
         assert!(result.is_ok());
         let associations = result.unwrap();
         dbg!(&associations.len());
-        assert_eq!(associations.len(), 464);
+        assert_eq!(associations.len(), 258);
 
         // Test case 4: Query that yields no results
         let result = get_associations(db, Some(&["GO:51338".to_string()]), None, None);
@@ -294,6 +303,19 @@ mod tests {
         assert!(result.is_ok());
         let associations = result.unwrap();
         assert_eq!(associations.len(), 0);
+
+        // Test case 5: Query with two subjects and a predicate
+        let result = get_associations(
+            db,
+            Some(&[subject.to_string(), "GO:0005622".to_string()]),
+            Some(&[predicate.to_string()]),
+            None,
+        );
+        assert!(result.is_ok());
+        let associations = result.unwrap();
+        dbg!(&associations);
+        assert_eq!(associations.len(), 2);
+        assert!(associations.contains_key("GO:0005622"));
     }
 
     #[test]
