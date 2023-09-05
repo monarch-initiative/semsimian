@@ -447,13 +447,12 @@ impl RustSemsimian {
         // _method: Option<String>,
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let db_path = RESOURCE_PATH.lock().unwrap().clone();
         let assoc_predicate_terms_vec: Vec<TermID> =
             object_closure_predicates.iter().cloned().collect();
 
         let subject_set_owned = if let Some(subject_prefixes) = subject_prefixes {
             get_subjects(
-                db_path.as_ref().unwrap(),
+                &RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
                 Some(&assoc_predicate_terms_vec),
                 Some(subject_prefixes),
             )
@@ -462,7 +461,7 @@ impl RustSemsimian {
             subject_set.to_owned()
         } else {
             get_subjects(
-                db_path.as_ref().unwrap(),
+                &RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
                 Some(&assoc_predicate_terms_vec),
                 None,
             )
@@ -471,7 +470,7 @@ impl RustSemsimian {
 
         let subject_vec: Vec<String> = subject_set_owned.iter().cloned().collect();
         let all_associations: HashMap<String, Vec<TermAssociation>> = get_associations(
-            db_path.as_ref().unwrap(),
+            &RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
             Some(&subject_vec),
             Some(&assoc_predicate_terms_vec),
             None,
