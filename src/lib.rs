@@ -185,6 +185,12 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
     ) -> SimilarityMap {
+
+        // let pb = generate_progress_bar_of_length_and_message(
+        //                 (subject_terms.len() * object_terms.len()) as u64,
+        //     "Building (all subjects X all objects) pairwise similarity:",
+        // );
+
         let mut similarity_map: SimilarityMap = HashMap::new();
 
         // Preload shared data into local variables
@@ -221,8 +227,12 @@ impl RustSemsimian {
                 }
             }
 
+            // pb.inc(1);
+
             similarity_map.insert(subject.clone(), subject_similarities);
         }
+
+        // pb.finish_with_message("done");
 
         similarity_map
     }
