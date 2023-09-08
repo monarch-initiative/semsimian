@@ -185,10 +185,11 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
     ) -> SimilarityMap {
-        let pb = generate_progress_bar_of_length_and_message(
-            (subject_terms.len() * object_terms.len()) as u64,
-            "Building (all subjects X all objects) pairwise similarity:",
-        );
+
+        // let pb = generate_progress_bar_of_length_and_message(
+        //                 (subject_terms.len() * object_terms.len()) as u64,
+        //     "Building (all subjects X all objects) pairwise similarity:",
+        // );
 
         let mut similarity_map: SimilarityMap = HashMap::new();
 
@@ -224,14 +225,15 @@ impl RustSemsimian {
                         ),
                     );
                 }
-
-                pb.inc(1);
             }
+
+            // pb.inc(1);
 
             similarity_map.insert(subject.clone(), subject_similarities);
         }
 
-        pb.finish_with_message("done");
+        // pb.finish_with_message("done");
+
         similarity_map
     }
 
@@ -329,7 +331,7 @@ impl RustSemsimian {
 
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
                         && minimum_resnik_threshold
-                            .map_or(true, |t| ancestor_information_content > t)
+                        .map_or(true, |t| ancestor_information_content > t)
                     {
                         // Write the line to the TSV file
                         let mut output_bytes: Vec<u8> = output_map
@@ -456,7 +458,7 @@ impl RustSemsimian {
                 Some(&assoc_predicate_terms_vec),
                 Some(subject_prefixes),
             )
-            .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
+                .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
         } else if let Some(subject_set) = &subject_set {
             subject_set.to_owned()
         } else {
@@ -465,7 +467,7 @@ impl RustSemsimian {
                 Some(&assoc_predicate_terms_vec),
                 None,
             )
-            .unwrap_or_else(|_| panic!("Failed to get all subjects"))
+                .unwrap_or_else(|_| panic!("Failed to get all subjects"))
         };
 
         let subject_vec: Vec<String> = subject_set_owned.iter().cloned().collect();
@@ -475,37 +477,35 @@ impl RustSemsimian {
             Some(&assoc_predicate_terms_vec),
             None,
         )
-        .unwrap();
+            .unwrap();
 
-        // Vector to store all object attributes
-        let mut terms: HashSet<TermID> = HashSet::new();
+        // let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
 
-        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
+        // Parallelize the loop using Rayon
+        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = all_associations
+            .par_iter()
+            .map(|(subject, term_associations)| {
+                // Collect all object attributes into the terms HashSet
+                let mut terms: HashSet<TermID> = HashSet::new();
+                for term_association in term_associations {
+                    terms.insert(term_association.object.clone());
+                }
 
-        // Iterate over each key-value pair in all_associations
-        for (subject, term_associations) in all_associations {
-            // Clear the terms HashSet for the next iteration
-            terms.clear();
+                let tsps = self.termset_pairwise_similarity(object_set, &terms);
+                let score = tsps.best_score;
 
-            // Collect all object attributes into the terms HashSet
-            for term_association in term_associations {
-                terms.insert(term_association.object);
-            }
-
-            let tsps = self.termset_pairwise_similarity(object_set, &terms);
-            let score = tsps.best_score;
-
-            if include_similarity_object {
-                result.push((score, Some(tsps), subject));
-            } else {
-                result.push((score, None, subject));
-            }
-        }
+                if include_similarity_object {
+                    (score, Some(tsps), subject.clone())
+                } else {
+                    (score, None, subject.clone())
+                }
+            })
+            .collect();
 
         // Sort the result vector by score in descending order
         result.par_sort_unstable_by(|(a, _, _), (b, _, _)| b.partial_cmp(a).unwrap());
 
-        // Limit the number of objects within result
+        // Limit the number of objects within the result
         if let Some(limit) = limit {
             result.truncate(limit);
         }
@@ -513,6 +513,7 @@ impl RustSemsimian {
         result
     }
 }
+
 
 #[pyclass]
 pub struct Semsimian {
