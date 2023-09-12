@@ -484,7 +484,7 @@ impl RustSemsimian {
                         .insert(object, jaccard_similarity);
                 }
             }
-            /* 
+            /*
             // Get all keys of subject_object_jaccard_hashmap into a vector named subject_vec
             subject_vec = subject_object_jaccard_hashmap.keys().cloned().map(String::from).collect();
             */
@@ -497,7 +497,7 @@ impl RustSemsimian {
                 let b_value = b2.values().next().unwrap();
                 b_value.partial_cmp(a_value).unwrap()
             });
-            
+
             /*
             // Get the top 'limit' number of keys into a HashSet<TermID>
             subject_vec = sorted_pairs
@@ -508,12 +508,12 @@ impl RustSemsimian {
             */
 
             /*
-            ! Get the top 'limit' number of unique jaccard score terms into 
+            ! Get the top 'limit' number of unique jaccard score terms into
             ! subject_vec: Vec<TermID>
             */
             let mut subject_vec: Vec<TermID> = Vec::new();
             let mut unique_jaccard_count = 0;
-            
+
             for (key, _) in sorted_pairs {
                 if unique_jaccard_count >= limit.unwrap() {
                     break;
