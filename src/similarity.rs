@@ -501,7 +501,7 @@ mod tests {
         );
         let expected_value = 1.0;
 
-        println!("CASE 1 resnik_score: {resnik_score}");
+        println!("Case 1 resnik_score: {resnik_score}");
         assert!((resnik_score - expected_value).abs() < f64::EPSILON);
 
         // Test case 2: Normal case, entities have terms.
