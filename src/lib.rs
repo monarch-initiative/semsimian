@@ -477,21 +477,17 @@ impl RustSemsimian {
                 HashMap::new();
             for object in object_set {
                 for subject in &subject_set_owned {
-                    subject_object_jaccard_hashmap.insert(
-                        subject,
-                        HashMap::from([(object, self.jaccard_similarity(subject, object))]),
-                    );
-                    // let jaccard_similarity = self.jaccard_similarity(&subject, &object);
-                    // if jaccard_similarity > jaccard_threshold_for_quick_search.unwrap() {
-                    //     subject_object_jaccard_hashmap
-                    //         .entry(subject)
-                    //         .or_insert(HashMap::new())
-                    //         .insert(object, jaccard_similarity);
-                    // }
+                    let jaccard_similarity = self.jaccard_similarity(subject, object);
+                    subject_object_jaccard_hashmap
+                        .entry(subject)
+                        .or_insert_with(HashMap::new)
+                        .insert(object, jaccard_similarity);
                 }
             }
-            // // Get all keys of subject_object_jaccard_hashmap into a vector named subject_vec
-            // subject_vec = subject_object_jaccard_hashmap.keys().cloned().map(String::from).collect();
+            /* 
+            // Get all keys of subject_object_jaccard_hashmap into a vector named subject_vec
+            subject_vec = subject_object_jaccard_hashmap.keys().cloned().map(String::from).collect();
+            */
 
             // Sort the hashmap by value of value in descending order
             let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
@@ -501,17 +497,23 @@ impl RustSemsimian {
                 let b_value = b2.values().next().unwrap();
                 b_value.partial_cmp(a_value).unwrap()
             });
+            
+            /*
+            // Get the top 'limit' number of keys into a HashSet<TermID>
+            subject_vec = sorted_pairs
+                .into_iter()
+                .take(limit.unwrap())
+                .map(|(key, _)| key.to_string())
+                .collect();
+            */
 
-            // // Get the top 'limit' number of keys into a HashSet<TermID>
-            // subject_vec = sorted_pairs
-            //     .into_iter()
-            //     .take(limit.unwrap())
-            //     .map(|(key, _)| key.to_string())
-            //     .collect();
-
-            // Get the top 'limit' of uniques jaccard score terms into a Vec<TermID>
+            /*
+            ! Get the top 'limit' number of unique jaccard score terms into 
+            ! subject_vec: Vec<TermID>
+            */
             let mut subject_vec: Vec<TermID> = Vec::new();
             let mut unique_jaccard_count = 0;
+            
             for (key, _) in sorted_pairs {
                 if unique_jaccard_count >= limit.unwrap() {
                     break;
