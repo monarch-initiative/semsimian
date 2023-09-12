@@ -2,7 +2,7 @@ use semsimian::{Predicate, RustSemsimian, TermID};
 use std::{collections::HashSet, path::PathBuf};
 
 #[test]
-#[cfg_attr(feature = "ci".to_string(), ignore)]
+#[cfg_attr(feature = "ci", ignore)]
 fn test_large_termset_pairwise_similarity() {
     let mut db_path = PathBuf::new();
     if let Some(home) = std::env::var_os("HOME") {
