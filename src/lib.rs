@@ -185,7 +185,6 @@ impl RustSemsimian {
         minimum_jaccard_threshold: &Option<f64>,
         minimum_resnik_threshold: &Option<f64>,
     ) -> SimilarityMap {
-
         // let pb = generate_progress_bar_of_length_and_message(
         //                 (subject_terms.len() * object_terms.len()) as u64,
         //     "Building (all subjects X all objects) pairwise similarity:",
@@ -331,7 +330,7 @@ impl RustSemsimian {
 
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
                         && minimum_resnik_threshold
-                        .map_or(true, |t| ancestor_information_content > t)
+                            .map_or(true, |t| ancestor_information_content > t)
                     {
                         // Write the line to the TSV file
                         let mut output_bytes: Vec<u8> = output_map
@@ -447,6 +446,7 @@ impl RustSemsimian {
         subject_set: &Option<HashSet<TermID>>,
         subject_prefixes: &Option<Vec<TermID>>,
         // _method: Option<String>,
+        quick_search: bool,
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let assoc_predicate_terms_vec: Vec<TermID> =
@@ -458,7 +458,7 @@ impl RustSemsimian {
                 Some(&assoc_predicate_terms_vec),
                 Some(subject_prefixes),
             )
-                .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
+            .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
         } else if let Some(subject_set) = &subject_set {
             subject_set.to_owned()
         } else {
@@ -467,19 +467,47 @@ impl RustSemsimian {
                 Some(&assoc_predicate_terms_vec),
                 None,
             )
-                .unwrap_or_else(|_| panic!("Failed to get all subjects"))
+            .unwrap_or_else(|_| panic!("Failed to get all subjects"))
         };
+        let mut subject_vec: Vec<String> = subject_set_owned.iter().cloned().collect();
 
-        let subject_vec: Vec<String> = subject_set_owned.iter().cloned().collect();
+        if quick_search == true {
+            let mut subject_object_jaccard_hashmap: HashMap<&TermID, HashMap<&TermID, f64>> =
+                HashMap::new();
+            for object in object_set {
+                for subject in &subject_set_owned {
+                    subject_object_jaccard_hashmap.insert(
+                        subject,
+                        HashMap::from([(object, self.jaccard_similarity(&subject, &object))]),
+                    );
+                }
+            }
+            //     dbg!(&subject_object_jaccard_hashmap);
+
+            // Sort the hashmap by value of value in descending order
+            let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
+                subject_object_jaccard_hashmap.iter().collect();
+            sorted_pairs.sort_by(|(_, a2), (_, b2)| {
+                let a_value = a2.values().next().unwrap();
+                let b_value = b2.values().next().unwrap();
+                b_value.partial_cmp(a_value).unwrap()
+            });
+
+            // Get the top 'limit' number of keys into a HashSet<TermID>
+            subject_vec = sorted_pairs
+                .into_iter()
+                .take(limit.unwrap())
+                .map(|(key, _)| key.to_string())
+                .collect();
+        }
+
         let all_associations: HashMap<String, Vec<TermAssociation>> = get_associations(
             &RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
             Some(&subject_vec),
             Some(&assoc_predicate_terms_vec),
             None,
         )
-            .unwrap();
-
-        // let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
+        .unwrap();
 
         // Parallelize the loop using Rayon
         let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = all_associations
@@ -513,7 +541,6 @@ impl RustSemsimian {
         result
     }
 }
-
 
 #[pyclass]
 pub struct Semsimian {
@@ -676,6 +703,7 @@ impl Semsimian {
             include_similarity_object,
             &subject_terms,
             &subject_prefixes,
+            false,
             limit,
         );
 
@@ -1172,9 +1200,51 @@ mod tests_local {
             true,
             &None,
             &subject_prefixes,
+            false,
             limit,
         );
         assert_eq!({ result.len() }, limit.unwrap());
         dbg!(&result);
+    }
+
+    #[test]
+    fn test_associations_quick_search() {
+        let db = Some("tests/data/go-nucleus.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
+        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
+        let limit: Option<usize> = Some(4);
+
+        // // Call the function under test
+        // let result_1 = rss.associations_search(
+        //     &assoc_predicate,
+        //     &object_terms,
+        //     true,
+        //     &None,
+        //     &subject_prefixes,
+        //     false,
+        //     limit,
+        // );
+        let result_2 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            true,
+            limit,
+        );
+
+        // dbg!(&result_1);
+        // dbg!(&result_2);
     }
 }

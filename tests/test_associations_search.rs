@@ -36,6 +36,7 @@ fn test_associations_search() {
         true,
         &None,
         &subject_prefixes,
+        false,
         limit,
     );
 
