@@ -41,7 +41,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 true,
                 &None,
                 &subject_prefixes,
-                false,
+                true,
                 limit,
             )
         })
