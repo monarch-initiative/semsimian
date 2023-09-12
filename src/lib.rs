@@ -454,7 +454,7 @@ impl RustSemsimian {
 
         let subject_set_owned = if let Some(subject_prefixes) = subject_prefixes {
             get_subjects(
-                &RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+                RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
                 Some(&assoc_predicate_terms_vec),
                 Some(subject_prefixes),
             )
@@ -463,7 +463,7 @@ impl RustSemsimian {
             subject_set.to_owned()
         } else {
             get_subjects(
-                &RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+                RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
                 Some(&assoc_predicate_terms_vec),
                 None,
             )
@@ -472,14 +472,14 @@ impl RustSemsimian {
 
         let subject_vec: Vec<TermID> = subject_set_owned.iter().cloned().collect();
 
-        if quick_search == true {
+        if quick_search {
             let mut subject_object_jaccard_hashmap: HashMap<&TermID, HashMap<&TermID, f64>> =
                 HashMap::new();
             for object in object_set {
                 for subject in &subject_set_owned {
                     subject_object_jaccard_hashmap.insert(
                         subject,
-                        HashMap::from([(object, self.jaccard_similarity(&subject, &object))]),
+                        HashMap::from([(object, self.jaccard_similarity(subject, object))]),
                     );
                     // let jaccard_similarity = self.jaccard_similarity(&subject, &object);
                     // if jaccard_similarity > jaccard_threshold_for_quick_search.unwrap() {
@@ -522,7 +522,7 @@ impl RustSemsimian {
         }
 
         let all_associations: HashMap<String, Vec<TermAssociation>> = get_associations(
-            &RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+            RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
             Some(&subject_vec),
             Some(&assoc_predicate_terms_vec),
             None,
