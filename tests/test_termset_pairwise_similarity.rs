@@ -11,7 +11,7 @@ fn test_large_termset_pairwise_similarity() {
     } else {
         panic!("Failed to get home directory");
     }
-    // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
+
     let db = Some(db_path.to_str().expect("Failed to convert path to string"));
     let predicates: Option<Vec<Predicate>> = Some(vec![
         "rdfs:subClassOf".to_string(),
