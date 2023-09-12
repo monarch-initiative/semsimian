@@ -512,14 +512,12 @@ impl RustSemsimian {
             ! subject_vec: Vec<TermID>
             */
             let mut subject_vec: Vec<TermID> = Vec::new();
-            let mut unique_jaccard_count = 0;
 
-            for (key, _) in sorted_pairs {
+            for (unique_jaccard_count, (key, _)) in sorted_pairs.into_iter().enumerate() {
                 if unique_jaccard_count >= limit.unwrap() {
                     break;
                 }
                 subject_vec.push(key.to_string());
-                unique_jaccard_count += 1;
             }
         }
 
