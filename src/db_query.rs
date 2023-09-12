@@ -248,7 +248,7 @@ mod tests {
         // Call the function with the test parameters
         let result = get_entailed_edges_for_predicate_list(db, &PREDICATE_VEC);
 
-        dbg!(&result);
+        // dbg!(&result);
         // Assert that the function executed successfully
         assert_eq!(result.unwrap().len(), expected_length);
     }
