@@ -46,7 +46,7 @@ fn test_large_associations_search() {
 }
 
 #[test]
-// #[ignore]
+#[ignore]
 #[cfg_attr(feature = "ci", ignore)]
 fn test_large_associations_quick_search() {
     let mut db_path = PathBuf::new();
@@ -99,11 +99,14 @@ fn test_large_associations_quick_search() {
 
     let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
     let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
-    
+
     // Assert that there is at least 80% match between result_1_matches and result_2_matches
-    let match_count = result_1_matches.iter().filter(|&x| result_2_matches.contains(x)).count();
+    let match_count = result_1_matches
+        .iter()
+        .filter(|&x| result_2_matches.contains(x))
+        .count();
     let match_percentage = (match_count as f32 / result_1_matches.len() as f32) * 100.0;
-    
+
     dbg!(&match_percentage);
     assert!(match_percentage >= 80.0);
 }

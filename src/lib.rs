@@ -553,9 +553,53 @@ impl RustSemsimian {
         // Sort the result vector by score in descending order
         result.par_sort_unstable_by(|(a, _, _), (b, _, _)| b.partial_cmp(a).unwrap());
 
+        // ! At this point there are 2 ways of returning the results
+        // ! Condition: Is limit > number of terms that have the highest IC score?
+        // ! If YES: Return the top limit number of terms
+        // ! else: Return terms such that the unique number of IC scores == limit.
+
+        // Get the maximum score
+        let max_score = result[0].0;
+        // Count the number of unique scores
+        let max_score_count = result
+            .iter()
+            .filter(|(score, _, _)| *score == max_score)
+            .count();
+
         // Limit the number of objects within the result
         if let Some(limit) = limit {
-            result.truncate(limit);
+            if max_score_count > limit {
+                // Include all terms in the result where the score is equal to the maximum score
+                let max_score_terms = result
+                    .iter()
+                    .filter(|(score, _, _)| *score == max_score)
+                    .cloned()
+                    .collect::<Vec<_>>();
+
+                // Include additional terms with unique scores until the limit is reached
+                let mut unique_scores = HashSet::new();
+                for (score, _, _) in result.iter() {
+                    unique_scores.insert(score.to_bits());
+                    if unique_scores.len() == limit {
+                        break;
+                    }
+                }
+                let additional_terms = result
+                    .iter()
+                    .filter(|(score, _, _)| unique_scores.contains(&score.to_bits()))
+                    .cloned()
+                    .collect::<Vec<_>>();
+
+                // Combine the terms and update the result vector
+                let combined_terms = max_score_terms
+                    .into_iter()
+                    .chain(additional_terms.into_iter())
+                    .collect::<Vec<_>>();
+                result.clear();
+                result.extend(combined_terms);
+            } else {
+                result.truncate(limit);
+            }
         }
 
         result
@@ -1223,8 +1267,12 @@ mod tests_local {
             false,
             limit,
         );
-        assert_eq!({ result.len() }, limit.unwrap());
-        dbg!(&result);
+        // assert_eq!({ result.len() }, limit.unwrap());
+        //result is a Vec<(f64, obj, String)> I want the count of tuples in the vector that has the f64 value as the first one
+        let unique_scores: HashSet<_> = result.iter().map(|(score, _, _)| score.to_bits()).collect();
+        let count = unique_scores.len();
+        assert!(count <= limit.unwrap());
+        // dbg!(&result);
     }
 
     #[test]
@@ -1266,14 +1314,17 @@ mod tests_local {
 
         let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
         let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
-        
+
         // Assert that there is at least 80% match between result_1_matches and result_2_matches
-        let match_count = result_1_matches.iter().filter(|&x| result_2_matches.contains(x)).count();
+        let match_count = result_1_matches
+            .iter()
+            .filter(|&x| result_2_matches.contains(x))
+            .count();
         let match_percentage = (match_count as f32 / result_1_matches.len() as f32) * 100.0;
-        
+
         dbg!(&match_percentage);
         assert!(match_percentage >= 80.0);
-        
+
         // dbg!(&result_1);
         // dbg!(&result_2);
     }

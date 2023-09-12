@@ -39,3 +39,7 @@ harness = false
 [[bench]]
 name = "association_search_benchmark"
 harness = false
+
+[[bench]]
+name = "association_quick_search_benchmark"
+harness = false
