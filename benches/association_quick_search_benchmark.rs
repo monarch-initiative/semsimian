@@ -33,7 +33,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut bench_grp = c.benchmark_group("search_bench_group");
     bench_grp.sample_size(10);
     // .measurement_time(Duration::from_secs(300));
-    bench_grp.bench_function("search", move |b| {
+    bench_grp.bench_function("quick_search", move |b| {
         b.iter(|| {
             rss.associations_search(
                 &assoc_predicate,
