@@ -1269,7 +1269,8 @@ mod tests_local {
         );
         // assert_eq!({ result.len() }, limit.unwrap());
         //result is a Vec<(f64, obj, String)> I want the count of tuples in the vector that has the f64 value as the first one
-        let unique_scores: HashSet<_> = result.iter().map(|(score, _, _)| score.to_bits()).collect();
+        let unique_scores: HashSet<_> =
+            result.iter().map(|(score, _, _)| score.to_bits()).collect();
         let count = unique_scores.len();
         assert!(count <= limit.unwrap());
         // dbg!(&result);
