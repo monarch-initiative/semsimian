@@ -1291,7 +1291,7 @@ mod tests_local {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
-        let limit: Option<usize> = Some(30);
+        let limit: Option<usize> = Some(10);
 
         // Call the function under test
         let result_1 = rss.associations_search(
@@ -1324,7 +1324,7 @@ mod tests_local {
         let match_percentage = (match_count as f32 / result_1_matches.len() as f32) * 100.0;
 
         dbg!(&match_percentage);
-        assert!(match_percentage >= 80.0);
+        assert_eq!(match_percentage, 100.0);
 
         // dbg!(&result_1);
         // dbg!(&result_2);
