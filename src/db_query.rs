@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{Predicate, TermID};
 use rusqlite::{Connection, Result};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TermAssociation {
     pub id: TermID,
     pub subject: TermID,
