@@ -90,7 +90,7 @@ fn test_large_associations_quick_search() {
         true,
         &None,
         &subject_prefixes,
-        false,
+        true,
         limit,
     );
 
