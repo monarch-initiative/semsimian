@@ -545,7 +545,7 @@ impl RustSemsimian {
                         .cloned()
                         .max_by(|a, b| a.partial_cmp(b).unwrap())
                         .unwrap();
-                
+
                     // First compare by f64 score
                     match a_value.partial_cmp(&b_value) {
                         Some(std::cmp::Ordering::Equal) => {
@@ -555,7 +555,6 @@ impl RustSemsimian {
                         other => other.unwrap(),
                     }
                 });
-                
 
                 // Get the maximum f64 value from the HashMap
                 let max_score = sorted_pairs[0]
@@ -1436,16 +1435,15 @@ mod tests_local {
             .cloned()
             .collect();
 
-        
         let result_2_unique: Vec<_> = result_2_matches
             .iter()
             .filter(|&x| !result_1_matches.contains(x))
             .cloned()
             .collect();
-        
+
         assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
         assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
-        
+
         dbg!(&result_1_unique);
         dbg!(&result_2_unique);
     }
