@@ -448,7 +448,7 @@ pub fn get_best_score(
 
 // ! Needs a unit test
 pub fn get_prefix_association_key(
-    subject_prefixes: &Vec<TermID>,
+    subject_prefixes: &[TermID],
     object_closure_predicates: &HashSet<TermID>,
     quick_search_flag: &bool,
 ) -> String {
