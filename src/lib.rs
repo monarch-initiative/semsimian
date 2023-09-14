@@ -1429,7 +1429,24 @@ mod tests_local {
         dbg!(&match_percentage);
         assert_eq!(match_percentage, 100.0);
 
-        // dbg!(&result_1);
-        // dbg!(&result_2);
+        // ! Double check there aren't terms in one and not the other
+        let result_1_unique: Vec<_> = result_1_matches
+            .iter()
+            .filter(|&x| !result_2_matches.contains(x))
+            .cloned()
+            .collect();
+
+        
+        let result_2_unique: Vec<_> = result_2_matches
+            .iter()
+            .filter(|&x| !result_1_matches.contains(x))
+            .cloned()
+            .collect();
+        
+        assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
+        assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
+        
+        dbg!(&result_1_unique);
+        dbg!(&result_2_unique);
     }
 }
