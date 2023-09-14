@@ -512,7 +512,29 @@ impl RustSemsimian {
                 //     }
                 // });
                 // //! Sort by f64 score (descending) and then by TermID hash (ascending)
-                sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
+                // sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
+                //     let a_value = a2
+                //         .values()
+                //         .cloned()
+                //         .max_by(|a, b| a.partial_cmp(b).unwrap())
+                //         .unwrap();
+                //     let b_value = b2
+                //         .values()
+                //         .cloned()
+                //         .max_by(|a, b| a.partial_cmp(b).unwrap())
+                //         .unwrap();
+
+                //     // First compare by f64 score
+                //     match a_value.partial_cmp(&b_value) {
+                //         Some(std::cmp::Ordering::Equal) => {
+                //             // If scores are equal, compare by hashed TermID
+                //             seeded_hash(a1).cmp(&seeded_hash(b1))
+                //         }
+                //         other => other.unwrap(),
+                //     }
+                // });
+                // //! Parallel: Sort by f64 score (descending) and then by TermID hash (ascending)
+                sorted_pairs.par_sort_unstable_by(|(a1, a2), (b1, b2)| {
                     let a_value = a2
                         .values()
                         .cloned()
@@ -523,7 +545,7 @@ impl RustSemsimian {
                         .cloned()
                         .max_by(|a, b| a.partial_cmp(b).unwrap())
                         .unwrap();
-
+                
                     // First compare by f64 score
                     match a_value.partial_cmp(&b_value) {
                         Some(std::cmp::Ordering::Equal) => {
@@ -533,6 +555,7 @@ impl RustSemsimian {
                         other => other.unwrap(),
                     }
                 });
+                
 
                 // Get the maximum f64 value from the HashMap
                 let max_score = sorted_pairs[0]
@@ -619,7 +642,7 @@ impl RustSemsimian {
         //     }
         // });
         // ! In-parallel Sort by f64 score (descending) and then by TermID hash (ascending)
-        result.par_sort_by(|a, b| {
+        result.par_sort_unstable_by(|a, b| {
             match b.0.partial_cmp(&a.0) {
                 Some(std::cmp::Ordering::Equal) => {
                     // If scores are equal, compare by hashed values
