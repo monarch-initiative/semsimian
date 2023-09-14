@@ -631,10 +631,11 @@ impl RustSemsimian {
 
         result.truncate(limit.unwrap());
 
-        // // ! At this point there are 2 ways of returning the results
-        // // ! Condition: Is limit > number of terms that have the highest IC score?
-        // // ! If YES: Return the top limit number of terms
-        // // ! else: Return terms such that the unique number of IC scores == limit.
+        // //! Commented code below: Alternatives to above.
+        // //! At this point there are 2 ways of returning the results
+        // //! Condition: Is limit > number of terms that have the highest IC score?
+        // //! If YES: Return the top limit number of terms
+        // //! else: Return terms such that the unique number of IC scores == limit.
 
         // // Get the maximum score
         // let max_score = result[0].0;
