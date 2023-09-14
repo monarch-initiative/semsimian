@@ -125,6 +125,30 @@ class testSemsimianWithPython(unittest.TestCase):
             assoc_predicate,
             object_terms,
             True,
+            False,
+            None,
+            subject_prefixes,
+            limit,
+        )
+        self.assertEqual(len(result), limit)
+
+    def test_association_quick_search(self):
+        subject_prefixes = ["GO:"]
+        object_terms = {"GO:0019222"}
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        assoc_predicate = {"biolink:has_nucleus"}
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            pairwise_similarity_attributes=None,
+            resource_path=self.db,
+        )
+        limit = 10
+        result = semsimian.associations_search(
+            assoc_predicate,
+            object_terms,
+            True,
+            True,
             None,
             subject_prefixes,
             limit,
@@ -149,11 +173,77 @@ class testSemsimianWithPython(unittest.TestCase):
             assoc_predicate,
             object_terms,
             True,
+            False,
             None,
             subject_prefixes,
             limit,
         )
         self.assertEqual(len(result), limit)
+
+    @unittest.skip("Too long and local db file.")
+    def test_association_quick_search_phenio(self):
+        subject_prefixes = ["MGI:"]
+        object_terms = {"MP:0003143"}
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        assoc_predicate = {"biolink:has_phenotype"}
+        db_path = os.path.expanduser("~/.data/oaklib/phenio.db")
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            pairwise_similarity_attributes=None,
+            resource_path=db_path,
+        )
+        limit = 10
+        result = semsimian.associations_search(
+            assoc_predicate,
+            object_terms,
+            True,
+            True,
+            None,
+            subject_prefixes,
+            limit,
+        )
+        self.assertEqual(len(result), limit)
+
+    @unittest.skip("Too long and local db file.")
+    def test_association_search_caching(self):
+        subject_prefixes = ["MGI:"]
+        object_terms = {"MP:0003143"}
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        assoc_predicate = {"biolink:has_phenotype"}
+        db_path = os.path.expanduser("~/.data/oaklib/phenio.db")
+        limit = 10
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            pairwise_similarity_attributes=None,
+            resource_path=db_path,
+        )
+        load_start = time.time()
+        _ = semsimian.associations_search(
+            assoc_predicate,
+            object_terms,
+            True,
+            False,
+            None,
+            subject_prefixes,
+            limit,
+        )
+        interval_1 = time.time() - load_start
+        print(f"Warmup time: {interval_1} sec")
+        second_compare_time = time.time()
+        _ = semsimian.associations_search(
+            assoc_predicate,
+            object_terms,
+            True,
+            False,
+            None,
+            subject_prefixes,
+            limit,
+        )
+        interval_2 = time.time() - second_compare_time
+        print(f"Second compare time: {interval_2} sec")
+        self.assertTrue(interval_1 - interval_2 >= 0)
 
 
 if __name__ == "__main__":

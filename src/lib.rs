@@ -850,6 +850,7 @@ impl Semsimian {
         object_closure_predicate_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
         include_similarity_object: bool,
+        quick_search: bool,
         // sort_by_similarity: bool,
         // property_filter: Option<HashMap<String, String>>,
         // subject_closure_predicates: Option<Vec<TermID>>,
@@ -868,7 +869,7 @@ impl Semsimian {
             include_similarity_object,
             &subject_terms,
             &subject_prefixes,
-            false,
+            quick_search,
             limit,
         );
 
