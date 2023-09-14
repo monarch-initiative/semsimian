@@ -446,7 +446,6 @@ pub fn get_best_score(
     max_score
 }
 
-// ! Needs a unit test
 pub fn get_prefix_association_key(
     subject_prefixes: &[TermID],
     object_closure_predicates: &HashSet<TermID>,
@@ -473,7 +472,6 @@ pub fn get_prefix_association_key(
     subject_prefixes_string + &object_closure_predicates_string + &quick_search_flag.to_string()
 }
 
-// ! Needs a unit test
 pub fn get_curies_from_prefixes(
     prefixes: Option<&Vec<TermID>>,
     predicates: &Vec<TermID>,
