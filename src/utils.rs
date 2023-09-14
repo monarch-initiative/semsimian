@@ -7,6 +7,7 @@ use std::error::Error;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
+use crate::db_query::get_subjects;
 use crate::SimilarityMap;
 type Predicate = String;
 type TermID = String;
@@ -443,6 +444,46 @@ pub fn get_best_score(
         });
 
     max_score
+}
+
+// ! Needs a unit test
+pub fn get_prefix_association_key(
+    subject_prefixes: &Vec<TermID>,
+    object_closure_predicates: &HashSet<TermID>,
+    quick_search_flag: &bool,
+) -> String {
+    // Convert subject_prefixes to a sorted string
+    let subject_prefixes_string = subject_prefixes
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<String>>()
+        .join("+");
+
+    // Convert object_closure_predicates to a sorted string
+    let object_closure_predicates_string = {
+        let mut sorted_predicates = object_closure_predicates
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<String>>();
+        sorted_predicates.sort();
+        sorted_predicates.join("+")
+    };
+
+    // Concatenate subject_prefixes_string , object_closure_predicates_string and quick_search_flag
+    subject_prefixes_string + &object_closure_predicates_string + &quick_search_flag.to_string()
+}
+
+// ! Needs a unit test
+pub fn get_curies_from_prefixes(
+    prefixes: Option<&Vec<TermID>>,
+    predicates: &Vec<TermID>,
+    resource_path: &str,
+) -> Vec<TermID> {
+    let curies_set = get_subjects(resource_path, Some(predicates), prefixes)
+        .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"));
+
+    let curies_vec: Vec<TermID> = curies_set.into_iter().collect();
+    curies_vec
 }
 
 #[cfg(test)]

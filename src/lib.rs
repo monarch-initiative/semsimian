@@ -1,5 +1,5 @@
 use db_query::{
-    get_associations, get_entailed_edges_for_predicate_list, get_subjects, TermAssociation,
+    get_associations, get_entailed_edges_for_predicate_list, TermAssociation,
 };
 use pyo3::prelude::*;
 use std::{
@@ -26,8 +26,9 @@ use similarity::{
 };
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
-    generate_progress_bar_of_length_and_message, get_best_matches, get_termset_vector,
-    predicate_set_to_key, rearrange_columns_and_rewrite,
+    generate_progress_bar_of_length_and_message, get_best_matches, get_curies_from_prefixes,
+    get_prefix_association_key, get_termset_vector, predicate_set_to_key,
+    rearrange_columns_and_rewrite,
 };
 
 use db_query::get_labels;
@@ -65,6 +66,7 @@ pub struct RustSemsimian {
     // closure_map is something like {("is_a_+_part_of"), {"GO:1234": {"GO:1234", "GO:5678"}}}
     embeddings: Embeddings,
     pairwise_similarity_attributes: Option<Vec<String>>,
+    prefix_association_cache: HashMap<String, HashMap<String, Vec<TermAssociation>>>,
 }
 
 impl RustSemsimian {
@@ -103,6 +105,7 @@ impl RustSemsimian {
             ic_map: HashMap::new(),
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
+            prefix_association_cache: HashMap::new(),
         }
     }
 
@@ -434,7 +437,7 @@ impl RustSemsimian {
     }
 
     pub fn associations_search(
-        &self,
+        &mut self,
         object_closure_predicates: &HashSet<TermID>,
         object_set: &HashSet<TermID>,
         include_similarity_object: bool,
@@ -448,85 +451,92 @@ impl RustSemsimian {
         quick_search: bool,
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let assoc_predicate_terms_vec: Vec<TermID> =
-            object_closure_predicates.iter().cloned().collect();
-
-        let subject_set_owned = if let Some(subject_prefixes) = subject_prefixes {
-            get_subjects(
-                RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
-                Some(&assoc_predicate_terms_vec),
-                Some(subject_prefixes),
-            )
-            .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"))
-        } else if let Some(subject_set) = &subject_set {
-            subject_set.to_owned()
+        let cache_key = if let Some(subject_prefixes) = subject_prefixes {
+            get_prefix_association_key(subject_prefixes, object_closure_predicates, &quick_search)
         } else {
-            get_subjects(
+            String::new()
+        };
+
+        let mut all_associations: HashMap<String, Vec<TermAssociation>> = HashMap::new();
+
+        if !cache_key.is_empty() && self.prefix_association_cache.contains_key(&cache_key) {
+            all_associations = self
+                .prefix_association_cache
+                .get(&cache_key)
+                .unwrap()
+                .to_owned();
+        } else {
+            let assoc_predicate_terms_vec: Vec<TermID> =
+                object_closure_predicates.iter().cloned().collect();
+
+            let subject_vec = match subject_prefixes {
+                Some(subject_prefixes) => get_curies_from_prefixes(
+                    Some(subject_prefixes),
+                    &assoc_predicate_terms_vec,
+                    RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+                ),
+                None => {
+                    let subject_set = subject_set.as_ref().unwrap();
+                    let subject_vec: Vec<TermID> = subject_set.clone().into_iter().collect();
+                    subject_vec
+                }
+            };
+
+            if quick_search {
+                let mut subject_object_jaccard_hashmap: HashMap<&TermID, HashMap<&TermID, f64>> =
+                    HashMap::new();
+                for object in object_set {
+                    for subject in &subject_vec {
+                        let jaccard_similarity = self.jaccard_similarity(subject, object);
+                        subject_object_jaccard_hashmap
+                            .entry(subject)
+                            .or_insert_with(HashMap::new)
+                            .insert(object, jaccard_similarity);
+                    }
+                }
+
+                // Sort the hashmap by value of value in descending order
+                let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
+                    subject_object_jaccard_hashmap.iter().collect();
+                sorted_pairs.sort_by(|(_, a2), (_, b2)| {
+                    let a_value = a2.values().next().unwrap();
+                    let b_value = b2.values().next().unwrap();
+                    b_value.partial_cmp(a_value).unwrap()
+                });
+
+                /*
+                // ! Get the top 'limit' number of keys into a Vec<TermID>
+                subject_vec = sorted_pairs
+                    .into_iter()
+                    .take(limit.unwrap())
+                    .map(|(key, _)| key.to_string())
+                    .collect();
+                */
+
+                /*
+                ! Get the top 'limit' number of unique jaccard score terms into
+                ! subject_vec: Vec<TermID>
+                */
+                let mut subject_vec: Vec<TermID> = Vec::new();
+
+                for (unique_jaccard_count, (key, _)) in sorted_pairs.into_iter().enumerate() {
+                    if unique_jaccard_count >= limit.unwrap() {
+                        break;
+                    }
+                    subject_vec.push(key.to_string());
+                }
+            }
+
+            all_associations = get_associations(
                 RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+                Some(&subject_vec),
                 Some(&assoc_predicate_terms_vec),
                 None,
             )
-            .unwrap_or_else(|_| panic!("Failed to get all subjects"))
-        };
-
-        let subject_vec: Vec<TermID> = subject_set_owned.iter().cloned().collect();
-
-        if quick_search {
-            let mut subject_object_jaccard_hashmap: HashMap<&TermID, HashMap<&TermID, f64>> =
-                HashMap::new();
-            for object in object_set {
-                for subject in &subject_set_owned {
-                    let jaccard_similarity = self.jaccard_similarity(subject, object);
-                    subject_object_jaccard_hashmap
-                        .entry(subject)
-                        .or_insert_with(HashMap::new)
-                        .insert(object, jaccard_similarity);
-                }
-            }
-            /*
-            // Get all keys of subject_object_jaccard_hashmap into a vector named subject_vec
-            subject_vec = subject_object_jaccard_hashmap.keys().cloned().map(String::from).collect();
-            */
-
-            // Sort the hashmap by value of value in descending order
-            let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
-                subject_object_jaccard_hashmap.iter().collect();
-            sorted_pairs.sort_by(|(_, a2), (_, b2)| {
-                let a_value = a2.values().next().unwrap();
-                let b_value = b2.values().next().unwrap();
-                b_value.partial_cmp(a_value).unwrap()
-            });
-
-            /*
-            // Get the top 'limit' number of keys into a HashSet<TermID>
-            subject_vec = sorted_pairs
-                .into_iter()
-                .take(limit.unwrap())
-                .map(|(key, _)| key.to_string())
-                .collect();
-            */
-
-            /*
-            ! Get the top 'limit' number of unique jaccard score terms into
-            ! subject_vec: Vec<TermID>
-            */
-            let mut subject_vec: Vec<TermID> = Vec::new();
-
-            for (unique_jaccard_count, (key, _)) in sorted_pairs.into_iter().enumerate() {
-                if unique_jaccard_count >= limit.unwrap() {
-                    break;
-                }
-                subject_vec.push(key.to_string());
-            }
+            .unwrap();
+            self.prefix_association_cache
+                .insert(cache_key, all_associations.clone());
         }
-
-        let all_associations: HashMap<String, Vec<TermAssociation>> = get_associations(
-            RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
-            Some(&subject_vec),
-            Some(&assoc_predicate_terms_vec),
-            None,
-        )
-        .unwrap();
 
         // Parallelize the loop using Rayon
         let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = all_associations
@@ -1302,6 +1312,7 @@ mod tests_local {
             false,
             limit,
         );
+        dbg!(&rss.prefix_association_cache);
         let result_2 = rss.associations_search(
             &assoc_predicate,
             &object_terms,
