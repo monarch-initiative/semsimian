@@ -455,7 +455,7 @@ impl RustSemsimian {
             String::new()
         };
 
-        let mut all_associations: HashMap<String, Vec<TermAssociation>> = HashMap::new();
+        let all_associations;
 
         if !cache_key.is_empty() && self.prefix_association_cache.contains_key(&cache_key) {
             all_associations = self
