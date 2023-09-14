@@ -28,7 +28,7 @@ use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
     generate_progress_bar_of_length_and_message, get_best_matches, get_curies_from_prefixes,
     get_prefix_association_key, get_termset_vector, predicate_set_to_key,
-    rearrange_columns_and_rewrite,
+    rearrange_columns_and_rewrite, seeded_hash,
 };
 
 use db_query::get_labels;
@@ -469,7 +469,7 @@ impl RustSemsimian {
             let assoc_predicate_terms_vec: Vec<TermID> =
                 object_closure_predicates.iter().cloned().collect();
 
-            let subject_vec = match subject_prefixes {
+            let mut subject_vec = match subject_prefixes {
                 Some(subject_prefixes) => get_curies_from_prefixes(
                     Some(subject_prefixes),
                     &assoc_predicate_terms_vec,
@@ -490,42 +490,69 @@ impl RustSemsimian {
                         let jaccard_similarity = self.jaccard_similarity(subject, object);
                         subject_object_jaccard_hashmap
                             .entry(subject)
-                            .or_insert_with(HashMap::new)
+                            .or_default()
                             .insert(object, jaccard_similarity);
                     }
                 }
 
-                // Sort the hashmap by value of value in descending order
-                let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
-                    subject_object_jaccard_hashmap.iter().collect();
-                sorted_pairs.sort_by(|(_, a2), (_, b2)| {
-                    let a_value = a2.values().next().unwrap();
-                    let b_value = b2.values().next().unwrap();
-                    b_value.partial_cmp(a_value).unwrap()
+                // Convert HashMap to Vec
+                let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> = subject_object_jaccard_hashmap.iter().collect();
+                
+                // //! Sort by f64 score (descending) and then by TermID (ascending)
+                // sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
+                //     let a_value = a2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+                //     let b_value = b2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+                    
+                //     // First compare by f64 score
+                //     match a_value.partial_cmp(&b_value) {
+                //         Some(std::cmp::Ordering::Equal) => {
+                //             // If scores are equal, compare by TermID
+                //             a1.cmp(b1)
+                //         },
+                //         other => other.unwrap(),
+                //     }
+                // });
+                // //! Sort by f64 score (descending) and then by TermID hash (ascending)
+                sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
+                    let a_value = a2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+                    let b_value = b2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+                
+                    // First compare by f64 score
+                    match a_value.partial_cmp(&b_value) {
+                        Some(std::cmp::Ordering::Equal) => {
+                            // If scores are equal, compare by hashed TermID
+                            seeded_hash(a1).cmp(&seeded_hash(b1))
+                        },
+                        other => other.unwrap(),
+                    }
                 });
+                
 
-                /*
+                // Get the maximum f64 value from the HashMap
+                let max_score = sorted_pairs[0].1.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap());
+                
+                let max_score_count = sorted_pairs.iter().filter(|(_, hashmap)| {
+                    hashmap.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()) == max_score
+                }).count();
+                
+                // //! Sort the hashmap by maximum value of value in descending order
+                // let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
+                //     subject_object_jaccard_hashmap.iter().collect();
+                // sorted_pairs.sort_by(|(_, a2), (_, b2)| {
+                //     let a_value = a2.values().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+                //     let b_value = b2.values().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+                //     b_value.partial_cmp(a_value).unwrap()
+                // });
+
+                
                 // ! Get the top 'limit' number of keys into a Vec<TermID>
                 subject_vec = sorted_pairs
                     .into_iter()
-                    .take(limit.unwrap())
+                    .take(max_score_count.max(limit.unwrap()))
                     .map(|(key, _)| key.to_string())
                     .collect();
-                */
-
-                /*
-                ! Get the top 'limit' number of unique jaccard score terms into
-                ! subject_vec: Vec<TermID>
-                */
-                let mut subject_vec: Vec<TermID> = Vec::new();
-
-                for (unique_jaccard_count, (key, _)) in sorted_pairs.into_iter().enumerate() {
-                    if unique_jaccard_count >= limit.unwrap() {
-                        break;
-                    }
-                    subject_vec.push(key.to_string());
-                }
             }
+            
 
             all_associations = get_associations(
                 RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
@@ -559,57 +586,85 @@ impl RustSemsimian {
             })
             .collect();
 
-        // Sort the result vector by score in descending order
-        result.par_sort_unstable_by(|(a, _, _), (b, _, _)| b.partial_cmp(a).unwrap());
-
-        // ! At this point there are 2 ways of returning the results
-        // ! Condition: Is limit > number of terms that have the highest IC score?
-        // ! If YES: Return the top limit number of terms
-        // ! else: Return terms such that the unique number of IC scores == limit.
-
-        // Get the maximum score
-        let max_score = result[0].0;
-        // Count the number of unique scores
-        let max_score_count = result
-            .iter()
-            .filter(|(score, _, _)| *score == max_score)
-            .count();
-
-        // Limit the number of objects within the result
-        if let Some(limit) = limit {
-            if max_score_count > limit {
-                // Include all terms in the result where the score is equal to the maximum score
-                let max_score_terms = result
-                    .iter()
-                    .filter(|(score, _, _)| *score == max_score)
-                    .cloned()
-                    .collect::<Vec<_>>();
-
-                // Include additional terms with unique scores until the limit is reached
-                let mut unique_scores = HashSet::new();
-                for (score, _, _) in result.iter() {
-                    unique_scores.insert(score.to_bits());
-                    if unique_scores.len() == limit {
-                        break;
-                    }
-                }
-                let additional_terms = result
-                    .iter()
-                    .filter(|(score, _, _)| unique_scores.contains(&score.to_bits()))
-                    .cloned()
-                    .collect::<Vec<_>>();
-
-                // Combine the terms and update the result vector
-                let combined_terms = max_score_terms
-                    .into_iter()
-                    .chain(additional_terms.into_iter())
-                    .collect::<Vec<_>>();
-                result.clear();
-                result.extend(combined_terms);
-            } else {
-                result.truncate(limit);
+        // //! Sort the result vector by score in descending order
+        // result.par_sort_unstable_by(|(a, _, _), (b, _, _)| b.partial_cmp(a).unwrap());
+        
+        // Sort by f64 score (descending) and then by TermID (ascending)
+        // result.sort_by(|a, b| {
+        //     match b.0.partial_cmp(&a.0) {
+        //         Some(std::cmp::Ordering::Equal) => a.2.cmp(&b.2),
+        //         other => other.unwrap(),
+        //     }
+        // });
+        // //! In-parallel Sort by f64 score (descending) and then by TermID (ascending)
+        // result.par_sort_by(|a, b| {
+        //     match b.0.partial_cmp(&a.0) {
+        //         Some(std::cmp::Ordering::Equal) => a.2.cmp(&b.2),
+        //         other => other.unwrap(),
+        //     }
+        // });
+        // ! In-parallel Sort by f64 score (descending) and then by TermID hash (ascending)
+        result.par_sort_by(|a, b| {
+            match b.0.partial_cmp(&a.0) {
+                Some(std::cmp::Ordering::Equal) => {
+                    // If scores are equal, compare by hashed values
+                    seeded_hash(&a.2).cmp(&seeded_hash(&b.2))
+                },
+                other => other.unwrap(),
             }
-        }
+        });
+        
+        result.truncate(limit.unwrap());
+        
+
+        // // ! At this point there are 2 ways of returning the results
+        // // ! Condition: Is limit > number of terms that have the highest IC score?
+        // // ! If YES: Return the top limit number of terms
+        // // ! else: Return terms such that the unique number of IC scores == limit.
+
+        // // Get the maximum score
+        // let max_score = result[0].0;
+        // // Count the number of unique scores
+        // let max_score_count = result
+        //     .iter()
+        //     .filter(|(score, _, _)| *score == max_score)
+        //     .count();
+
+        // // Limit the number of objects within the result
+        // if let Some(limit) = limit {
+        //     if max_score_count > limit {
+        //         // Include all terms in the result where the score is equal to the maximum score
+        //         let max_score_terms = result
+        //             .iter()
+        //             .filter(|(score, _, _)| *score == max_score)
+        //             .cloned()
+        //             .collect::<Vec<_>>();
+
+        //         // Include additional terms with unique scores until the limit is reached
+        //         let mut unique_scores = HashSet::new();
+        //         for (score, _, _) in result.iter() {
+        //             unique_scores.insert(score.to_bits());
+        //             if unique_scores.len() == limit {
+        //                 break;
+        //             }
+        //         }
+        //         let additional_terms = result
+        //             .iter()
+        //             .filter(|(score, _, _)| unique_scores.contains(&score.to_bits()))
+        //             .cloned()
+        //             .collect::<Vec<_>>();
+
+        //         // Combine the terms and update the result vector
+        //         let combined_terms = max_score_terms
+        //             .into_iter()
+        //             .chain(additional_terms.into_iter())
+        //             .collect::<Vec<_>>();
+        //         result.clear();
+        //         result.extend(combined_terms);
+        //     } else {
+        //         result.truncate(limit);
+        //     }
+        // }
 
         result
     }
@@ -1300,7 +1355,7 @@ mod tests_local {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
-        let limit: Option<usize> = Some(10);
+        let limit: Option<usize> = Some(78);
 
         // Call the function under test
         let result_1 = rss.associations_search(
@@ -1312,7 +1367,7 @@ mod tests_local {
             false,
             limit,
         );
-        dbg!(&rss.prefix_association_cache);
+
         let result_2 = rss.associations_search(
             &assoc_predicate,
             &object_terms,

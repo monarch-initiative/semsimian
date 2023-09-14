@@ -1,5 +1,7 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use csv::{ReaderBuilder, WriterBuilder};
@@ -15,6 +17,7 @@ type PredicateSetKey = String;
 type ClosureMap = HashMap<String, HashMap<String, HashSet<String>>>;
 type ICMap = HashMap<String, HashMap<String, f64>>;
 type BTreeInBTree = BTreeMap<String, BTreeMap<String, String>>;
+
 
 pub fn predicate_set_to_key(predicates: &Option<Vec<Predicate>>) -> PredicateSetKey {
     let mut result = String::new();
@@ -482,6 +485,13 @@ pub fn get_curies_from_prefixes(
 
     let curies_vec: Vec<TermID> = curies_set.into_iter().collect();
     curies_vec
+}
+
+// Function to create a seeded hash
+pub fn seeded_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
 }
 
 #[cfg(test)]
