@@ -1,6 +1,4 @@
-use db_query::{
-    get_associations, get_entailed_edges_for_predicate_list, TermAssociation,
-};
+use db_query::{get_associations, get_entailed_edges_for_predicate_list, TermAssociation};
 use pyo3::prelude::*;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -496,13 +494,14 @@ impl RustSemsimian {
                 }
 
                 // Convert HashMap to Vec
-                let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> = subject_object_jaccard_hashmap.iter().collect();
-                
+                let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
+                    subject_object_jaccard_hashmap.iter().collect();
+
                 // //! Sort by f64 score (descending) and then by TermID (ascending)
                 // sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
                 //     let a_value = a2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
                 //     let b_value = b2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-                    
+
                 //     // First compare by f64 score
                 //     match a_value.partial_cmp(&b_value) {
                 //         Some(std::cmp::Ordering::Equal) => {
@@ -514,27 +513,45 @@ impl RustSemsimian {
                 // });
                 // //! Sort by f64 score (descending) and then by TermID hash (ascending)
                 sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
-                    let a_value = a2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-                    let b_value = b2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-                
+                    let a_value = a2
+                        .values()
+                        .cloned()
+                        .max_by(|a, b| a.partial_cmp(b).unwrap())
+                        .unwrap();
+                    let b_value = b2
+                        .values()
+                        .cloned()
+                        .max_by(|a, b| a.partial_cmp(b).unwrap())
+                        .unwrap();
+
                     // First compare by f64 score
                     match a_value.partial_cmp(&b_value) {
                         Some(std::cmp::Ordering::Equal) => {
                             // If scores are equal, compare by hashed TermID
                             seeded_hash(a1).cmp(&seeded_hash(b1))
-                        },
+                        }
                         other => other.unwrap(),
                     }
                 });
-                
 
                 // Get the maximum f64 value from the HashMap
-                let max_score = sorted_pairs[0].1.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap());
-                
-                let max_score_count = sorted_pairs.iter().filter(|(_, hashmap)| {
-                    hashmap.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()) == max_score
-                }).count();
-                
+                let max_score = sorted_pairs[0]
+                    .1
+                    .values()
+                    .cloned()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap());
+
+                let max_score_count = sorted_pairs
+                    .iter()
+                    .filter(|(_, hashmap)| {
+                        hashmap
+                            .values()
+                            .cloned()
+                            .max_by(|a, b| a.partial_cmp(b).unwrap())
+                            == max_score
+                    })
+                    .count();
+
                 // //! Sort the hashmap by maximum value of value in descending order
                 // let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
                 //     subject_object_jaccard_hashmap.iter().collect();
@@ -544,7 +561,6 @@ impl RustSemsimian {
                 //     b_value.partial_cmp(a_value).unwrap()
                 // });
 
-                
                 // ! Get the top 'limit' number of keys into a Vec<TermID>
                 subject_vec = sorted_pairs
                     .into_iter()
@@ -552,7 +568,6 @@ impl RustSemsimian {
                     .map(|(key, _)| key.to_string())
                     .collect();
             }
-            
 
             all_associations = get_associations(
                 RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
@@ -588,7 +603,7 @@ impl RustSemsimian {
 
         // //! Sort the result vector by score in descending order
         // result.par_sort_unstable_by(|(a, _, _), (b, _, _)| b.partial_cmp(a).unwrap());
-        
+
         // Sort by f64 score (descending) and then by TermID (ascending)
         // result.sort_by(|a, b| {
         //     match b.0.partial_cmp(&a.0) {
@@ -609,13 +624,12 @@ impl RustSemsimian {
                 Some(std::cmp::Ordering::Equal) => {
                     // If scores are equal, compare by hashed values
                     seeded_hash(&a.2).cmp(&seeded_hash(&b.2))
-                },
+                }
                 other => other.unwrap(),
             }
         });
-        
+
         result.truncate(limit.unwrap());
-        
 
         // // ! At this point there are 2 ways of returning the results
         // // ! Condition: Is limit > number of terms that have the highest IC score?

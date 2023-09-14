@@ -1,6 +1,6 @@
 use indicatif::{ProgressBar, ProgressStyle};
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::collections::hash_map::DefaultHasher;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
@@ -17,7 +17,6 @@ type PredicateSetKey = String;
 type ClosureMap = HashMap<String, HashMap<String, HashSet<String>>>;
 type ICMap = HashMap<String, HashMap<String, f64>>;
 type BTreeInBTree = BTreeMap<String, BTreeMap<String, String>>;
-
 
 pub fn predicate_set_to_key(predicates: &Option<Vec<Predicate>>) -> PredicateSetKey {
     let mut result = String::new();
