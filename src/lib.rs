@@ -906,28 +906,29 @@ impl Semsimian {
         } else {
             String::new()
         };
-        
-        let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = 
-            if let Some(associations) = self.ss.prefix_association_cache.get(&concatenated_string) {
-                self.ss.get_result_from_associations(
-                    associations,
-                    include_similarity_object,
-                    &object_terms,
-                    limit,
-                )
-            } else {
-                self.ss.associations_search(
-                    &object_closure_predicate_terms,
-                    &object_terms,
-                    include_similarity_object,
-                    &subject_terms,
-                    &subject_prefixes,
-                    quick_search,
-                    limit,
-                )
-            };
-        
-        
+
+        let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = if let Some(
+            associations,
+        ) =
+            self.ss.prefix_association_cache.get(&concatenated_string)
+        {
+            self.ss.get_result_from_associations(
+                associations,
+                include_similarity_object,
+                &object_terms,
+                limit,
+            )
+        } else {
+            self.ss.associations_search(
+                &object_closure_predicate_terms,
+                &object_terms,
+                include_similarity_object,
+                &subject_terms,
+                &subject_prefixes,
+                quick_search,
+                limit,
+            )
+        };
 
         let py_search_results: Vec<(f64, PyObject, String)> = search_results
             .into_iter()
