@@ -281,7 +281,7 @@ impl RustSemsimian {
         writer_1.write_all(column_names_as_str.as_bytes()).unwrap();
         drop(writer_1);
         subject_terms
-            .par_iter() // parallelize computations
+            .iter() // parallelize computations
             .for_each(|subject_id| {
                 for object_id in object_terms.iter() {
                     let self_read = self_shared.read().unwrap();
@@ -462,33 +462,33 @@ impl RustSemsimian {
             })
             .collect();
 
-        // //! Sort the result vector by score in descending order
+        // //! Sort the result vector by score in descending order ONLY
         // result.par_sort_unstable_by(|(a, _, _), (b, _, _)| b.partial_cmp(a).unwrap());
 
-        // Sort by f64 score (descending) and then by TermID (ascending)
-        // result.sort_by(|a, b| {
-        //     match b.0.partial_cmp(&a.0) {
-        //         Some(std::cmp::Ordering::Equal) => a.2.cmp(&b.2),
-        //         other => other.unwrap(),
-        //     }
-        // });
-        // //! In-parallel Sort by f64 score (descending) and then by TermID (ascending)
+        // ! Sort by f64 score (descending) and then by TermID (ascending)
+        result.sort_by(|a, b| {
+            match b.0.partial_cmp(&a.0) {
+                Some(std::cmp::Ordering::Equal) => a.2.cmp(&b.2),
+                other => other.unwrap(),
+            }
+        });
+        // ! In-parallel Sort by f64 score (descending) AND then by TermID (ascending)
         // result.par_sort_by(|a, b| {
         //     match b.0.partial_cmp(&a.0) {
         //         Some(std::cmp::Ordering::Equal) => a.2.cmp(&b.2),
         //         other => other.unwrap(),
         //     }
         // });
-        // ! In-parallel Sort by f64 score (descending) and then by TermID hash (ascending)
-        result.par_sort_unstable_by(|a, b| {
-            match b.0.partial_cmp(&a.0) {
-                Some(std::cmp::Ordering::Equal) => {
-                    // If scores are equal, compare by hashed values
-                    seeded_hash(&a.2).cmp(&seeded_hash(&b.2))
-                }
-                other => other.unwrap(),
-            }
-        });
+        // ! In-parallel Sort by f64 score (descending) AND then by TermID hash (ascending)
+        // result.par_sort_unstable_by(|a, b| {
+        //     match b.0.partial_cmp(&a.0) {
+        //         Some(std::cmp::Ordering::Equal) => {
+        //             // If scores are equal, compare by hashed values
+        //             seeded_hash(&a.2).cmp(&seeded_hash(&b.2))
+        //         }
+        //         other => other.unwrap(),
+        //     }
+        // });
 
         result.truncate(limit.unwrap());
         result
@@ -561,30 +561,8 @@ impl RustSemsimian {
             //         other => other.unwrap(),
             //     }
             // });
-            // //! Sort by f64 score (descending) and then by TermID hash (ascending)
-            // sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
-            //     let a_value = a2
-            //         .values()
-            //         .cloned()
-            //         .max_by(|a, b| a.partial_cmp(b).unwrap())
-            //         .unwrap();
-            //     let b_value = b2
-            //         .values()
-            //         .cloned()
-            //         .max_by(|a, b| a.partial_cmp(b).unwrap())
-            //         .unwrap();
-
-            //     // First compare by f64 score
-            //     match a_value.partial_cmp(&b_value) {
-            //         Some(std::cmp::Ordering::Equal) => {
-            //             // If scores are equal, compare by hashed TermID
-            //             seeded_hash(a1).cmp(&seeded_hash(b1))
-            //         }
-            //         other => other.unwrap(),
-            //     }
-            // });
-            // //! Parallel: Sort by f64 score (descending) and then by TermID hash (ascending)
-            sorted_pairs.par_sort_unstable_by(|(a1, a2), (b1, b2)| {
+            // ! Sort by f64 score (descending) and then by TermID hash (ascending)
+            sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
                 let a_value = a2
                     .values()
                     .cloned()
@@ -605,6 +583,28 @@ impl RustSemsimian {
                     other => other.unwrap(),
                 }
             });
+            // // ! Parallel: Sort by f64 score (descending) and then by TermID hash (ascending)
+            // sorted_pairs.par_sort_unstable_by(|(a1, a2), (b1, b2)| {
+            //     let a_value = a2
+            //         .values()
+            //         .cloned()
+            //         .max_by(|a, b| a.partial_cmp(b).unwrap())
+            //         .unwrap();
+            //     let b_value = b2
+            //         .values()
+            //         .cloned()
+            //         .max_by(|a, b| a.partial_cmp(b).unwrap())
+            //         .unwrap();
+
+            //     // First compare by f64 score
+            //     match a_value.partial_cmp(&b_value) {
+            //         Some(std::cmp::Ordering::Equal) => {
+            //             // If scores are equal, compare by hashed TermID
+            //             seeded_hash(a1).cmp(&seeded_hash(b1))
+            //         }
+            //         other => other.unwrap(),
+            //     }
+            // });
 
             // Get the maximum f64 value from the HashMap
             let max_score = sorted_pairs[0]
@@ -895,40 +895,42 @@ impl Semsimian {
     ) -> PyResult<Vec<(f64, PyObject, String)>> {
         self.ss.update_closure_and_ic_map();
 
-        let concatenated_string = if let Some(subject_prefixes) = &subject_prefixes {
-            subject_prefixes
-                .iter()
-                .chain(&object_closure_predicate_terms)
-                .map(|term_id| term_id.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-                + &quick_search.to_string()
+        let cache_key: Option<String> = if let Some(subject_prefixes) = &subject_prefixes {
+            Some(
+                subject_prefixes
+                    .iter()
+                    .chain(&object_closure_predicate_terms)
+                    .map(|term_id| term_id.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+                    + &quick_search.to_string(),
+            )
         } else {
-            String::new()
+            None
         };
 
-        let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = if let Some(
-            associations,
-        ) =
-            self.ss.prefix_association_cache.get(&concatenated_string)
-        {
-            self.ss.get_result_from_associations(
-                associations,
-                include_similarity_object,
-                &object_terms,
-                limit,
-            )
-        } else {
-            self.ss.associations_search(
-                &object_closure_predicate_terms,
-                &object_terms,
-                include_similarity_object,
-                &subject_terms,
-                &subject_prefixes,
-                quick_search,
-                limit,
-            )
-        };
+        let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> =
+            if let Some(associations) = cache_key
+                .as_ref()
+                .and_then(|key| self.ss.prefix_association_cache.get(key))
+            {
+                self.ss.get_result_from_associations(
+                    associations,
+                    include_similarity_object,
+                    &object_terms,
+                    limit,
+                )
+            } else {
+                self.ss.associations_search(
+                    &object_closure_predicate_terms,
+                    &object_terms,
+                    include_similarity_object,
+                    &subject_terms,
+                    &subject_prefixes,
+                    quick_search,
+                    limit,
+                )
+            };
 
         let py_search_results: Vec<(f64, PyObject, String)> = search_results
             .into_iter()
