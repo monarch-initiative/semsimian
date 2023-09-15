@@ -212,7 +212,11 @@ class testSemsimianWithPython(unittest.TestCase):
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
         assoc_predicate = {"biolink:has_phenotype"}
         db_path = os.path.expanduser("~/.data/oaklib/phenio.db")
+        include_similarity_object = True
+        quick_search = False
+        subject_terms = None
         limit = 10
+
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,
@@ -220,30 +224,32 @@ class testSemsimianWithPython(unittest.TestCase):
             resource_path=db_path,
         )
         load_start = time.time()
-        _ = semsimian.associations_search(
+        search_1 = semsimian.associations_search(
             assoc_predicate,
             object_terms,
-            True,
-            False,
-            None,
+            include_similarity_object,
+            quick_search,
+            subject_terms,
             subject_prefixes,
             limit,
         )
         interval_1 = time.time() - load_start
         print(f"Warmup time: {interval_1} sec")
         second_compare_time = time.time()
-        _ = semsimian.associations_search(
+
+        search_2 = semsimian.associations_search(
             assoc_predicate,
             object_terms,
-            True,
-            False,
-            None,
+            include_similarity_object,
+            quick_search,
+            subject_terms,
             subject_prefixes,
             limit,
         )
         interval_2 = time.time() - second_compare_time
         print(f"Second compare time: {interval_2} sec")
         self.assertTrue(interval_1 - interval_2 >= 0)
+        self.assertEqual(len(search_1), len(search_2))
 
 
 if __name__ == "__main__":
