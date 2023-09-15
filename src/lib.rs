@@ -842,13 +842,13 @@ impl Semsimian {
 
         // Convert every value of the inner HashMap in cache using .into_py(py)
         let python_cache = cache
-            .into_iter()
+            .iter()
             .map(|(k, v)| {
                 let python_v = v
-                    .into_iter()
+                    .iter()
                     .map(|(inner_k, inner_v)| {
                         let python_inner_v = inner_v
-                            .into_iter()
+                            .iter()
                             .map(|item| item.into_py(py))
                             .collect::<Vec<_>>();
                         (inner_k, python_inner_v)
