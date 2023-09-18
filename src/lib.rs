@@ -1318,91 +1318,6 @@ mod tests {
         let expected_result = 5.4154243283740175;
         assert_eq!(result.unwrap(), expected_result);
     }
-}
-
-// // ! All local tests that need not be run on github actions.
-#[cfg(test)]
-mod tests_local {
-
-    use super::*;
-    use std::path::PathBuf;
-    use std::time::Instant;
-
-    #[test]
-    #[ignore]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_termset_pairwise_similarity_2() {
-        let mut db_path = PathBuf::new();
-        if let Some(home) = std::env::var_os("HOME") {
-            db_path.push(home);
-            db_path.push(".data/oaklib/phenio.db");
-        } else {
-            panic!("Failed to get home directory");
-        }
-        // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
-        let db = Some(db_path.to_str().expect("Failed to convert path to string"));
-        let predicates: Option<Vec<Predicate>> = Some(vec![
-            "rdfs:subClassOf".to_string(),
-            "BFO:0000050".to_string(),
-            "UPHENO:0000001".to_string(),
-        ]);
-        // Start measuring time
-        let mut start_time = Instant::now();
-
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
-
-        let mut elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for RustSemsimian object generation: {:?}",
-            elapsed_time
-        );
-        start_time = Instant::now();
-
-        rss.update_closure_and_ic_map();
-        elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for closure table and ic_map generation: {:?}",
-            elapsed_time
-        );
-
-        let entity1: HashSet<TermID> = HashSet::from([
-            "MP:0010771".to_string(),
-            "MP:0002169".to_string(),
-            "MP:0005391".to_string(),
-            "MP:0005389".to_string(),
-            "MP:0005367".to_string(),
-        ]);
-        let entity2: HashSet<TermID> = HashSet::from([
-            "HP:0004325".to_string(),
-            "HP:0000093".to_string(),
-            "MP:0006144".to_string(),
-        ]);
-
-        start_time = Instant::now();
-        let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
-        elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for termset_pairwise_similarity: {:?}",
-            elapsed_time
-        );
-
-        start_time = Instant::now();
-
-        rss.update_closure_and_ic_map();
-        elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for second closure and ic_map generation: {:?}",
-            elapsed_time
-        );
-
-        start_time = Instant::now();
-        _tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
-        elapsed_time = start_time.elapsed();
-        println!(
-            "Time taken for second termset_pairwise_similarity: {:?}",
-            elapsed_time
-        );
-    }
 
     #[test]
     fn test_associations_search() {
@@ -1509,5 +1424,90 @@ mod tests_local {
 
         dbg!(&result_1_unique);
         dbg!(&result_2_unique);
+    }
+}
+
+// // ! All local tests that need not be run on github actions.
+#[cfg(test)]
+mod tests_local {
+
+    use super::*;
+    use std::path::PathBuf;
+    use std::time::Instant;
+
+    #[test]
+    #[ignore]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_termset_pairwise_similarity_2() {
+        let mut db_path = PathBuf::new();
+        if let Some(home) = std::env::var_os("HOME") {
+            db_path.push(home);
+            db_path.push(".data/oaklib/phenio.db");
+        } else {
+            panic!("Failed to get home directory");
+        }
+        // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
+        let db = Some(db_path.to_str().expect("Failed to convert path to string"));
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+            "UPHENO:0000001".to_string(),
+        ]);
+        // Start measuring time
+        let mut start_time = Instant::now();
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        let mut elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for RustSemsimian object generation: {:?}",
+            elapsed_time
+        );
+        start_time = Instant::now();
+
+        rss.update_closure_and_ic_map();
+        elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for closure table and ic_map generation: {:?}",
+            elapsed_time
+        );
+
+        let entity1: HashSet<TermID> = HashSet::from([
+            "MP:0010771".to_string(),
+            "MP:0002169".to_string(),
+            "MP:0005391".to_string(),
+            "MP:0005389".to_string(),
+            "MP:0005367".to_string(),
+        ]);
+        let entity2: HashSet<TermID> = HashSet::from([
+            "HP:0004325".to_string(),
+            "HP:0000093".to_string(),
+            "MP:0006144".to_string(),
+        ]);
+
+        start_time = Instant::now();
+        let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
+        elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for termset_pairwise_similarity: {:?}",
+            elapsed_time
+        );
+
+        start_time = Instant::now();
+
+        rss.update_closure_and_ic_map();
+        elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for second closure and ic_map generation: {:?}",
+            elapsed_time
+        );
+
+        start_time = Instant::now();
+        _tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
+        elapsed_time = start_time.elapsed();
+        println!(
+            "Time taken for second termset_pairwise_similarity: {:?}",
+            elapsed_time
+        );
     }
 }
