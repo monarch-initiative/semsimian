@@ -533,7 +533,9 @@ impl RustSemsimian {
         if quick_search {
             let mut subject_object_jaccard_hashmap: HashMap<&TermID, HashMap<&TermID, f64>> =
                 HashMap::new();
-            // TODO: (maybe) if we use this to speed things up, the following possibly should be  par_iter() instead of a for loop, for speed. I think this probably would require an immutable self though.
+            // TODO: (maybe) if we use this to speed things up, the following possibly
+            // TODO: should be  par_iter() instead of a for loop, for speed. 
+            // TODO: I think this probably would require an immutable self though.
             for object in object_set {
                 for subject in &subject_vec {
                     let jaccard_similarity = self.jaccard_similarity(subject, object);
