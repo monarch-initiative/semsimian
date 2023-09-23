@@ -1,6 +1,6 @@
 [package]
 name = "semsimian"
-version = "0.1.19"
+version = "0.2.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -20,3 +20,18 @@ cargo-llvm-cov = "0.5.19"
 rayon = "1.7.0"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 
+[features]
+ci = []
+
+[profile.release]
+codegen-units = 1
+lto = true
+debug = true
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
+flamegraph = "0.6.3"
+
+[[bench]]
+name = "termset_pairwise_similarity_benchmark"
+harness = false

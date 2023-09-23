@@ -1,5 +1,6 @@
 use crate::Predicate;
 use crate::PredicateSetKey;
+use crate::RustSemsimian;
 use crate::TermID;
 use crate::{
     utils::expand_term_using_closure, utils::find_embedding_index, utils::predicate_set_to_key,
@@ -29,7 +30,7 @@ pub fn calculate_semantic_jaccard_similarity(
 pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
     let intersection = set1.intersection(set2).count();
-    let union_measure = set1.union(set2).count();
+    let union_measure = set1.len() + set2.len() - intersection;
 
     intersection as f64 / union_measure as f64
 }
@@ -37,7 +38,7 @@ pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<S
 pub fn calculate_jaccard_similarity(set1: &HashSet<i32>, set2: &HashSet<i32>) -> f64 {
     /* Returns Jaccard similarity between the two sets. */
     let intersection = set1.intersection(set2).count();
-    let union_measure = set1.union(set2).count();
+    let union_measure = set1.len() + set2.len() - intersection;
 
     intersection as f64 / union_measure as f64
 }
@@ -46,46 +47,64 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
     // Returns Inomration Content (IC) for entities.
     let (curie, max_ic) = map
         .into_iter()
-        .max_by_key(|&(_, v)| OrderedFloat(v.abs()))
+        .max_by_key(|&(_, v)| OrderedFloat::from(v.abs()))
         .unwrap();
     (curie, max_ic)
 }
 
-pub fn calculate_phenomizer_score(
-    map: HashMap<String, HashMap<String, f64>>,
-    entity1: HashSet<String>,
-    entity2: HashSet<String>,
+pub fn calculate_term_pairwise_information_content(
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    entity1: &HashSet<TermID>,
+    entity2: &HashSet<TermID>,
+    predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
-    // calculate average resnik sim of all terms in entity1 and their best match in entity2
-    let entity1_to_entity2_average_resnik_sim: f64 =
-        pairwise_entity_resnik_score(&map, &entity1, &entity2);
-    // now do the same for entity2 to entity1
-    let entity2_to_entity1_average_resnik_sim: f64 =
-        pairwise_entity_resnik_score(&map, &entity2, &entity1);
-    // return the average of the two
-    (entity1_to_entity2_average_resnik_sim + entity2_to_entity1_average_resnik_sim) / 2.0
+    // At each iteration, it calculates the IC score using the calculate_max_information_content function,
+    // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
+    // it updates the maximum IC value. Thus, at the end of the iterations,
+    // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
+    // representing the best match between entity1 and entity2.
+    let entity1_len = entity1.len() as f64;
+
+    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, e1_term| {
+        let max_ic = entity2.iter().fold(0.0, |max_ic, e2_term| {
+            let (_max_ic_ancestors1, ic) = calculate_max_information_content(
+                closure_map,
+                ic_map,
+                e1_term,
+                e2_term,
+                predicates,
+            );
+            f64::max(max_ic, ic)
+        });
+
+        sum + max_ic
+    });
+
+    entity1_to_entity2_sum_resnik_sim / entity1_len
 }
 
-pub fn pairwise_entity_resnik_score(
-    map: &HashMap<String, HashMap<String, f64>>,
-    entity1: &HashSet<String>,
-    entity2: &HashSet<String>,
+pub fn calculate_average_termset_information_content(
+    semsimian: &RustSemsimian,
+    subject_terms: &HashSet<TermID>,
+    object_terms: &HashSet<TermID>,
 ) -> f64 {
-    let mut entity1_to_entity2_sum_resnik_sim = 0.0;
+    let subject_to_object_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
+        &semsimian.closure_map,
+        &semsimian.ic_map,
+        subject_terms,
+        object_terms,
+        &semsimian.predicates,
+    );
 
-    for e1_term in entity1.clone().into_iter() {
-        let mut max_resnik_sim_e1_e2 = 0.0;
-        for e2_term in entity2.clone().into_iter() {
-            // NB: this will definitely fail if the term is not in the map
-            let mica = map.get(&e1_term).unwrap().get(&e2_term).unwrap();
-            if mica > &max_resnik_sim_e1_e2 {
-                max_resnik_sim_e1_e2 = *mica;
-            }
-        }
-        entity1_to_entity2_sum_resnik_sim += max_resnik_sim_e1_e2;
-    }
-
-    entity1_to_entity2_sum_resnik_sim / entity1.len() as f64
+    let object_to_subject_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
+        &semsimian.closure_map,
+        &semsimian.ic_map,
+        object_terms,
+        subject_terms,
+        &semsimian.predicates,
+    );
+    (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
 }
 
 pub fn calculate_max_information_content(
@@ -94,7 +113,7 @@ pub fn calculate_max_information_content(
     entity1: &str,
     entity2: &str,
     predicates: &Option<Vec<Predicate>>,
-) -> (HashSet<TermID>, f64) {
+) -> (HashSet<String>, f64) {
     // Code to calculate max IC and all ancestors that correspond to the IC.
     // The reason a HashSet<TermID> is returned instead of just TermID is
     // explained through the example used for the test in lib.rs named
@@ -103,33 +122,32 @@ pub fn calculate_max_information_content(
     // This during the execution of this test. Each time it runs, it randomly
     // picks on or the other. This is expected in a real-world scenario
     // and hence we return a set of all ancestors with the max resnik score rather than one.
-    let filtered_common_ancestors: Vec<String> =
-        common_ancestors(closure_map, entity1, entity2, predicates);
-
+    let filtered_common_ancestors = common_ancestors(closure_map, entity1, entity2, predicates);
     let predicate_set_key = predicate_set_to_key(predicates);
 
-    // for each member of filtered_common_ancestors, find the entry for it in ic_map
-    let mut max_ic: f64 = 0.0;
-    // let mut mica: Option<TermID> = None;
-    let mut ancestor_ic_map = HashMap::new();
-    for ancestor in filtered_common_ancestors.iter() {
-        if let Some(ic) = ic_map
-            .get(&predicate_set_key)
-            .expect("Finding ancestor in ic map")
-            .get(ancestor)
-        {
-            if *ic > max_ic {
-                max_ic = *ic;
+    let (max_ic_ancestors, max_ic) = filtered_common_ancestors.into_iter().fold(
+        (HashSet::new(), 0.0),
+        |(mut max_ic_ancestors, max_ic), ancestor| {
+            if let Some(ic) = ic_map
+                .get(&predicate_set_key)
+                .and_then(|ic_map| ic_map.get(&ancestor))
+            {
+                if *ic > max_ic {
+                    max_ic_ancestors.clear();
+                    max_ic_ancestors.insert(ancestor.clone());
+                    (max_ic_ancestors, *ic)
+                } else if *ic == max_ic {
+                    max_ic_ancestors.insert(ancestor.clone());
+                    (max_ic_ancestors, max_ic)
+                } else {
+                    (max_ic_ancestors, max_ic)
+                }
+            } else {
+                (max_ic_ancestors, max_ic)
             }
-            ancestor_ic_map.insert(ancestor.clone(), *ic);
-        }
-    }
-    // filter out only those ancestors that have the maximum IC value and return them as a vector
-    let max_ic_ancestors = ancestor_ic_map
-        .into_iter()
-        .filter(|(_, ic)| *ic == max_ic)
-        .map(|(anc, _)| anc)
-        .collect();
+        },
+    );
+
     (max_ic_ancestors, max_ic)
 }
 
@@ -154,8 +172,9 @@ fn common_ancestors(
     let entity2_closure = expand_term_using_closure(entity2, closure_map, predicates);
 
     entity1_closure
-        .into_iter()
-        .filter(|ancestor| entity2_closure.contains(ancestor))
+        .iter()
+        .filter(|ancestor| entity2_closure.contains(*ancestor))
+        .cloned()
         .collect()
 }
 
@@ -175,10 +194,10 @@ pub fn calculate_cosine_similarity_for_nodes(
         }
         _ => {
             if find_embedding_index(embeddings, term1).is_none() {
-                eprintln!("Embedding for term '{term1}' not found");
+                eprintln!("Embedding for term '{}' not found", term1);
             }
             if find_embedding_index(embeddings, term2).is_none() {
-                eprintln!("Embedding for term '{term2}' not found");
+                eprintln!("Embedding for term '{}' not found", term2);
             }
             None
         }
@@ -186,13 +205,19 @@ pub fn calculate_cosine_similarity_for_nodes(
 }
 
 fn calculate_cosine_similarity_for_embeddings(embed_1: &[f64], embed_2: &[f64]) -> f64 {
-    let dot_product = embed_1
-        .iter()
-        .zip(embed_2.iter())
-        .map(|(&a, &b)| a * b)
-        .sum::<f64>();
-    let norm_embed_1 = (embed_1.iter().map(|&a| a * a).sum::<f64>()).sqrt();
-    let norm_embed_2 = (embed_2.iter().map(|&a| a * a).sum::<f64>()).sqrt();
+    let (dot_product, norm_embed_1, norm_embed_2) = embed_1.iter().zip(embed_2.iter()).fold(
+        (0.0, 0.0, 0.0),
+        |(dot_product, norm_embed_1, norm_embed_2), (&a, &b)| {
+            (
+                dot_product + a * b,
+                norm_embed_1 + a * a,
+                norm_embed_2 + b * b,
+            )
+        },
+    );
+
+    let norm_embed_1 = norm_embed_1.sqrt();
+    let norm_embed_2 = norm_embed_2.sqrt();
 
     if norm_embed_1 == 0.0 || norm_embed_2 == 0.0 {
         return 0.0;
@@ -322,23 +347,6 @@ mod tests {
         assert_eq!(result, expected_tuple);
     }
 
-    #[test]
-    fn test_calculate_phenomizer_score() {
-        let mut entity_one = HashSet::new();
-        entity_one.insert(String::from("CARO:0000000")); // resnik of best match = 5
-        entity_one.insert(String::from("BFO:0000002")); // resnik of best match = 4
-
-        let mut entity_two = HashSet::new();
-        entity_two.insert(String::from("BFO:0000003")); // resnik of best match = 3
-        entity_two.insert(String::from("BFO:0000002")); // resnik of best match = 4
-        entity_two.insert(String::from("CARO:0000000")); // resnik of best match = 5
-
-        let expected = ((5.0 + 4.0) / 2.0 + (3.0 + 4.0 + 5.0) / 3.0) / 2.0;
-
-        let result = calculate_phenomizer_score(MAP.clone(), entity_one, entity_two);
-        assert_eq!(result, expected);
-    }
-
     // TODO: test that closure map in Semsimian object is correct
     // TODO: test that ic map in Semsimian object is correct
 
@@ -466,5 +474,136 @@ mod tests {
         let embed_2 = vec![0.0, 1.0, 0.0];
         let similarity = calculate_cosine_similarity_for_embeddings(&embed_1, &embed_2);
         assert_eq!(similarity, 0.0);
+    }
+
+    #[test]
+    fn test_calculate_term_pairwise_information_content() {
+        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("subClassOf")]);
+
+        // Test case 1: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
+        let expected_value = 1.0;
+
+        println!("CASE 1 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
+        let expected_value = 1.585;
+
+        println!("Case 2 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 3: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
+        let expected_value = 0.6666666666666666;
+
+        println!("Case 3 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 4: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let resnik_score = calculate_term_pairwise_information_content(
+            &CLOSURE_MAP,
+            &IC_MAP,
+            &entity1,
+            &entity2,
+            &predicates,
+        );
+        let expected_value = 1.0566666666666666;
+
+        println!("Case 4 resnik_score: {resnik_score}");
+        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_calculate_average_termset_information_content() {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        // Test case 1: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = HashSet::from(["GO:0005634".to_string()]);
+
+        let entity2: HashSet<TermID> = HashSet::from(["GO:0031965".to_string()]);
+
+        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 5.8496657269155685;
+
+        println!("Case X pheno_score: {phenio_score}");
+        assert_eq!(phenio_score, expected_value);
+
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> =
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 5.4154243283740175;
+
+        println!("Case 3 pheno_score: {phenio_score}");
+        assert_eq!(phenio_score, expected_value);
     }
 }

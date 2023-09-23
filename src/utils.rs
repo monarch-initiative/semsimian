@@ -1,16 +1,19 @@
 use indicatif::{ProgressBar, ProgressStyle};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::path::Path;
 
 use csv::{ReaderBuilder, WriterBuilder};
 use std::error::Error;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
+use crate::SimilarityMap;
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
 type ClosureMap = HashMap<String, HashMap<String, HashSet<String>>>;
 type ICMap = HashMap<String, HashMap<String, f64>>;
+type BTreeInBTree = BTreeMap<String, BTreeMap<String, String>>;
 
 pub fn predicate_set_to_key(predicates: &Option<Vec<Predicate>>) -> PredicateSetKey {
     let mut result = String::new();
@@ -37,31 +40,31 @@ pub fn predicate_set_to_key(predicates: &Option<Vec<Predicate>>) -> PredicateSet
 }
 
 pub fn convert_set_to_hashmap(set1: &HashSet<String>) -> HashMap<i32, String> {
-    let mut result = HashMap::new();
-    for (idx, item) in set1.iter().enumerate() {
-        result.insert(idx as i32 + 1, String::from(item));
-    }
-    result
+    set1.iter()
+        .enumerate()
+        .map(|(idx, item)| (idx as i32 + 1, item.clone()))
+        .collect()
 }
 
 pub fn numericize_sets(
     set1: &HashSet<String>,
     set2: &HashSet<String>,
 ) -> (HashSet<i32>, HashSet<i32>, HashMap<i32, String>) {
-    let mut union_set = set1.clone();
-    union_set.extend(set2.clone());
+    let union_set: HashSet<_> = set1.union(set2).cloned().collect();
     let union_set_hashmap = convert_set_to_hashmap(&union_set);
-    let mut num_set1 = HashSet::new();
-    let mut num_set2 = HashSet::new();
 
-    for (k, v) in union_set_hashmap.iter() {
-        if set1.contains(v) {
-            num_set1.insert(*k);
-        }
-        if set2.contains(v) {
-            num_set2.insert(*k);
-        }
-    }
+    let num_set1: HashSet<_> = union_set_hashmap
+        .iter()
+        .filter(|(_, v)| set1.contains(*v))
+        .map(|(k, _)| *k)
+        .collect();
+
+    let num_set2: HashSet<_> = union_set_hashmap
+        .iter()
+        .filter(|(_, v)| set2.contains(*v))
+        .map(|(k, _)| *k)
+        .collect();
+
     (num_set1, num_set2, union_set_hashmap)
 }
 
@@ -70,17 +73,28 @@ pub fn _stringify_sets_using_map(
     set2: &HashSet<i32>,
     map: &HashMap<i32, String>,
 ) -> (HashSet<String>, HashSet<String>) {
-    let mut str_set1 = HashSet::new();
-    let mut str_set2 = HashSet::new();
+    let str_set1: HashSet<_> = map
+        .iter()
+        .filter_map(|(k, v)| {
+            if set1.contains(k) {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
 
-    for (k, v) in map.iter() {
-        if set1.contains(k) {
-            str_set1.insert(v.clone());
-        }
-        if set2.contains(k) {
-            str_set2.insert(v.clone());
-        }
-    }
+    let str_set2: HashSet<_> = map
+        .iter()
+        .filter_map(|(k, v)| {
+            if set2.contains(k) {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
     (str_set1, str_set2)
 }
 
@@ -88,8 +102,9 @@ pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
     predicates: &Option<Vec<String>>,
 ) -> (ClosureMap, ICMap) {
-    let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-    let mut freq_map: HashMap<String, usize> = HashMap::new();
+    let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> =
+        HashMap::with_capacity(list_of_tuples.len());
+    let mut freq_map: HashMap<String, usize> = HashMap::with_capacity(list_of_tuples.len());
     let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
 
     let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
@@ -100,41 +115,40 @@ pub fn convert_list_of_tuples_to_hashmap(
     );
 
     for (s, p, o) in list_of_tuples.iter() {
-        if predicates.is_some() && !predicates.as_ref().unwrap().contains(p) {
-            continue;
+        if let Some(predicates) = predicates {
+            if !predicates.contains(p) {
+                continue;
+            }
         }
-
         // ! As per this below, the frequency map gets populated ONLY if the node is an object (o)
         // ! in the (s, p, o). If the node is a subject (s), it does not count towards the frequency.
         // ! Only with this implemented will the results match with `oaklib`'s `sqlite` implementation
         // ! of semantic similarity.
-
-        // *freq_map.entry(s.clone()).or_insert(0) += 1;
         *freq_map.entry(o.clone()).or_insert(0) += 1;
 
         closure_map
             .entry(predicate_set_key.clone())
             .or_insert_with(HashMap::new)
-            .entry(s.clone())
+            .entry(String::from(s))
             .or_insert_with(HashSet::new)
-            .insert(o.clone());
+            .insert(String::from(o));
 
         progress_bar.inc(1);
     }
 
     progress_bar.finish_with_message("done");
 
-    let number_of_nodes = freq_map.keys().len() as f64;
-    for (k, v) in &freq_map {
-        ic_map
-            .entry(predicate_set_key.clone())
-            .or_insert_with(HashMap::new)
-            .entry(k.to_string())
-            .and_modify(|x| *x = -(*v as f64 / number_of_nodes).log2())
-            .or_insert_with(|| -(*v as f64 / number_of_nodes).log2());
-    }
+    let number_of_nodes = freq_map.len() as f64;
 
-    // println!("FREQ:{freq_map:?}");
+    ic_map
+        .entry(predicate_set_key.clone())
+        .or_insert_with(HashMap::new)
+        .extend(
+            freq_map
+                .iter()
+                .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
+        );
+
     (closure_map, ic_map)
 }
 
@@ -180,6 +194,13 @@ pub fn rearrange_columns_and_rewrite(
     filename: &str,
     sequence: Vec<String>,
 ) -> Result<(), Box<dyn Error>> {
+    // Get the parent directory of the input file
+    let parent_dir = Path::new(filename).parent().ok_or("Invalid file path")?;
+
+    // Create a temporary file in the same directory as the input file
+    let temp_filename = parent_dir.join("temp_file.tmp");
+    let temp_file = File::create(&temp_filename)?;
+
     // Read the TSV file into a CSV reader
     let file = File::open(filename)?;
     let mut reader = ReaderBuilder::new()
@@ -198,11 +219,10 @@ pub fn rearrange_columns_and_rewrite(
             panic!("One or more columns not found in the input file");
         });
 
-    // Create a new CSV writer
-    let file = File::create(filename)?;
+    // Create a CSV writer for the temporary file
     let mut writer = WriterBuilder::new()
         .delimiter(b'\t')
-        .from_writer(BufWriter::new(file));
+        .from_writer(BufWriter::new(temp_file));
 
     // Write the rearranged header row
     writer.write_record(indices.iter().map(|&i| headers.get(i).unwrap()))?;
@@ -214,8 +234,210 @@ pub fn rearrange_columns_and_rewrite(
         writer.write_record(rearranged_record)?;
     }
 
+    // Flush and close the writer
     writer.flush()?;
+    drop(writer);
+
+    // Close the input file
+    drop(reader);
+
+    // Replace the input file with the temporary file
+    if Path::new(filename).exists() {
+        fs::remove_file(filename)?;
+    }
+    fs::rename(&temp_filename, filename)?;
+
     Ok(())
+}
+
+pub fn get_termset_vector(
+    terms: &HashSet<String>,
+    term_label_hashmap: &HashMap<String, String>,
+) -> Vec<BTreeInBTree> {
+    let filtered_keys: Vec<&String> = term_label_hashmap
+        .keys()
+        .filter(|key| terms.contains(*key))
+        .collect();
+
+    let mut termset_vector = Vec::with_capacity(filtered_keys.len());
+
+    for key in filtered_keys {
+        if let Some(value) = term_label_hashmap.get(key) {
+            let inner_btreemap = BTreeMap::from_iter(vec![
+                ("id".to_string(), key.clone()),
+                ("label".to_string(), value.clone()),
+            ]);
+
+            let mut outer_btreemap = BTreeMap::new();
+            outer_btreemap.insert(key.clone(), inner_btreemap);
+
+            termset_vector.push(outer_btreemap);
+        }
+    }
+
+    termset_vector
+}
+
+pub fn get_similarity_map(
+    term_id: &str,
+    best_match: (&String, &(f64, f64, f64, f64, HashSet<String>)),
+) -> BTreeMap<String, String> {
+    let mut similarity_map = BTreeMap::new();
+    if let Some((key, value)) = Some(best_match) {
+        similarity_map.insert("jaccard_similarity".to_string(), value.0.to_string());
+        similarity_map.insert(
+            "ancestor_information_content".to_string(),
+            value.1.to_string(),
+        );
+        similarity_map.insert("phenodigm_score".to_string(), value.2.to_string());
+        similarity_map.insert("cosine_similarity".to_string(), value.3.to_string());
+        similarity_map.insert("subject_id".to_string(), term_id.to_string());
+        similarity_map.insert("object_id".to_string(), key.clone());
+
+        if let Some(ancestor_id) = value.4.iter().next() {
+            similarity_map.insert("ancestor_id".to_string(), ancestor_id.clone());
+        }
+    } else {
+        println!("The HashMap is empty.");
+    }
+
+    similarity_map
+}
+
+// TODO: Revisit par_iter()
+// use rayon::prelude::*;
+// use std::sync::{Arc, Mutex};
+// pub fn get_best_matches(
+//     termset: &Vec<BTreeInBTree>,
+//     all_by_all: &SimilarityMap,
+//     term_label_map: &HashMap<String, String>,
+//     metric: &str,
+// ) -> (BTreeInBTree, BTreeInBTree) {
+//     let best_matches = Arc::new(Mutex::new(BTreeMap::new()));
+//     let best_matches_similarity_map = Arc::new(Mutex::new(BTreeMap::new()));
+
+//     termset.par_iter().for_each(|term| {
+//         let term_id = term.keys().next().unwrap();
+//         let term_label = &term[term_id]["label"];
+
+//         if let Some(matches) = all_by_all.get(term_id) {
+//             let best_match = matches
+//                 .iter()
+//                 .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(v2).unwrap())
+//                 .unwrap();
+
+//             let mut similarity_map = get_similarity_map(term_id, best_match);
+
+//             let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
+//             let ancestor_label = term_label_map
+//                 .get(&ancestor_id)
+//                 .cloned()
+//                 .unwrap_or_default();
+//             let score = similarity_map.get(metric).unwrap().clone();
+
+//             let match_source = term_id;
+//             let match_source_label = term_label;
+//             let match_target = similarity_map.get("object_id").unwrap().clone();
+//             let match_target_label = term_label_map.get(&match_target).unwrap().clone();
+
+//             similarity_map.insert("ancestor_label".to_string(), ancestor_label);
+//             let best_matches_key = term_id.to_owned();
+//             let mut best_matches_value: BTreeMap<String, String> = BTreeMap::new();
+//             // best_matches_value.insert("similarity".to_string(), Box::new(similarity_map.clone()));
+//             best_matches_value.insert("match_source".to_string(), match_source.to_owned());
+//             best_matches_value.insert(
+//                 "match_source_label".to_string(),
+//                 match_source_label.to_owned(),
+//             );
+//             best_matches_value.insert("match_target".to_string(), match_target);
+//             best_matches_value.insert("match_target_label".to_string(), match_target_label);
+//             best_matches_value.insert("score".to_string(), score);
+
+//             let mut best_matches_guard = best_matches.lock().unwrap();
+//             best_matches_guard.insert(best_matches_key.clone(), best_matches_value);
+
+//             let mut best_matches_similarity_map_guard = best_matches_similarity_map.lock().unwrap();
+//             best_matches_similarity_map_guard.insert(best_matches_key, similarity_map);
+//         }
+//     });
+
+//     let best_matches_guard = Arc::try_unwrap(best_matches).unwrap().into_inner().unwrap();
+//     let best_matches_similarity_map_guard = Arc::try_unwrap(best_matches_similarity_map)
+//         .unwrap()
+//         .into_inner()
+//         .unwrap();
+
+//     (best_matches_guard, best_matches_similarity_map_guard)
+// }
+
+pub fn get_best_matches(
+    termset: &Vec<BTreeInBTree>,
+    all_by_all: &SimilarityMap,
+    term_label_map: &HashMap<String, String>,
+    metric: &str,
+) -> (BTreeInBTree, BTreeInBTree) {
+    let mut best_matches = BTreeMap::new();
+    let mut best_matches_similarity_map = BTreeMap::new();
+
+    for term in termset.iter() {
+        let term_id = term.keys().next().unwrap();
+        let term_label = &term[term_id]["label"];
+
+        if let Some(matches) = all_by_all.get(term_id) {
+            let best_match = matches
+                .iter()
+                .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(v2).unwrap())
+                .unwrap();
+
+            let mut similarity_map = get_similarity_map(term_id, best_match);
+
+            let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
+            let ancestor_label = term_label_map
+                .get(&ancestor_id)
+                .cloned()
+                .unwrap_or_default();
+            let score = similarity_map.get(metric).unwrap().clone();
+
+            let match_source = term_id;
+            let match_source_label = term_label;
+            let match_target = similarity_map.get("object_id").unwrap().clone();
+            let match_target_label = term_label_map.get(&match_target).unwrap().clone();
+
+            similarity_map.insert("ancestor_label".to_string(), ancestor_label);
+            let best_matches_key = term_id.to_owned();
+            let mut best_matches_value: BTreeMap<String, String> = BTreeMap::new();
+            // best_matches_value.insert("similarity".to_string(), Box::new(similarity_map.clone()));
+            best_matches_value.insert("match_source".to_string(), match_source.to_owned());
+            best_matches_value.insert(
+                "match_source_label".to_string(),
+                match_source_label.to_owned(),
+            );
+            best_matches_value.insert("match_target".to_string(), match_target);
+            best_matches_value.insert("match_target_label".to_string(), match_target_label);
+            best_matches_value.insert("score".to_string(), score);
+
+            best_matches.insert(best_matches_key.clone(), best_matches_value);
+            best_matches_similarity_map.insert(best_matches_key, similarity_map);
+        }
+    }
+
+    (best_matches, best_matches_similarity_map)
+}
+
+pub fn get_best_score(
+    subject_best_matches: &BTreeInBTree,
+    object_best_matches: &BTreeInBTree,
+) -> f64 {
+    let max_score = [subject_best_matches, object_best_matches]
+        .iter()
+        .flat_map(|matches| matches.values())
+        .filter_map(|matches| matches.get("score"))
+        .filter_map(|score| score.parse::<f64>().ok())
+        .fold(f64::NEG_INFINITY, |max_score, score_value| {
+            max_score.max(score_value)
+        });
+
+    max_score
 }
 
 #[cfg(test)]
@@ -500,7 +722,7 @@ mod tests {
     #[test]
     fn test_rearrange_columns_and_rewrite() {
         // Create a temporary file for testing
-        let filename = "tests/data/output/test_data.tsv";
+        let filename = "tests/data/test_rearrange_data.tsv";
         let mut file = File::create(filename).expect("Failed to create file");
         writeln!(file, "Column A\tColumn B\tColumn C").expect("Failed to write line");
         writeln!(file, "Value 1\tValue 2\tValue 3").expect("Failed to write line");
@@ -529,6 +751,49 @@ mod tests {
         );
 
         // Clean up the temporary file
-        // std::fs::remove_file(filename).expect("Failed to remove file");
+        std::fs::remove_file(filename).expect("Failed to remove file");
+    }
+
+    #[test]
+    fn test_get_termset_vector() {
+        let mut term_label_hashmap = HashMap::new();
+        term_label_hashmap.insert("GO:0005575".to_string(), "cellular_component".to_string());
+        term_label_hashmap.insert("GO:0099568".to_string(), "cytoplasmic region".to_string());
+        term_label_hashmap.insert("GO:0016020".to_string(), "membrane".to_string());
+
+        let terms: HashSet<String> = vec!["GO:0005575".to_string(), "GO:0099568".to_string()]
+            .into_iter()
+            .collect();
+
+        let result = get_termset_vector(&terms, &term_label_hashmap);
+
+        assert_eq!(result.len(), 2);
+
+        let expected_result: Vec<BTreeInBTree> = vec![
+            {
+                let mut inner_btreemap = BTreeMap::new();
+                inner_btreemap.insert("id".to_string(), "GO:0005575".to_string());
+                inner_btreemap.insert("label".to_string(), "cellular_component".to_string());
+
+                let mut outer_btreemap = BTreeMap::new();
+                outer_btreemap.insert("GO:0005575".to_string(), inner_btreemap);
+
+                outer_btreemap
+            },
+            {
+                let mut inner_btreemap = BTreeMap::new();
+                inner_btreemap.insert("id".to_string(), "GO:0099568".to_string());
+                inner_btreemap.insert("label".to_string(), "cytoplasmic region".to_string());
+
+                let mut outer_btreemap = BTreeMap::new();
+                outer_btreemap.insert("GO:0099568".to_string(), inner_btreemap);
+
+                outer_btreemap
+            },
+        ];
+
+        for item in &result {
+            assert!(expected_result.contains(item));
+        }
     }
 }
