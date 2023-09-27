@@ -252,7 +252,7 @@ pub fn get_objects_for_subjects(
     let mut stmt = conn.prepare(&query)?;
 
     // Execute the SQL query and retrieve the results
-    let rows = stmt.query_map([], |row| Ok(row.get::<_, TermID>(0)?))?;
+    let rows = stmt.query_map([], |row| row.get::<_, TermID>(0))?;
 
     // Create a HashSet to store the results
     let mut result_set: HashSet<TermID> = HashSet::new();

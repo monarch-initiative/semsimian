@@ -532,7 +532,7 @@ impl RustSemsimian {
                 ),
                 None => {
                     let subject_set = subject_set.as_ref().unwrap();
-                    subject_set.into_iter().cloned().collect::<Vec<TermID>>()
+                    subject_set.iter().cloned().collect::<Vec<TermID>>()
                 }
             }
         };
