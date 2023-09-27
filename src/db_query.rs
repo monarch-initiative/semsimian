@@ -5,6 +5,10 @@ use pyo3::{PyObject, Python};
 use rusqlite::{Connection, Result};
 use std::collections::{HashMap, HashSet};
 
+const TERM_ASSOCIATION_TABLE: &str = "term_association";
+const STATEMENTS_TABLE: &str = "statements";
+const ENTAILED_EDGE_TABLE: &str = "entailed_edge";
+
 #[derive(Debug, Clone)]
 pub struct TermAssociation {
     pub id: TermID,
@@ -51,18 +55,16 @@ pub fn get_entailed_edges_for_predicate_list(
     path: &str,
     predicates: &Vec<Predicate>,
 ) -> Result<Vec<(TermID, Predicate, TermID)>, rusqlite::Error> {
-    let table_name = "entailed_edge";
-
     // Build the SQL query with the provided table name such that 'predicates' are in the Vector predicates.
     let joined_predicates = format!("'{}'", predicates.join("', '"));
 
     let query = if !predicates.is_empty() {
         format!(
             "SELECT * FROM {} WHERE predicate IN ({})",
-            table_name, joined_predicates
+            ENTAILED_EDGE_TABLE, joined_predicates
         )
     } else {
-        format!("SELECT * FROM {}", table_name)
+        format!("SELECT * FROM {}", ENTAILED_EDGE_TABLE)
     };
 
     // Open a connection to the SQLite database file
@@ -88,9 +90,8 @@ pub fn get_labels(
     path: &str,
     terms: &[TermID],
 ) -> Result<HashMap<TermID, String>, rusqlite::Error> {
-    let table_name = "statements";
     let joined_terms = format!("'{}'", terms.join("', '"));
-    let query = format!("SELECT subject, value FROM {table_name} WHERE predicate='rdfs:label' AND subject IN ({joined_terms})");
+    let query = format!("SELECT subject, value FROM {STATEMENTS_TABLE} WHERE predicate='rdfs:label' AND subject IN ({joined_terms})");
 
     // Open a connection to the SQLite database file
     let conn = Connection::open(path)?;
@@ -122,7 +123,6 @@ pub fn get_associations(
     predicates: Option<&[TermID]>,
     objects: Option<&[TermID]>,
 ) -> Result<HashMap<TermID, Vec<TermAssociation>>, rusqlite::Error> {
-    let table_name = "term_association";
     let joined_subjects = match subjects {
         Some(subjects) => format!("'{}'", subjects.join("', '")),
         None => String::new(),
@@ -144,7 +144,7 @@ pub fn get_associations(
     // the corresponding plural variable name.
 
     let mut query = String::from("SELECT DISTINCT * FROM ");
-    query.push_str(table_name);
+    query.push_str(TERM_ASSOCIATION_TABLE);
 
     if subjects.is_some() || predicates.is_some() || objects.is_some() {
         query.push_str(" WHERE ");
@@ -211,12 +211,66 @@ pub fn get_associations(
     Ok(result_map)
 }
 
+pub fn get_objects_for_subjects(
+    path: &str,
+    subjects: Option<&[TermID]>,
+    predicates: Option<&[TermID]>,
+) -> Result<HashSet<TermID>, rusqlite::Error> {
+    let joined_subjects = match subjects {
+        Some(subjects) => format!("'{}'", subjects.join("', '")),
+        None => String::new(),
+    };
+    let joined_predicates = match predicates {
+        Some(predicates) => format!("'{}'", predicates.join("', '")),
+        None => String::new(),
+    };
+    // Open a connection to the SQLite database file
+    let conn = Connection::open(path)?;
+    let mut query = String::from("SELECT DISTINCT object FROM ");
+    query.push_str(TERM_ASSOCIATION_TABLE);
+    if subjects.is_some() || predicates.is_some() {
+        query.push_str(" WHERE ");
+
+        if subjects.is_some() {
+            query.push_str("subject IN (");
+            query.push_str(&joined_subjects);
+            query.push(')');
+        }
+
+        if predicates.is_some() {
+            if subjects.is_some() {
+                query.push_str(" AND ");
+            }
+            query.push_str("predicate IN (");
+            query.push_str(&joined_predicates);
+            query.push(')');
+        }
+    }
+    query.push(';');
+
+    // Prepare the SQL query
+    let mut stmt = conn.prepare(&query)?;
+
+    // Execute the SQL query and retrieve the results
+    let rows = stmt.query_map([], |row| Ok(row.get::<_, TermID>(0)?))?;
+
+    // Create a HashSet to store the results
+    let mut result_set: HashSet<TermID> = HashSet::new();
+
+    // Iterate over the rows which is of type Rows and populate the HashSet
+    for row in rows {
+        let object = row?;
+        result_set.insert(object);
+    }
+
+    Ok(result_set)
+}
+
 pub fn get_subjects(
     path: &str,
     predicates: Option<&Vec<TermID>>,
     prefixes: Option<&Vec<TermID>>,
 ) -> Result<HashSet<TermID>, rusqlite::Error> {
-    let table_name = "term_association";
     let joined_predicates = match predicates {
         Some(predicates) => format!("'{}'", predicates.join("', '")),
         None => String::new(),
@@ -238,7 +292,7 @@ pub fn get_subjects(
     // Build the final query
     let mut query = format!(
         "SELECT DISTINCT subject FROM {} {} ",
-        table_name, conditions
+        TERM_ASSOCIATION_TABLE, conditions
     );
     if predicates.is_some() {
         query.push_str("AND predicate IN (");
@@ -377,5 +431,19 @@ mod tests {
         let db = &DB_PATH;
         let result = get_subjects(db, None, None);
         assert_eq!(result.unwrap().len(), 258)
+    }
+
+    #[test]
+    fn test_get_objects_for_subjects() {
+        let db = &DB_PATH;
+        let expected_set = HashSet::from(["GO:0065007".to_string(), "GO:0008150".to_string()]);
+        let result = get_objects_for_subjects(
+            db,
+            Some(&["GO:0050789".to_string()]),
+            Some(&["biolink:has_nucleus".to_string()]),
+        );
+        assert!(result.is_ok());
+        let set = result.unwrap();
+        assert_eq!(set, expected_set);
     }
 }
