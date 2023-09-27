@@ -1,4 +1,4 @@
-use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects, TermAssociation};
+use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use pyo3::prelude::*;
 use std::{
     cmp::Ordering,
@@ -567,9 +567,9 @@ impl RustSemsimian {
         // Perform quick search or full search based on the flag
         let mut result;
         if quick_search {
-            result = self.flatten_closure_search(&object_set, &expanded_subject_map);
+            result = self.flatten_closure_search(object_set, &expanded_subject_map);
         } else {
-            result = self.full_search(&object_set, &expanded_subject_map);
+            result = self.full_search(object_set, &expanded_subject_map);
         }
 
         // Sort the result vector by score in descending order and hash of result CURIE in ascending order
