@@ -1,10 +1,11 @@
 use db_query::{get_entailed_edges_for_predicate_list, TermAssociation};
 use pyo3::prelude::*;
 use std::{
+    cmp::Ordering,
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
-    sync::{Arc, Mutex, RwLock}, cmp::Ordering,
+    sync::{Arc, Mutex, RwLock},
 };
 
 pub mod db_query;
@@ -562,16 +563,18 @@ impl RustSemsimian {
                     .collect();
             expanded_object_map.insert(obj.to_string(), expanded_terms);
         }
-        
-        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = 
-            expanded_object_map.par_iter()
-                .flat_map(|(_, object_values)| {
-                    expanded_subject_map.par_iter()
-                        .map(move |(subject_key, subject_values)| {
-                            let score = calculate_jaccard_similarity_str(subject_values, object_values);
-                            (score, None, subject_key.parse().unwrap())
-                        })
-                }).collect();
+
+        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = expanded_object_map
+            .par_iter()
+            .flat_map(|(_, object_values)| {
+                expanded_subject_map
+                    .par_iter()
+                    .map(move |(subject_key, subject_values)| {
+                        let score = calculate_jaccard_similarity_str(subject_values, object_values);
+                        (score, None, subject_key.parse().unwrap())
+                    })
+            })
+            .collect();
 
         // Sort the result vector in descending order by the first element of each tuple
         result.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
