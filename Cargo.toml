@@ -1,6 +1,6 @@
 [package]
 name = "semsimian"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,7 +12,7 @@ crate-type = ["cdylib", "lib"]
 csv = "1.1.6"
 dict = "0.1.5"
 generator = "0.7.2"
-ordered-float = "3.6.0"
+ordered-float = "4.1.0"
 pyo3 = { version = "*", features = ["extension-module"] }
 indicatif = "*" # progress bar
 lazy_static = "1.4.0"
