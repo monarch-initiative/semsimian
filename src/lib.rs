@@ -1,10 +1,10 @@
-use db_query::{get_associations, get_entailed_edges_for_predicate_list, TermAssociation};
+use db_query::{get_entailed_edges_for_predicate_list, TermAssociation};
 use pyo3::prelude::*;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, Mutex, RwLock}, cmp::Ordering,
 };
 
 pub mod db_query;
@@ -20,13 +20,13 @@ use std::fmt;
 
 use similarity::{
     calculate_average_termset_information_content, calculate_cosine_similarity_for_nodes,
-    calculate_max_information_content,
+    calculate_jaccard_similarity_str, calculate_max_information_content,
 };
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
     generate_progress_bar_of_length_and_message, get_best_matches, get_curies_from_prefixes,
     get_prefix_association_key, get_termset_vector, predicate_set_to_key,
-    rearrange_columns_and_rewrite, seeded_hash,
+    rearrange_columns_and_rewrite,
 };
 
 use db_query::get_labels;
@@ -64,7 +64,7 @@ pub struct RustSemsimian {
     // closure_map is something like {("is_a_+_part_of"), {"GO:1234": {"GO:1234", "GO:5678"}}}
     embeddings: Embeddings,
     pairwise_similarity_attributes: Option<Vec<String>>,
-    prefix_association_cache: HashMap<String, HashMap<String, Vec<TermAssociation>>>,
+    prefix_expansion_cache: HashMap<TermID, HashMap<TermID, HashSet<TermID>>>,
 }
 
 impl RustSemsimian {
@@ -103,7 +103,7 @@ impl RustSemsimian {
             ic_map: HashMap::new(),
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
-            prefix_association_cache: HashMap::new(),
+            prefix_expansion_cache: HashMap::new(),
         }
     }
 
@@ -466,11 +466,9 @@ impl RustSemsimian {
         // result.par_sort_unstable_by(|(a, _, _), (b, _, _)| b.partial_cmp(a).unwrap());
 
         // ! Sort by f64 score (descending) and then by TermID (ascending)
-        result.sort_by(|a, b| {
-            match b.0.partial_cmp(&a.0) {
-                Some(std::cmp::Ordering::Equal) => a.2.cmp(&b.2),
-                other => other.unwrap(),
-            }
+        result.sort_by(|a, b| match b.0.partial_cmp(&a.0) {
+            Some(std::cmp::Ordering::Equal) => a.2.cmp(&b.2),
+            other => other.unwrap(),
         });
         // ! In-parallel Sort by f64 score (descending) AND then by TermID (ascending)
         // result.par_sort_by(|a, b| {
@@ -498,7 +496,7 @@ impl RustSemsimian {
         &mut self,
         object_closure_predicates: &HashSet<TermID>,
         object_set: &HashSet<TermID>,
-        include_similarity_object: bool,
+        _include_similarity_object: bool,
         // _sort_by_similarity: bool,
         // _property_filter: Option<HashMap<String, String>>,
         // _subject_closure_predicates: Option<Vec<TermID>>,
@@ -517,201 +515,87 @@ impl RustSemsimian {
         let assoc_predicate_terms_vec: Vec<TermID> =
             object_closure_predicates.iter().cloned().collect();
 
-        let mut subject_vec = match subject_prefixes {
-            Some(subject_prefixes) => get_curies_from_prefixes(
-                Some(subject_prefixes),
-                &assoc_predicate_terms_vec,
-                RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
-            ),
-            None => {
-                let subject_set = subject_set.as_ref().unwrap();
-                let subject_vec: Vec<TermID> = subject_set.clone().into_iter().collect();
-                subject_vec
+        let subject_vec = if self.prefix_expansion_cache.contains_key(&cache_key) {
+            self.prefix_expansion_cache
+                .get(&cache_key)
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect()
+        } else {
+            match subject_prefixes {
+                Some(subject_prefixes) => get_curies_from_prefixes(
+                    Some(subject_prefixes),
+                    &assoc_predicate_terms_vec,
+                    RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+                ),
+                None => {
+                    let subject_set = subject_set.as_ref().unwrap();
+                    subject_set.into_iter().cloned().collect::<Vec<TermID>>()
+                }
             }
         };
 
-        if quick_search {
-            let mut subject_object_jaccard_hashmap: HashMap<&TermID, HashMap<&TermID, f64>> =
-                HashMap::new();
-            // TODO: (maybe) if we use this to speed things up, the following possibly
-            // TODO: should be  par_iter() instead of a for loop, for speed. 
-            // TODO: I think this probably would require an immutable self though.
-            for object in object_set {
-                for subject in &subject_vec {
-                    let jaccard_similarity = self.jaccard_similarity(subject, object);
-                    subject_object_jaccard_hashmap
-                        .entry(subject)
-                        .or_default()
-                        .insert(object, jaccard_similarity);
-                }
-            }
+        let mut expanded_subject_map: HashMap<String, HashSet<String>> = HashMap::new();
 
-            // Convert HashMap to Vec
-            let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
-                subject_object_jaccard_hashmap.iter().collect();
-
-            // //! Sort by f64 score (descending) and then by TermID (ascending)
-            // sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
-            //     let a_value = a2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-            //     let b_value = b2.values().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-
-            //     // First compare by f64 score
-            //     match a_value.partial_cmp(&b_value) {
-            //         Some(std::cmp::Ordering::Equal) => {
-            //             // If scores are equal, compare by TermID
-            //             a1.cmp(b1)
-            //         },
-            //         other => other.unwrap(),
-            //     }
-            // });
-            // ! Sort by f64 score (descending) and then by TermID hash (ascending)
-            sorted_pairs.sort_by(|(a1, a2), (b1, b2)| {
-                let a_value = a2
-                    .values()
-                    .cloned()
-                    .max_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap();
-                let b_value = b2
-                    .values()
-                    .cloned()
-                    .max_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap();
-
-                // First compare by f64 score
-                match a_value.partial_cmp(&b_value) {
-                    Some(std::cmp::Ordering::Equal) => {
-                        // If scores are equal, compare by hashed TermID
-                        seeded_hash(a1).cmp(&seeded_hash(b1))
-                    }
-                    other => other.unwrap(),
-                }
-            });
-            // // ! Parallel: Sort by f64 score (descending) and then by TermID hash (ascending)
-            // sorted_pairs.par_sort_unstable_by(|(a1, a2), (b1, b2)| {
-            //     let a_value = a2
-            //         .values()
-            //         .cloned()
-            //         .max_by(|a, b| a.partial_cmp(b).unwrap())
-            //         .unwrap();
-            //     let b_value = b2
-            //         .values()
-            //         .cloned()
-            //         .max_by(|a, b| a.partial_cmp(b).unwrap())
-            //         .unwrap();
-
-            //     // First compare by f64 score
-            //     match a_value.partial_cmp(&b_value) {
-            //         Some(std::cmp::Ordering::Equal) => {
-            //             // If scores are equal, compare by hashed TermID
-            //             seeded_hash(a1).cmp(&seeded_hash(b1))
-            //         }
-            //         other => other.unwrap(),
-            //     }
-            // });
-
-            // Get the maximum f64 value from the HashMap
-            let max_score = sorted_pairs[0]
-                .1
-                .values()
-                .cloned()
-                .max_by(|a, b| a.partial_cmp(b).unwrap());
-
-            let max_score_count = sorted_pairs
-                .iter()
-                .filter(|(_, hashmap)| {
-                    hashmap
-                        .values()
-                        .cloned()
-                        .max_by(|a, b| a.partial_cmp(b).unwrap())
-                        == max_score
-                })
-                .count();
-
-            // //! Sort the hashmap by maximum value of value in descending order
-            // let mut sorted_pairs: Vec<(&&TermID, &HashMap<&TermID, f64>)> =
-            //     subject_object_jaccard_hashmap.iter().collect();
-            // sorted_pairs.sort_by(|(_, a2), (_, b2)| {
-            //     let a_value = a2.values().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-            //     let b_value = b2.values().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-            //     b_value.partial_cmp(a_value).unwrap()
-            // });
-
-            // ! Get the top 'limit' number of keys into a Vec<TermID>
-            subject_vec = sorted_pairs
-                .into_iter()
-                .take(max_score_count.max(limit.unwrap()))
-                .map(|(key, _)| key.to_string())
-                .collect();
+        for subj in subject_vec.iter() {
+            let expanded_terms: HashSet<String> =
+                expand_term_using_closure(subj, &self.closure_map, &self.predicates)
+                    .into_iter()
+                    .collect();
+            expanded_subject_map.insert(subj.to_string(), expanded_terms);
         }
 
-        let all_associations = get_associations(
-            RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
-            Some(&subject_vec),
-            Some(&assoc_predicate_terms_vec),
-            None,
-        )
-        .unwrap();
-        self.prefix_association_cache
-            .insert(cache_key, all_associations.clone());
+        self.prefix_expansion_cache
+            .insert(cache_key, expanded_subject_map.clone());
 
-        self.get_result_from_associations(
-            &all_associations,
-            include_similarity_object,
-            object_set,
-            limit,
-        )
+        // let all_object_for_subjects = get_objects_for_subjects(
+        //     RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+        //     Some(&subject_vec),
+        //     Some(&assoc_predicate_terms_vec),
+        // );
+        let mut expanded_object_map: HashMap<String, HashSet<String>> = HashMap::new();
+        for obj in object_set.iter() {
+            let expanded_terms: HashSet<String> =
+                expand_term_using_closure(obj, &self.closure_map, &self.predicates)
+                    .into_iter()
+                    .collect();
+            expanded_object_map.insert(obj.to_string(), expanded_terms);
+        }
+        
+        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = 
+            expanded_object_map.par_iter()
+                .flat_map(|(_, object_values)| {
+                    expanded_subject_map.par_iter()
+                        .map(move |(subject_key, subject_values)| {
+                            let score = calculate_jaccard_similarity_str(subject_values, object_values);
+                            (score, None, subject_key.parse().unwrap())
+                        })
+                }).collect();
 
-        // //! Commented code below: Alternatives to above.
-        // //! At this point there are 2 ways of returning the results
-        // //! Condition: Is limit > number of terms that have the highest IC score?
-        // //! If YES: Return the top limit number of terms
-        // //! else: Return terms such that the unique number of IC scores == limit.
+        // Sort the result vector in descending order by the first element of each tuple
+        result.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
 
-        // // Get the maximum score
-        // let max_score = result[0].0;
-        // // Count the number of unique scores
-        // let max_score_count = result
-        //     .iter()
-        //     .filter(|(score, _, _)| *score == max_score)
-        //     .count();
+        if let Some(limit) = limit {
+            result.truncate(limit);
+        }
 
-        // // Limit the number of objects within the result
-        // if let Some(limit) = limit {
-        //     if max_score_count > limit {
-        //         // Include all terms in the result where the score is equal to the maximum score
-        //         let max_score_terms = result
-        //             .iter()
-        //             .filter(|(score, _, _)| *score == max_score)
-        //             .cloned()
-        //             .collect::<Vec<_>>();
+        result
 
-        //         // Include additional terms with unique scores until the limit is reached
-        //         let mut unique_scores = HashSet::new();
-        //         for (score, _, _) in result.iter() {
-        //             unique_scores.insert(score.to_bits());
-        //             if unique_scores.len() == limit {
-        //                 break;
-        //             }
-        //         }
-        //         let additional_terms = result
-        //             .iter()
-        //             .filter(|(score, _, _)| unique_scores.contains(&score.to_bits()))
-        //             .cloned()
-        //             .collect::<Vec<_>>();
+        // let all_associations = get_associations(
+        //     RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+        //     Some(&subject_vec),
+        //     Some(&assoc_predicate_terms_vec),
+        //     None,
+        // )
+        // .unwrap();
 
-        //         // Combine the terms and update the result vector
-        //         let combined_terms = max_score_terms
-        //             .into_iter()
-        //             .chain(additional_terms.into_iter())
-        //             .collect::<Vec<_>>();
-        //         result.clear();
-        //         result.extend(combined_terms);
-        //     } else {
-        //         result.truncate(limit);
-        //     }
-        // }
-
-        // result
+        // self.get_result_from_associations(
+        //     &all_associations,
+        //     include_similarity_object,
+        //     object_set,
+        //     limit,
+        // )
     }
 }
 
@@ -841,7 +725,7 @@ impl Semsimian {
     }
 
     fn get_prefix_association_cache(&self, py: Python) -> PyResult<PyObject> {
-        let cache = &self.ss.prefix_association_cache;
+        let cache = &self.ss.prefix_expansion_cache;
 
         // Convert every value of the inner HashMap in cache using .into_py(py)
         let python_cache = cache
@@ -898,42 +782,16 @@ impl Semsimian {
     ) -> PyResult<Vec<(f64, PyObject, String)>> {
         self.ss.update_closure_and_ic_map();
 
-        let cache_key: Option<String> = if let Some(subject_prefixes) = &subject_prefixes {
-            Some(
-                subject_prefixes
-                    .iter()
-                    .chain(&object_closure_predicate_terms)
-                    .map(|term_id| term_id.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-                    + &quick_search.to_string(),
-            )
-        } else {
-            None
-        };
-
         let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> =
-            if let Some(associations) = cache_key
-                .as_ref()
-                .and_then(|key| self.ss.prefix_association_cache.get(key))
-            {
-                self.ss.get_result_from_associations(
-                    associations,
-                    include_similarity_object,
-                    &object_terms,
-                    limit,
-                )
-            } else {
-                self.ss.associations_search(
-                    &object_closure_predicate_terms,
-                    &object_terms,
-                    include_similarity_object,
-                    &subject_terms,
-                    &subject_prefixes,
-                    quick_search,
-                    limit,
-                )
-            };
+            self.ss.associations_search(
+                &object_closure_predicate_terms,
+                &object_terms,
+                include_similarity_object,
+                &subject_terms,
+                &subject_prefixes,
+                quick_search,
+                limit,
+            );
 
         let py_search_results: Vec<(f64, PyObject, String)> = search_results
             .into_iter()
