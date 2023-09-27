@@ -555,26 +555,29 @@ impl RustSemsimian {
             })
             .clone();
 
-        let mut expanded_object_map: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut expanded_object_set: HashSet<String> = HashSet::new();
         for obj in object_set.iter() {
-            let expanded_terms: HashSet<String> =
+            expanded_object_set.extend(
                 expand_term_using_closure(obj, &self.closure_map, &self.predicates)
-                    .into_iter()
-                    .collect();
-            expanded_object_map.insert(obj.to_string(), expanded_terms);
+            );
         }
+        
 
-        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = expanded_object_map
-            .par_iter()
-            .flat_map(|(_, object_values)| {
-                expanded_subject_map
-                    .par_iter()
-                    .map(move |(subject_key, subject_values)| {
-                        let score = calculate_jaccard_similarity_str(subject_values, object_values);
-                        (score, None, subject_key.parse().unwrap())
-                    })
-            })
-            .collect();
+        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = 
+            expanded_subject_map
+                .par_iter()
+                .flat_map(|(subject_key, subject_values)| {
+                    expanded_object_set
+                        .par_iter()
+                        .map(move |object_value| {
+                            let mut object_values_set = HashSet::new();
+                            object_values_set.insert(object_value.clone());
+                            let score = calculate_jaccard_similarity_str(subject_values, &object_values_set);
+                            (score, None, subject_key.parse().unwrap())
+                        })
+                })
+                .collect();
+        
 
         // Sort the result vector in descending order by the first element of each tuple
         result.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
@@ -1231,7 +1234,7 @@ mod tests {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
-        let limit: Option<usize> = Some(78);
+        let limit: Option<usize> = Some(100);
 
         // Call the function under test
         let result_1 = rss.associations_search(
