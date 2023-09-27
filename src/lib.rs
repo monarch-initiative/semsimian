@@ -557,27 +557,26 @@ impl RustSemsimian {
 
         let mut expanded_object_set: HashSet<String> = HashSet::new();
         for obj in object_set.iter() {
-            expanded_object_set.extend(
-                expand_term_using_closure(obj, &self.closure_map, &self.predicates)
-            );
+            expanded_object_set.extend(expand_term_using_closure(
+                obj,
+                &self.closure_map,
+                &self.predicates,
+            ));
         }
-        
 
-        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = 
+        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> =
             expanded_subject_map
                 .par_iter()
                 .flat_map(|(subject_key, subject_values)| {
-                    expanded_object_set
-                        .par_iter()
-                        .map(move |object_value| {
-                            let mut object_values_set = HashSet::new();
-                            object_values_set.insert(object_value.clone());
-                            let score = calculate_jaccard_similarity_str(subject_values, &object_values_set);
-                            (score, None, subject_key.parse().unwrap())
-                        })
+                    expanded_object_set.par_iter().map(move |object_value| {
+                        let mut object_values_set = HashSet::new();
+                        object_values_set.insert(object_value.clone());
+                        let score =
+                            calculate_jaccard_similarity_str(subject_values, &object_values_set);
+                        (score, None, subject_key.parse().unwrap())
+                    })
                 })
                 .collect();
-        
 
         // Sort the result vector in descending order by the first element of each tuple
         result.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
