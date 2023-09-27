@@ -27,7 +27,7 @@ use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
     generate_progress_bar_of_length_and_message, get_best_matches, get_curies_from_prefixes,
     get_prefix_association_key, get_termset_vector, predicate_set_to_key,
-    rearrange_columns_and_rewrite,
+    rearrange_columns_and_rewrite, seeded_hash,
 };
 
 use db_query::get_labels;
@@ -493,6 +493,58 @@ impl RustSemsimian {
         result
     }
 
+    // This function takes a set of objects and an expanded subject map as input.
+    // It expands each object using closure and calculates the Jaccard similarity score between each subject and object.
+    // The result is a vector of tuples containing the score, an optional TermsetPairwiseSimilarity, and the TermID.
+    pub fn flatten_closure_search(&self, object_set:&HashSet<String>, expanded_subject_map:&HashMap<TermID, HashSet<TermID>>)->Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>{
+        // Create a new HashSet to store the expanded objects
+        let mut expanded_object_set: HashSet<String> = HashSet::new();
+        
+        // Expand each object using closure
+        for obj in object_set.iter() {
+            expanded_object_set.extend(expand_term_using_closure(
+                obj,
+                &self.closure_map,
+                &self.predicates,
+            ));
+        }
+    
+        // Calculate the Jaccard similarity score for each subject-object pair and collect the results into a vector
+        let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> =
+            expanded_subject_map
+                .par_iter()
+                .map(|(subject_key, subject_values)| {
+                    // Calculate the Jaccard similarity score between the subject values and the entire expanded_object_set.
+                    let score = calculate_jaccard_similarity_str(subject_values, &expanded_object_set);
+                    
+                    // Return a tuple containing the score, None for the optional TermsetPairwiseSimilarity, 
+                    // and the parsed subject key as the TermID.
+                    (score, None, subject_key.parse().unwrap())
+                })
+                .collect();
+        
+        result
+    }
+    
+    // This function performs a full search on the given object set and expanded subject map.
+    // For each subject-object pair, it expands the object using closure and calculates the pairwise similarity.
+    // The result is a vector of tuples containing the best score, the TermsetPairwiseSimilarity, and the TermID.
+    pub fn full_search(&self, object_set:&HashSet<String>, expanded_subject_map:&HashMap<TermID, HashSet<TermID>>)->Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>{
+        // Create a new vector to store the results
+        let mut tsps_object_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
+    
+        // For each subject-object pair, calculate the pairwise similarity and add the result to the vector
+        for (subj, subj_terms) in expanded_subject_map {
+            for obj in object_set {
+                let obj_terms = expand_term_using_closure(obj,&self.closure_map,&self.predicates);
+                let similarity = self.termset_pairwise_similarity(subj_terms, &obj_terms);
+                tsps_object_vec.push((similarity.best_score, Some(similarity), subj.clone()));
+            }
+        }
+    
+        tsps_object_vec
+    }
+
     pub fn associations_search(
         &mut self,
         object_closure_predicates: &HashSet<TermID>,
@@ -554,38 +606,30 @@ impl RustSemsimian {
                 map
             })
             .clone();
-
-        let mut expanded_object_set: HashSet<String> = HashSet::new();
-        for obj in object_set.iter() {
-            expanded_object_set.extend(expand_term_using_closure(
-                obj,
-                &self.closure_map,
-                &self.predicates,
-            ));
+        
+        let mut result;
+        if quick_search{
+            result = self.flatten_closure_search(&object_set, &expanded_subject_map);
+        }
+        else{
+            result = self.full_search(&object_set, &expanded_subject_map);
         }
 
-        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> =
-            expanded_subject_map
-                .par_iter()
-                .flat_map(|(subject_key, subject_values)| {
-                    expanded_object_set.par_iter().map(move |object_value| {
-                        let mut object_values_set = HashSet::new();
-                        object_values_set.insert(object_value.clone());
-                        let score =
-                            calculate_jaccard_similarity_str(subject_values, &object_values_set);
-                        (score, None, subject_key.parse().unwrap())
-                    })
-                })
-                .collect();
-
-        // Sort the result vector in descending order by the first element of each tuple
-        result.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
-
+        // Sort the result vector by:
+        // 1. descending order by the first element of each tuple
+        // 2. Ascending order of hash of result CURIE. (This keeps results consistent)
+        result.sort_by(|a, b| {
+            let primary = b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal);
+            let secondary = seeded_hash(&a.2).cmp(&seeded_hash(&b.2));
+            primary.then(secondary)
+        });
+        
         if let Some(limit) = limit {
             result.truncate(limit);
         }
-
+        
         result
+        
 
         // let all_associations = get_associations(
         //     RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
@@ -1197,7 +1241,7 @@ mod tests {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
-        let limit: Option<usize> = Some(10);
+        let limit: Option<usize> = Some(20);
 
         // Call the function under test
         let result = rss.associations_search(
@@ -1211,6 +1255,7 @@ mod tests {
         );
         // assert_eq!({ result.len() }, limit.unwrap());
         //result is a Vec<(f64, obj, String)> I want the count of tuples in the vector that has the f64 value as the first one
+        // dbg!(&result.iter().map(|(score, _, _)| score).collect::<Vec<_>>());
         let unique_scores: HashSet<_> =
             result.iter().map(|(score, _, _)| score.to_bits()).collect();
         let count = unique_scores.len();
@@ -1233,7 +1278,7 @@ mod tests {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
-        let limit: Option<usize> = Some(100);
+        let limit: Option<usize> = Some(78);
 
         // Call the function under test
         let result_1 = rss.associations_search(
@@ -1290,7 +1335,7 @@ mod tests {
     }
 }
 
-// // ! All local tests that need not be run on github actions.
+// ! All local tests that need not be run on github actions.
 #[cfg(test)]
 mod tests_local {
 
