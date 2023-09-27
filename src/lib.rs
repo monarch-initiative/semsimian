@@ -516,15 +516,12 @@ impl RustSemsimian {
         let assoc_predicate_terms_vec: Vec<TermID> =
             object_closure_predicates.iter().cloned().collect();
 
-        let subject_vec = if self.prefix_expansion_cache.contains_key(&cache_key) {
-            self.prefix_expansion_cache
-                .get(&cache_key)
-                .unwrap()
-                .keys()
-                .cloned()
-                .collect()
+        let mut expanded_subject_map: HashMap<String, HashSet<String>>;
+
+        if self.prefix_expansion_cache.contains_key(&cache_key) {
+            expanded_subject_map = self.prefix_expansion_cache.get(&cache_key).unwrap().clone();
         } else {
-            match subject_prefixes {
+            let subject_vec = match subject_prefixes {
                 Some(subject_prefixes) => get_curies_from_prefixes(
                     Some(subject_prefixes),
                     &assoc_predicate_terms_vec,
@@ -534,21 +531,21 @@ impl RustSemsimian {
                     let subject_set = subject_set.as_ref().unwrap();
                     subject_set.iter().cloned().collect::<Vec<TermID>>()
                 }
+            };
+
+            expanded_subject_map = HashMap::new();
+
+            for subj in subject_vec.iter() {
+                let expanded_terms: HashSet<String> =
+                    expand_term_using_closure(subj, &self.closure_map, &self.predicates)
+                        .into_iter()
+                        .collect();
+                expanded_subject_map.insert(subj.to_string(), expanded_terms);
             }
-        };
 
-        let mut expanded_subject_map: HashMap<String, HashSet<String>> = HashMap::new();
-
-        for subj in subject_vec.iter() {
-            let expanded_terms: HashSet<String> =
-                expand_term_using_closure(subj, &self.closure_map, &self.predicates)
-                    .into_iter()
-                    .collect();
-            expanded_subject_map.insert(subj.to_string(), expanded_terms);
+            self.prefix_expansion_cache
+                .insert(cache_key, expanded_subject_map.clone());
         }
-
-        self.prefix_expansion_cache
-            .insert(cache_key, expanded_subject_map.clone());
 
         // let all_object_for_subjects = get_objects_for_subjects(
         //     RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
