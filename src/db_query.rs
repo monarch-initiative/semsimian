@@ -215,7 +215,7 @@ pub fn get_objects_for_subjects(
     path: &str,
     subjects: Option<&[TermID]>,
     predicates: Option<&[TermID]>,
-) -> Result<HashSet<TermID>, rusqlite::Error> {
+) -> Result<HashMap<TermID, HashSet<TermID>>, rusqlite::Error> {
     let joined_subjects = match subjects {
         Some(subjects) => format!("'{}'", subjects.join("', '")),
         None => String::new(),
@@ -224,9 +224,10 @@ pub fn get_objects_for_subjects(
         Some(predicates) => format!("'{}'", predicates.join("', '")),
         None => String::new(),
     };
+
     // Open a connection to the SQLite database file
     let conn = Connection::open(path)?;
-    let mut query = String::from("SELECT DISTINCT object FROM ");
+    let mut query = String::from("SELECT DISTINCT subject, object FROM ");
     query.push_str(TERM_ASSOCIATION_TABLE);
     if subjects.is_some() || predicates.is_some() {
         query.push_str(" WHERE ");
@@ -252,18 +253,23 @@ pub fn get_objects_for_subjects(
     let mut stmt = conn.prepare(&query)?;
 
     // Execute the SQL query and retrieve the results
-    let rows = stmt.query_map([], |row| row.get::<_, TermID>(0))?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, TermID>(0)?, row.get::<_, TermID>(1)?))
+    })?;
 
-    // Create a HashSet to store the results
-    let mut result_set: HashSet<TermID> = HashSet::new();
+    // Create a HashMap to store the results
+    let mut result_map: HashMap<TermID, HashSet<TermID>> = HashMap::new();
 
-    // Iterate over the rows which is of type Rows and populate the HashSet
+    // Iterate over the rows which is of type Rows and populate the HashMap
     for row in rows {
-        let object = row?;
-        result_set.insert(object);
+        let (subject, object) = row?;
+        result_map
+            .entry(subject)
+            .or_insert_with(HashSet::new)
+            .insert(object);
     }
 
-    Ok(result_set)
+    Ok(result_map)
 }
 
 pub fn get_subjects(
@@ -436,14 +442,20 @@ mod tests {
     #[test]
     fn test_get_objects_for_subjects() {
         let db = &DB_PATH;
-        let expected_set = HashSet::from(["GO:0065007".to_string(), "GO:0008150".to_string()]);
+        let mut expected_map = HashMap::new();
+        expected_map.insert(
+            "GO:0050789".to_string(),
+            HashSet::from(["GO:0065007".to_string(), "GO:0008150".to_string()]),
+        );
+
         let result = get_objects_for_subjects(
             db,
             Some(&["GO:0050789".to_string()]),
             Some(&["biolink:has_nucleus".to_string()]),
         );
         assert!(result.is_ok());
-        let set = result.unwrap();
-        assert_eq!(set, expected_set);
+        let map = result.unwrap();
+        dbg!(&map);
+        assert_eq!(map, expected_map);
     }
 }

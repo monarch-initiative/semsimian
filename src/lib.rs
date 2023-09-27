@@ -1,4 +1,4 @@
-use db_query::{get_entailed_edges_for_predicate_list, TermAssociation};
+use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects, TermAssociation};
 use pyo3::prelude::*;
 use std::{
     cmp::Ordering,
@@ -516,38 +516,45 @@ impl RustSemsimian {
         let assoc_predicate_terms_vec: Vec<TermID> =
             object_closure_predicates.iter().cloned().collect();
 
-        let expanded_subject_map = self.prefix_expansion_cache.entry(cache_key.clone()).or_insert_with(|| {
-            let subject_vec = match subject_prefixes {
-                Some(subject_prefixes) => get_curies_from_prefixes(
-                    Some(subject_prefixes),
-                    &assoc_predicate_terms_vec,
+        let expanded_subject_map = self
+            .prefix_expansion_cache
+            .entry(cache_key.clone())
+            .or_insert_with(|| {
+                let subject_vec = match subject_prefixes {
+                    Some(subject_prefixes) => get_curies_from_prefixes(
+                        Some(subject_prefixes),
+                        &assoc_predicate_terms_vec,
+                        RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
+                    ),
+                    None => {
+                        let subject_set = subject_set.as_ref().unwrap();
+                        subject_set.iter().cloned().collect::<Vec<TermID>>()
+                    }
+                };
+                let all_object_for_subjects = get_objects_for_subjects(
                     RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
-                ),
-                None => {
-                    let subject_set = subject_set.as_ref().unwrap();
-                    subject_set.iter().cloned().collect::<Vec<TermID>>()
-                }
-            };
-        
-            let mut map = HashMap::new();
-        
-            for subj in subject_vec.iter() {
-                let expanded_terms: HashSet<String> =
-                    expand_term_using_closure(subj, &self.closure_map, &self.predicates)
-                        .into_iter()
-                        .collect();
-                map.insert(subj.to_string(), expanded_terms);
-            }
-        
-            map
-        }).clone();
-        
+                    Some(&subject_vec),
+                    Some(&assoc_predicate_terms_vec),
+                )
+                .unwrap();
 
-        // let all_object_for_subjects = get_objects_for_subjects(
-        //     RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
-        //     Some(&subject_vec),
-        //     Some(&assoc_predicate_terms_vec),
-        // );
+                let mut map = HashMap::new();
+
+                for (subj, obj_set) in all_object_for_subjects.iter() {
+                    let mut expanded_terms: HashSet<String> = HashSet::new();
+                    for term in obj_set {
+                        let expanded =
+                            expand_term_using_closure(term, &self.closure_map, &self.predicates)
+                                .into_iter()
+                                .collect::<HashSet<String>>();
+                        expanded_terms.extend(expanded);
+                    }
+                    map.insert(subj.to_string(), expanded_terms);
+                }
+                map
+            })
+            .clone();
+
         let mut expanded_object_map: HashMap<String, HashSet<String>> = HashMap::new();
         for obj in object_set.iter() {
             let expanded_terms: HashSet<String> =
