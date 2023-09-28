@@ -500,7 +500,7 @@ impl RustSemsimian {
             cutoff_score = &f64_items[top_percent_f4_count];
         } else {
             cutoff_score = f64_items.last().unwrap();
-        }
+        };
 
         // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
         // f64 values in flatten_result are the top 10%
@@ -520,7 +520,7 @@ impl RustSemsimian {
         for (subj, subj_terms) in subset_top_percent {
             for obj in object_set {
                 let obj_terms = expand_term_using_closure(obj, &self.closure_map, &self.predicates);
-                let similarity = self.termset_pairwise_similarity(&subj_terms, &obj_terms);
+                let similarity = self.termset_pairwise_similarity(subj_terms, &obj_terms);
                 tsps_object_vec.push((similarity.best_score, Some(similarity), subj.clone()));
             }
         }
