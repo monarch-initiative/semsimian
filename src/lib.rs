@@ -487,42 +487,6 @@ impl RustSemsimian {
         
         // Sort in descending order
         f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
-        
-        
-        // // Find median of f64_items
-        // let median = if f64_items.len() % 2 == 0 {
-        //     (f64_items[f64_items.len() / 2] + f64_items[f64_items.len() / 2 - 1]) / 2.0
-        // } else {
-        //     f64_items[f64_items.len() / 2]
-        // };
-        
-        // // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
-        // // f64 values in flatten_result are above the median
-        // let mut subset_median: HashMap<&String, &HashSet<String>> = HashMap::new();
-        // for (key, value) in expanded_subject_map {
-        //     let f64_value = flatten_result.iter().find(|(_score, _, obj)| obj == key);
-        //     if let Some((item, _, _)) = f64_value {
-        //         if *item > median {
-        //             subset_median.insert(key, value);
-        //         }
-        //     }
-        // }
-
-        // // Find mean
-        // let sum: f64 = f64_items.iter().sum();
-        // let count = f64_items.len() as f64;
-        // let mean = if count > 0.0 { sum / count } else { 0.0 };
-        // // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
-        // // f64 values in flatten_result are above the mean
-        // let mut subset_mean: HashMap<&String, &HashSet<String>> = HashMap::new();
-        // for (key, value) in expanded_subject_map {
-        //     let f64_value = flatten_result.iter().find(|(_score, _, obj)| obj == key);
-        //     if let Some((item, _, _)) = f64_value {
-        //         if *item > mean {
-        //             subset_mean.insert(key, value);
-        //         }
-        //     }
-        // }
 
         // Remove duplicates
         f64_items.dedup();
@@ -540,11 +504,6 @@ impl RustSemsimian {
                 }
             }
         }
-
-        // dbg!(&expanded_subject_map.len());
-        // dbg!(&subset_median.len());
-        // dbg!(&subset_mean.len());
-        // dbg!(&subset_top_10.len());
         
         let estimated_size = subset_top_10.len() * object_set.len();
         let mut tsps_object_vec = Vec::with_capacity(estimated_size);
