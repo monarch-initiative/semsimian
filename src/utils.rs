@@ -11,8 +11,8 @@ use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
 use crate::db_query::get_subjects;
-use crate::SimilarityMap;
 use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
+use crate::SimilarityMap;
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
@@ -495,7 +495,9 @@ pub fn seeded_hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
-pub fn hashed_dual_sort(mut result:Vec<(f64, Option<TermsetPairwiseSimilarity>, String)>) ->Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> {
+pub fn hashed_dual_sort(
+    mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)>,
+) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> {
     // Sort the result vector by score in descending order and hash of result CURIE in ascending order
     result.sort_by(|a, b| {
         let primary = b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal);
@@ -504,7 +506,6 @@ pub fn hashed_dual_sort(mut result:Vec<(f64, Option<TermsetPairwiseSimilarity>, 
     });
     result
 }
-
 
 #[cfg(test)]
 mod tests {
