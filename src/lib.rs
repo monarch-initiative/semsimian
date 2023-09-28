@@ -1,7 +1,6 @@
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use pyo3::prelude::*;
 use std::{
-    cmp::Ordering,
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
@@ -27,7 +26,7 @@ use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
     generate_progress_bar_of_length_and_message, get_best_matches, get_curies_from_prefixes,
     get_prefix_association_key, get_termset_vector, predicate_set_to_key,
-    rearrange_columns_and_rewrite, seeded_hash,
+    rearrange_columns_and_rewrite, hashed_dual_sort,
 };
 
 use db_query::get_labels;
@@ -397,12 +396,13 @@ impl RustSemsimian {
             }
         }
         let db_path = RESOURCE_PATH.lock().unwrap();
-        let all_terms: Vec<String> = subject_terms
+        let all_terms: HashSet<String> = subject_terms
             .iter()
             .chain(object_terms.iter())
             .cloned()
             .collect();
-        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms).unwrap();
+        let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
+        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms_vec).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(subject_terms, &term_label_map);
@@ -479,20 +479,88 @@ impl RustSemsimian {
         object_set: &HashSet<String>,
         expanded_subject_map: &HashMap<TermID, HashSet<TermID>>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        // Create a new vector to store the results
-        let mut tsps_object_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
 
-        // For each subject-object pair, calculate the pairwise similarity and add the result to the vector
-        for (subj, subj_terms) in expanded_subject_map {
-            for obj in object_set {
-                let obj_terms = expand_term_using_closure(obj, &self.closure_map, &self.predicates);
-                let similarity = self.termset_pairwise_similarity(subj_terms, &obj_terms);
-                tsps_object_vec.push((similarity.best_score, Some(similarity), subj.clone()));
+        let flatten_result = self.flatten_closure_search(object_set, expanded_subject_map);
+        
+        // Extract f64 items from flatten_result
+        let mut f64_items: Vec<f64> = flatten_result.iter().map(|(item, _, _)| *item).collect();
+        
+        // Sort in descending order
+        f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
+        
+        
+        // // Find median of f64_items
+        // let median = if f64_items.len() % 2 == 0 {
+        //     (f64_items[f64_items.len() / 2] + f64_items[f64_items.len() / 2 - 1]) / 2.0
+        // } else {
+        //     f64_items[f64_items.len() / 2]
+        // };
+        
+        // // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
+        // // f64 values in flatten_result are above the median
+        // let mut subset_median: HashMap<&String, &HashSet<String>> = HashMap::new();
+        // for (key, value) in expanded_subject_map {
+        //     let f64_value = flatten_result.iter().find(|(_score, _, obj)| obj == key);
+        //     if let Some((item, _, _)) = f64_value {
+        //         if *item > median {
+        //             subset_median.insert(key, value);
+        //         }
+        //     }
+        // }
+
+        // // Find mean
+        // let sum: f64 = f64_items.iter().sum();
+        // let count = f64_items.len() as f64;
+        // let mean = if count > 0.0 { sum / count } else { 0.0 };
+        // // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
+        // // f64 values in flatten_result are above the mean
+        // let mut subset_mean: HashMap<&String, &HashSet<String>> = HashMap::new();
+        // for (key, value) in expanded_subject_map {
+        //     let f64_value = flatten_result.iter().find(|(_score, _, obj)| obj == key);
+        //     if let Some((item, _, _)) = f64_value {
+        //         if *item > mean {
+        //             subset_mean.insert(key, value);
+        //         }
+        //     }
+        // }
+
+        // Remove duplicates
+        f64_items.dedup();
+
+        let top_1percent_f4_count = (0.01 * f64_items.len() as f64).ceil() as usize;
+        let cutoff_score = f64_items[top_1percent_f4_count];
+        // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
+        // f64 values in flatten_result are the top 10%
+        let mut subset_top_10: HashMap<&String, &HashSet<String>> = HashMap::new();
+        for (key, value) in expanded_subject_map {
+            let f64_value = flatten_result.iter().find(|(_score, _, obj)| obj == key);
+            if let Some((item, _, _)) = f64_value {
+                if *item > cutoff_score {
+                    subset_top_10.insert(key, value);
+                }
             }
         }
 
+        // dbg!(&expanded_subject_map.len());
+        // dbg!(&subset_median.len());
+        // dbg!(&subset_mean.len());
+        // dbg!(&subset_top_10.len());
+        
+        let estimated_size = subset_top_10.len() * object_set.len();
+        let mut tsps_object_vec = Vec::with_capacity(estimated_size);
+    
+        for (subj, subj_terms) in subset_top_10 {
+            for obj in object_set {
+                let obj_terms = expand_term_using_closure(obj, &self.closure_map, &self.predicates);
+                let similarity = self.termset_pairwise_similarity(&subj_terms, &obj_terms);
+                tsps_object_vec.push((similarity.best_score, Some(similarity), subj.clone()));
+            }
+        }
+    
         tsps_object_vec
+
     }
+    
 
     // This function is used to search associations.
     pub fn associations_search(
@@ -571,21 +639,21 @@ impl RustSemsimian {
         } else {
             result = self.full_search(object_set, &expanded_subject_map);
         }
-
-        // Sort the result vector by score in descending order and hash of result CURIE in ascending order
-        result.sort_by(|a, b| {
-            let primary = b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal);
-            let secondary = seeded_hash(&a.2).cmp(&seeded_hash(&b.2));
-            primary.then(secondary)
-        });
+        
+        result = hashed_dual_sort(result);
 
         // Truncate the result to the limit if provided
         if let Some(limit) = limit {
             result.truncate(limit);
         }
-
+        
         // Return the result
         result
+
+        
+        
+        
+
     }
 }
 
@@ -1165,6 +1233,48 @@ mod tests {
         let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
         let expected_result = 5.4154243283740175;
         assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_full_search() {
+    let db = Some("tests/data/go-nucleus.db");
+    let predicates: Option<Vec<Predicate>> = Some(vec![
+        "rdfs:subClassOf".to_string(),
+        "BFO:0000050".to_string(),
+    ]);
+    let expected_object_set = HashSet::from(["GO:0009892".to_string()]);
+    let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+    rss.update_closure_and_ic_map();
+
+        // Create a sample object_set
+        let mut object_set = HashSet::new();
+        object_set.insert("GO:0019222".to_string());
+        object_set.insert("GO:0005575".to_string());
+        object_set.insert("GO:0048522".to_string());
+        object_set.insert("GO:0044237".to_string());
+
+        // Create a sample expanded_subject_map
+        let mut expanded_subject_map = HashMap::new();
+        let mut term_set = HashSet::new();
+        term_set.insert("GO:0019222".to_string());
+        term_set.insert("GO:0008152".to_string());
+        term_set.insert("GO:0048519".to_string());
+        term_set.insert("BFO:0000003".to_string());
+        term_set.insert("GO:0050789".to_string());
+        term_set.insert("GO:0065007".to_string());
+        term_set.insert("GO:0008150".to_string());
+        term_set.insert("BFO:0000015".to_string());
+        expanded_subject_map.insert("GO:0009892".to_string(), term_set);
+
+        // Call full_search
+        let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = rss.full_search(&object_set, &expanded_subject_map);
+        let result_objects:Vec<TermID> = result.iter().map(|(_, _, subject)| subject.clone()).collect();
+        let unique_objects: HashSet<TermID> = result_objects.into_iter().collect();
+
+
+        // Assert that the result matches the expected result
+        assert_eq!(unique_objects, expected_object_set);
     }
 
     #[test]

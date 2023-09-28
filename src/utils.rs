@@ -1,4 +1,5 @@
 use indicatif::{ProgressBar, ProgressStyle};
+use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
@@ -11,6 +12,7 @@ use std::io::{BufReader, BufWriter};
 
 use crate::db_query::get_subjects;
 use crate::SimilarityMap;
+use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
@@ -492,6 +494,17 @@ pub fn seeded_hash<T: Hash>(t: &T) -> u64 {
     t.hash(&mut s);
     s.finish()
 }
+
+pub fn hashed_dual_sort(mut result:Vec<(f64, Option<TermsetPairwiseSimilarity>, String)>) ->Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> {
+    // Sort the result vector by score in descending order and hash of result CURIE in ascending order
+    result.sort_by(|a, b| {
+        let primary = b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal);
+        let secondary = seeded_hash(&a.2).cmp(&seeded_hash(&b.2));
+        primary.then(secondary)
+    });
+    result
+}
+
 
 #[cfg(test)]
 mod tests {
