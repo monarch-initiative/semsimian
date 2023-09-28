@@ -456,7 +456,7 @@ impl RustSemsimian {
         }
 
         // Calculate the Jaccard similarity score for each subject-object pair and collect the results into a vector
-        let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = expanded_subject_map
+        let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = expanded_subject_map
             .par_iter()
             .map(|(subject_key, subject_values)| {
                 // Calculate the Jaccard similarity score between the subject values and the entire expanded_object_set.
@@ -467,48 +467,55 @@ impl RustSemsimian {
                 (score, None, subject_key.parse().unwrap())
             })
             .collect();
-
+        
+        result = hashed_dual_sort(result);
         result
     }
 
-    // This function performs a full search on the given object set and expanded subject map.
+    // This function performs a full search on the given object set and a subset of the expanded subject map.
+    // This subset is formed based off of the flatten_closure_search() and then the top 1% of candidates are chosen.
     // For each subject-object pair, it expands the object using closure and calculates the pairwise similarity.
     // The result is a vector of tuples containing the best score, the TermsetPairwiseSimilarity, and the TermID.
     pub fn full_search(
         &self,
         object_set: &HashSet<String>,
         expanded_subject_map: &HashMap<TermID, HashSet<TermID>>,
+        flatten_result: &Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
+        limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
+        let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
 
-        let flatten_result = self.flatten_closure_search(object_set, expanded_subject_map);
-        
         // Extract f64 items from flatten_result
         let mut f64_items: Vec<f64> = flatten_result.iter().map(|(item, _, _)| *item).collect();
-        
-        // Sort in descending order
-        f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
 
         // Remove duplicates
         f64_items.dedup();
 
-        let top_1percent_f4_count = (0.01 * f64_items.len() as f64).ceil() as usize;
-        let cutoff_score = f64_items[top_1percent_f4_count];
+        let top_percent_f4_count = ((top_percent * f64_items.len() as f64).ceil() as usize).max(limit.unwrap());
+        let cutoff_score;
+        if top_percent_f4_count < f64_items.len(){
+            cutoff_score = &f64_items[top_percent_f4_count];
+        }else{
+            cutoff_score = f64_items.last().unwrap();
+        }
+        
+        
         // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
         // f64 values in flatten_result are the top 10%
-        let mut subset_top_10: HashMap<&String, &HashSet<String>> = HashMap::new();
+        let mut subset_top_percent: HashMap<&String, &HashSet<String>> = HashMap::new();
         for (key, value) in expanded_subject_map {
             let f64_value = flatten_result.iter().find(|(_score, _, obj)| obj == key);
             if let Some((item, _, _)) = f64_value {
-                if *item > cutoff_score {
-                    subset_top_10.insert(key, value);
+                if *item >= *cutoff_score {
+                    subset_top_percent.insert(key, value);
                 }
             }
         }
-        
-        let estimated_size = subset_top_10.len() * object_set.len();
+        dbg!(&subset_top_percent.len());
+        let estimated_size = subset_top_percent.len() * object_set.len();
         let mut tsps_object_vec = Vec::with_capacity(estimated_size);
     
-        for (subj, subj_terms) in subset_top_10 {
+        for (subj, subj_terms) in subset_top_percent {
             for obj in object_set {
                 let obj_terms = expand_term_using_closure(obj, &self.closure_map, &self.predicates);
                 let similarity = self.termset_pairwise_similarity(&subj_terms, &obj_terms);
@@ -593,13 +600,10 @@ impl RustSemsimian {
 
         // Perform quick search or full search based on the flag
         let mut result;
-        if quick_search {
-            result = self.flatten_closure_search(object_set, &expanded_subject_map);
-        } else {
-            result = self.full_search(object_set, &expanded_subject_map);
+        result = self.flatten_closure_search(object_set, &expanded_subject_map);
+        if !quick_search {
+            result = self.full_search(object_set, &expanded_subject_map, &result, &limit);
         }
-        
-        result = hashed_dual_sort(result);
 
         // Truncate the result to the limit if provided
         if let Some(limit) = limit {
@@ -1202,38 +1206,41 @@ mod tests {
         "BFO:0000050".to_string(),
     ]);
     let expected_object_set = HashSet::from(["GO:0009892".to_string()]);
+    let limit = Some(10);
     let mut rss = RustSemsimian::new(None, predicates, None, db);
 
     rss.update_closure_and_ic_map();
 
-        // Create a sample object_set
-        let mut object_set = HashSet::new();
-        object_set.insert("GO:0019222".to_string());
-        object_set.insert("GO:0005575".to_string());
-        object_set.insert("GO:0048522".to_string());
-        object_set.insert("GO:0044237".to_string());
+    // Create a sample object_set
+    let mut object_set = HashSet::new();
+    object_set.insert("GO:0019222".to_string());
+    object_set.insert("GO:0005575".to_string());
+    object_set.insert("GO:0048522".to_string());
+    object_set.insert("GO:0044237".to_string());
 
-        // Create a sample expanded_subject_map
-        let mut expanded_subject_map = HashMap::new();
-        let mut term_set = HashSet::new();
-        term_set.insert("GO:0019222".to_string());
-        term_set.insert("GO:0008152".to_string());
-        term_set.insert("GO:0048519".to_string());
-        term_set.insert("BFO:0000003".to_string());
-        term_set.insert("GO:0050789".to_string());
-        term_set.insert("GO:0065007".to_string());
-        term_set.insert("GO:0008150".to_string());
-        term_set.insert("BFO:0000015".to_string());
-        expanded_subject_map.insert("GO:0009892".to_string(), term_set);
+    // Create a sample expanded_subject_map
+    let mut expanded_subject_map = HashMap::new();
+    let mut term_set = HashSet::new();
+    term_set.insert("GO:0019222".to_string());
+    term_set.insert("GO:0008152".to_string());
+    term_set.insert("GO:0048519".to_string());
+    term_set.insert("BFO:0000003".to_string());
+    term_set.insert("GO:0050789".to_string());
+    term_set.insert("GO:0065007".to_string());
+    term_set.insert("GO:0008150".to_string());
+    term_set.insert("BFO:0000015".to_string());
+    expanded_subject_map.insert("GO:0009892".to_string(), term_set);
 
-        // Call full_search
-        let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = rss.full_search(&object_set, &expanded_subject_map);
-        let result_objects:Vec<TermID> = result.iter().map(|(_, _, subject)| subject.clone()).collect();
-        let unique_objects: HashSet<TermID> = result_objects.into_iter().collect();
+    // Call flattened search which is a prerequisite for full search
+    let flattened_search = rss.flatten_closure_search(&object_set, &expanded_subject_map);
+    // Call full_search
+    let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = rss.full_search(&object_set, &expanded_subject_map, &flattened_search, &limit);
+    let result_objects:Vec<TermID> = result.iter().map(|(_, _, subject)| subject.clone()).collect();
+    let unique_objects: HashSet<TermID> = result_objects.into_iter().collect();
 
 
-        // Assert that the result matches the expected result
-        assert_eq!(unique_objects, expected_object_set);
+    // Assert that the result matches the expected result
+    assert_eq!(unique_objects, expected_object_set);
     }
 
     #[test]
@@ -1311,8 +1318,12 @@ mod tests {
             limit,
         );
 
+        dbg!(&result_1.len());
+        dbg!(&result_2.len());
+
         let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
         let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
+
 
         // Assert that there is at least 80% match between result_1_matches and result_2_matches
         let match_count = result_1_matches
@@ -1337,11 +1348,11 @@ mod tests {
             .cloned()
             .collect();
 
+        dbg!(&result_1_unique);
+        dbg!(&result_2_unique);
         assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
         assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
 
-        dbg!(&result_1_unique);
-        dbg!(&result_2_unique);
     }
 }
 
