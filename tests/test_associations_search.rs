@@ -25,8 +25,17 @@ fn test_large_associations_search() {
 
     // Define input parameters for the function
     let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
-    let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MGI:".to_string()]);
-    let object_terms: HashSet<TermID> = HashSet::from(["MP:0003143".to_string()]);
+    let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
+     // Alzheimer disease 2 profile
+    let object_terms: HashSet<TermID> = HashSet::from(
+        [
+            "HP:0002511".to_string(),
+            "HP:0002423".to_string(),
+            "HP:0002185".to_string(),
+            "HP:0001300".to_string(),
+            "HP:0000726".to_string()
+        ]
+    );
     let limit: Option<usize> = Some(10);
 
     // Call the function under test
@@ -46,7 +55,7 @@ fn test_large_associations_search() {
 }
 
 #[test]
-#[ignore]
+// #[ignore]
 #[cfg_attr(feature = "ci", ignore)]
 fn test_large_associations_quick_search() {
     let mut db_path = PathBuf::new();
@@ -69,8 +78,18 @@ fn test_large_associations_quick_search() {
 
     // Define input parameters for the function
     let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
-    let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MGI:".to_string()]);
-    let object_terms: HashSet<TermID> = HashSet::from(["MP:0003143".to_string()]);
+    let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
+    // Alzheimer disease 2 profile
+    let object_terms: HashSet<TermID> = HashSet::from(
+        [
+            "HP:0002511".to_string(),
+            "HP:0002423".to_string(),
+            "HP:0002185".to_string(),
+            "HP:0001300".to_string(),
+            "HP:0000726".to_string()
+        ]
+    );
+    
     let limit: Option<usize> = Some(10);
 
     // Call the function under test
@@ -94,13 +113,19 @@ fn test_large_associations_quick_search() {
         limit,
     );
 
+    dbg!(&result_1.len());
+    dbg!(&result_2.len());
+
     assert_eq!({ result_1.len() }, limit.unwrap());
     assert_eq!({ result_2.len() }, limit.unwrap());
 
     let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
     let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
 
-    // Assert that there is at least 80% match between result_1_matches and result_2_matches
+    dbg!(&result_1_matches);
+    dbg!(&result_2_matches);
+
+    // Assert that there is a full match between result_1_matches and result_2_matches
     let match_count = result_1_matches
         .iter()
         .filter(|&x| result_2_matches.contains(x))
@@ -108,7 +133,6 @@ fn test_large_associations_quick_search() {
     let match_percentage = (match_count as f32 / result_1_matches.len() as f32) * 100.0;
 
     dbg!(&match_percentage);
-    assert_eq!(match_percentage, 100.0);
 
     // ! Double check there aren't terms in one and not the other
     let result_1_unique: Vec<_> = result_1_matches
@@ -123,9 +147,9 @@ fn test_large_associations_quick_search() {
         .cloned()
         .collect();
 
+    // dbg!(&result_1_unique);
+    // dbg!(&result_2_unique);
+    assert_eq!(match_percentage, 100.0);
     assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
     assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
-
-    dbg!(&result_1_unique);
-    dbg!(&result_2_unique);
 }
