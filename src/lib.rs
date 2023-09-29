@@ -1,7 +1,7 @@
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use pyo3::prelude::*;
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet, hash_map::Entry::{Occupied, Vacant}},
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
     sync::{Arc, Mutex, RwLock},
@@ -493,39 +493,70 @@ impl RustSemsimian {
         // Remove duplicates
         f64_items.dedup();
 
+        // Calculate the count of top percent items in f64_items. If the calculated value is less than the limit, use the limit instead.
         let top_percent_f4_count =
             ((top_percent * f64_items.len() as f64).ceil() as usize).max(limit.unwrap());
+
+        // Declare a variable to hold the cutoff score
         let cutoff_score;
+
+        // Check if the count for top percent scores is less than the total number of unique scores
         if top_percent_f4_count < f64_items.len() {
+            // If it is, set the cutoff score to be the item at the index equal to the count of top percent items
             cutoff_score = &f64_items[top_percent_f4_count];
         } else {
+            // If it's not, set the cutoff score to be the last item in f64_items
             cutoff_score = f64_items.last().unwrap();
         };
 
         // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
-        // f64 values in flatten_result are the top 10%
-        let mut subset_top_percent: HashMap<&String, &HashSet<String>> = HashMap::new();
+        // f64 values in flatten_result are the top top_percent 
+        // ![top_percent is variable depending on 'limit' requested.]
+        let mut expanded_subject_top_percent_subset_map: HashMap<&String, &HashSet<String>> = HashMap::new();
         for (key, value) in expanded_subject_map {
-            let f64_value = flatten_result.iter().find(|(_score, _, obj)| obj == key);
-            if let Some((item, _, _)) = f64_value {
-                if *item >= *cutoff_score {
-                    subset_top_percent.insert(key, value);
+            let tsps_vector = flatten_result.iter().find(|(score, _, obj)| (obj == key) && (score >= cutoff_score));
+            if let Some(_) = tsps_vector {
+                expanded_subject_top_percent_subset_map.insert(key, value);
+            }
+        }
+        
+        let mut similarity_map: HashMap<TermID, (f64, Option<TermsetPairwiseSimilarity>, TermID)> = HashMap::new();
+        
+        // Iterate over each subject and its terms in the expanded_subject_top_percent_subset_map
+        for (subj, subj_terms) in expanded_subject_top_percent_subset_map {
+            // For each subject, iterate over each object in the object_set
+            for obj in object_set {
+                // Expand the current object's terms using closure
+                let obj_terms = expand_term_using_closure(obj, &self.closure_map, &self.predicates);
+                // Calculate the similarity between the subject's terms and the object's terms
+                let similarity = self.termset_pairwise_similarity(subj_terms, &obj_terms);
+        
+                // Use Entry API to efficiently handle insertion and modification
+                // This avoids unnecessary cloning of 'subj'
+                match similarity_map.entry(subj.clone()) {
+                    // If the subject is present in the map
+                    Occupied(mut entry) => {
+                        // If the new best_score is higher than the existing one,
+                        // replace the existing tuple with the new one
+                        if entry.get().0 < similarity.best_score {
+                            entry.insert((similarity.best_score, Some(similarity), subj.clone()));
+                        }
+                    },
+                    // If the subject is not present in the map
+                    Vacant(entry) => {
+                        // Add the subject along with the associated tuple
+                        entry.insert((similarity.best_score, Some(similarity), subj.clone()));
+                    },
                 }
             }
         }
-        dbg!(&subset_top_percent.len());
-        let estimated_size = subset_top_percent.len() * object_set.len();
-        let mut tsps_object_vec = Vec::with_capacity(estimated_size);
+        
+        // Convert the HashMap back to a Vec
+        let mut similarity_vec: Vec<_> = similarity_map.into_iter().map(|(_, v)| v).collect();
+        
+        similarity_vec = hashed_dual_sort(similarity_vec);
 
-        for (subj, subj_terms) in subset_top_percent {
-            for obj in object_set {
-                let obj_terms = expand_term_using_closure(obj, &self.closure_map, &self.predicates);
-                let similarity = self.termset_pairwise_similarity(subj_terms, &obj_terms);
-                tsps_object_vec.push((similarity.best_score, Some(similarity), subj.clone()));
-            }
-        }
-
-        tsps_object_vec
+        similarity_vec
     }
 
     // This function is used to search associations.
