@@ -510,7 +510,7 @@ impl RustSemsimian {
         };
 
         // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
-        // f64 values in flatten_result are the top top_percent 
+        // f64 values in flatten_result are the top top_percent
         // ![top_percent is variable depending on 'limit' requested.]
         let mut expanded_subject_top_percent_subset_map: HashMap<&String, &HashSet<String>> = HashMap::new();
         for (key, value) in expanded_subject_map {
@@ -519,9 +519,9 @@ impl RustSemsimian {
                 expanded_subject_top_percent_subset_map.insert(key, value);
             }
         }
-        
+
         let mut similarity_map: HashMap<TermID, (f64, Option<TermsetPairwiseSimilarity>, TermID)> = HashMap::new();
-        
+
         // Iterate over each subject and its terms in the expanded_subject_top_percent_subset_map
         for (subj, subj_terms) in expanded_subject_top_percent_subset_map {
             // For each subject, iterate over each object in the object_set
@@ -530,7 +530,7 @@ impl RustSemsimian {
                 let obj_terms = expand_term_using_closure(obj, &self.closure_map, &self.predicates);
                 // Calculate the similarity between the subject's terms and the object's terms
                 let similarity = self.termset_pairwise_similarity(subj_terms, &obj_terms);
-        
+
                 // Use Entry API to efficiently handle insertion and modification
                 // This avoids unnecessary cloning of 'subj'
                 match similarity_map.entry(subj.clone()) {
@@ -550,10 +550,10 @@ impl RustSemsimian {
                 }
             }
         }
-        
+
         // Convert the HashMap back to a Vec
         let mut similarity_vec: Vec<_> = similarity_map.into_iter().map(|(_, v)| v).collect();
-        
+
         similarity_vec = hashed_dual_sort(similarity_vec);
 
         similarity_vec
@@ -562,6 +562,7 @@ impl RustSemsimian {
     // This function is used to search associations.
     pub fn associations_search(
         &mut self,
+        // these params align with OAK's associations_subject_search()
         object_closure_predicates: &HashSet<TermID>, // Set of predicates for object closure
         object_set: &HashSet<TermID>,                // Set of objects
         _include_similarity_object: bool,            // Flag to include similarity object
