@@ -798,6 +798,7 @@ impl Semsimian {
                 limit,
             );
 
+        // convert results of association search into Python objects
         let py_search_results: Vec<(f64, PyObject, String)> = search_results
             .into_iter()
             .map(|(score, similarity, name)| {
