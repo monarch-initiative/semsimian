@@ -507,6 +507,34 @@ pub fn hashed_dual_sort(
     result
 }
 
+pub fn sort_with_jaccard_as_tie_breaker(
+    mut vec_to_sort: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
+    flatten_result: &Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>
+) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
+    let flatten_result_hash: HashMap<_, _> = flatten_result.into_iter().map(|x| (x.2.clone(), x)).collect();
+
+    vec_to_sort.sort_unstable_by(|a, b| {
+        let score_a = a.0;
+        let score_b = b.0;
+
+        if score_a == score_b {
+            let tie_breaker_a = flatten_result_hash.get(&a.2).unwrap_or(&&(0.0, None, "".to_string())).0;
+            let tie_breaker_b = flatten_result_hash.get(&b.2).unwrap_or(&&(0.0, None, "".to_string())).0;
+            // If the Jaccard score also results in a tie, then consider `seeded_hash` of the term CURIE
+            if tie_breaker_a == tie_breaker_b{
+                seeded_hash(&b.2).cmp(&seeded_hash(&a.2))
+            }else{
+                tie_breaker_b.partial_cmp(&tie_breaker_a).unwrap()
+            }
+            
+        } else {
+            score_b.partial_cmp(&score_a).unwrap()
+        }
+    });
+
+    vec_to_sort
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
