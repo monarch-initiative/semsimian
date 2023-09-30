@@ -55,7 +55,7 @@ fn test_large_associations_search() {
 }
 
 #[test]
-// #[ignore]
+#[ignore]
 #[cfg_attr(feature = "ci", ignore)]
 fn test_large_associations_quick_search() {
     let mut db_path = PathBuf::new();
@@ -116,14 +116,24 @@ fn test_large_associations_quick_search() {
     dbg!(&result_1.len());
     dbg!(&result_2.len());
 
-    assert_eq!({ result_1.len() }, limit.unwrap());
-    assert_eq!({ result_2.len() }, limit.unwrap());
 
     let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
     let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
 
-    dbg!(&result_1_matches);
-    dbg!(&result_2_matches);
+    let result_1_match_score: Vec<(&f64, &String)> = result_1.iter().map(|(a, _, c)| (a,c)).collect();
+    let result_2_match_score: Vec<(&f64, &String)> = result_2.iter().map(|(a, _, c)| (a,c)).collect();
+
+    // ! Writes the matches into a TSV file. SHOULD BE COMMENTED OUT!!!*****
+    use std::fs::File;
+    use std::io::Write;
+    
+    let mut file = File::create("output.tsv").expect("Unable to create file");
+    
+    for ((result_1_score, result_1), (result_2_score, result_2)) in result_1_match_score.iter().zip(result_2_match_score.iter()) {
+        writeln!(file, "{}\t{}\t{}\t{}", result_1,result_1_score, result_2, result_2_score).expect("Unable to write data");
+    }
+    // ! ********************************************************************
+    
 
     // Assert that there is a full match between result_1_matches and result_2_matches
     let match_count = result_1_matches
@@ -149,6 +159,10 @@ fn test_large_associations_quick_search() {
 
     // dbg!(&result_1_unique);
     // dbg!(&result_2_unique);
+    // dbg!(&result_1_matches);
+    // dbg!(&result_2_matches);
+    assert_eq!({ result_1.len() }, limit.unwrap());
+    assert_eq!({ result_2.len() }, limit.unwrap());
     assert_eq!(match_percentage, 100.0);
     assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
     assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
