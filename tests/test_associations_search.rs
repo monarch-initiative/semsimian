@@ -26,16 +26,14 @@ fn test_large_associations_search() {
     // Define input parameters for the function
     let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
     let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
-     // Alzheimer disease 2 profile
-    let object_terms: HashSet<TermID> = HashSet::from(
-        [
-            "HP:0002511".to_string(),
-            "HP:0002423".to_string(),
-            "HP:0002185".to_string(),
-            "HP:0001300".to_string(),
-            "HP:0000726".to_string()
-        ]
-    );
+    // Alzheimer disease 2 profile
+    let object_terms: HashSet<TermID> = HashSet::from([
+        "HP:0002511".to_string(),
+        "HP:0002423".to_string(),
+        "HP:0002185".to_string(),
+        "HP:0001300".to_string(),
+        "HP:0000726".to_string(),
+    ]);
     let limit: Option<usize> = Some(10);
 
     // Call the function under test
@@ -80,16 +78,14 @@ fn test_large_associations_quick_search() {
     let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
     let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
     // Alzheimer disease 2 profile
-    let object_terms: HashSet<TermID> = HashSet::from(
-        [
-            "HP:0002511".to_string(),
-            "HP:0002423".to_string(),
-            "HP:0002185".to_string(),
-            "HP:0001300".to_string(),
-            "HP:0000726".to_string()
-        ]
-    );
-    
+    let object_terms: HashSet<TermID> = HashSet::from([
+        "HP:0002511".to_string(),
+        "HP:0002423".to_string(),
+        "HP:0002185".to_string(),
+        "HP:0001300".to_string(),
+        "HP:0000726".to_string(),
+    ]);
+
     let limit: Option<usize> = Some(10);
 
     // Call the function under test
@@ -116,24 +112,31 @@ fn test_large_associations_quick_search() {
     dbg!(&result_1.len());
     dbg!(&result_2.len());
 
-
     let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
     let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
 
-    let result_1_match_score: Vec<(&f64, &String)> = result_1.iter().map(|(a, _, c)| (a,c)).collect();
-    let result_2_match_score: Vec<(&f64, &String)> = result_2.iter().map(|(a, _, c)| (a,c)).collect();
+    let result_1_match_score: Vec<(&f64, &String)> =
+        result_1.iter().map(|(a, _, c)| (a, c)).collect();
+    let result_2_match_score: Vec<(&f64, &String)> =
+        result_2.iter().map(|(a, _, c)| (a, c)).collect();
 
-    // ! Writes the matches into a TSV file. SHOULD BE COMMENTED OUT!!!*****
+    // ! Writes the matches into a TSV file locally. ***********************
     use std::fs::File;
     use std::io::Write;
-    
+
     let mut file = File::create("output.tsv").expect("Unable to create file");
-    
-    for ((result_1_score, result_1), (result_2_score, result_2)) in result_1_match_score.iter().zip(result_2_match_score.iter()) {
-        writeln!(file, "{}\t{}\t{}\t{}", result_1,result_1_score, result_2, result_2_score).expect("Unable to write data");
+
+    for ((result_1_score, result_1), (result_2_score, result_2)) in
+        result_1_match_score.iter().zip(result_2_match_score.iter())
+    {
+        writeln!(
+            file,
+            "{}\t{}\t{}\t{}",
+            result_1, result_1_score, result_2, result_2_score
+        )
+        .expect("Unable to write data");
     }
     // ! ********************************************************************
-    
 
     // Assert that there is a full match between result_1_matches and result_2_matches
     let match_count = result_1_matches
