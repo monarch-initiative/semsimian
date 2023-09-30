@@ -1,7 +1,7 @@
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use pyo3::prelude::*;
 use std::{
-    collections::{BTreeMap, HashMap, HashSet, hash_map::Entry::{Occupied, Vacant}},
+    collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
     sync::{Arc, Mutex, RwLock},
@@ -26,7 +26,7 @@ use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
     generate_progress_bar_of_length_and_message, get_best_matches, get_curies_from_prefixes,
     get_prefix_association_key, get_termset_vector, hashed_dual_sort, predicate_set_to_key,
-    rearrange_columns_and_rewrite,
+    rearrange_columns_and_rewrite, sort_with_jaccard_as_tie_breaker,
 };
 
 use db_query::get_labels;
@@ -440,29 +440,31 @@ impl RustSemsimian {
     // The result is a vector of tuples containing the score, an optional TermsetPairwiseSimilarity, and the TermID.
     pub fn flatten_closure_search(
         &self,
-        object_set: &HashSet<String>,
-        expanded_subject_map: &HashMap<TermID, HashSet<TermID>>,
+        profile_entities: &HashSet<String>,
+        all_object_ancestors_for_subjects_map: &HashMap<TermID, HashSet<TermID>>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         // Create a new HashSet to store the expanded objects
-        let mut expanded_object_set: HashSet<String> = HashSet::new();
+        let mut set_of_profile_ancestors: HashSet<String> = HashSet::new();
 
         // Expand each object using closure
-        for obj in object_set.iter() {
-            expanded_object_set.extend(expand_term_using_closure(
-                obj,
+        for profile in profile_entities.iter() {
+            set_of_profile_ancestors.extend(expand_term_using_closure(
+                profile,
                 &self.closure_map,
                 &self.predicates,
             ));
+            set_of_profile_ancestors.insert(profile.to_string());
         }
-
         // Calculate the Jaccard similarity score for each subject-object pair and collect the results into a vector
         let mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> =
-            expanded_subject_map
+            all_object_ancestors_for_subjects_map
                 .par_iter()
-                .map(|(subject_key, subject_values)| {
+                .map(|(subject_key, object_ancestors)| {
                     // Calculate the Jaccard similarity score between the subject values and the entire expanded_object_set.
-                    let score =
-                        calculate_jaccard_similarity_str(subject_values, &expanded_object_set);
+                    let score = calculate_jaccard_similarity_str(
+                        object_ancestors,
+                        &set_of_profile_ancestors,
+                    );
 
                     // Return a tuple containing the score, None for the optional TermsetPairwiseSimilarity,
                     // and the parsed subject key as the TermID.
@@ -480,116 +482,79 @@ impl RustSemsimian {
     // The result is a vector of tuples containing the best score, the TermsetPairwiseSimilarity, and the TermID.
     pub fn full_search(
         &self,
-        object_set: &HashSet<String>,
-        expanded_subject_map: &HashMap<TermID, HashSet<TermID>>,
+        profile_entities: &HashSet<String>,
+        all_object_for_subjects: &HashMap<TermID, HashSet<TermID>>,
         flatten_result: &Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
         limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
 
-        // Extract f64 items from flatten_result
+        // Extract f64 items from flatten_result, sort in descending order and remove duplicates
         let mut f64_items: Vec<f64> = flatten_result.iter().map(|(item, _, _)| *item).collect();
-
-        // Remove duplicates
+        f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
         f64_items.dedup();
 
         // Calculate the count of top percent items in f64_items. If the calculated value is less than the limit, use the limit instead.
-        let top_percent_f4_count =
+        let top_percent_f64_count =
             ((top_percent * f64_items.len() as f64).ceil() as usize).max(limit.unwrap());
 
         // Declare a variable to hold the cutoff score
-        let cutoff_score;
-
-        // Check if the count for top percent scores is less than the total number of unique scores
-        if top_percent_f4_count < f64_items.len() {
+        let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
             // If it is, set the cutoff score to be the item at the index equal to the count of top percent items
-            cutoff_score = &f64_items[top_percent_f4_count];
+            &f64_items[top_percent_f64_count]
         } else {
             // If it's not, set the cutoff score to be the last item in f64_items
-            cutoff_score = f64_items.last().unwrap();
+            f64_items.last().unwrap()
         };
-
         // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
         // f64 values in flatten_result are the top top_percent
         // ![top_percent is variable depending on 'limit' requested.]
-        let mut expanded_subject_top_percent_subset_map: HashMap<&String, &HashSet<String>> = HashMap::new();
-        for (key, value) in expanded_subject_map {
-            let tsps_vector = flatten_result.iter().find(|(score, _, obj)| (obj == key) && (score >= cutoff_score));
-            if let Some(_) = tsps_vector {
-                expanded_subject_top_percent_subset_map.insert(key, value);
-            }
-        }
+        let top_percent_subset_map: HashMap<&String, &HashSet<String>> = all_object_for_subjects
+            .into_iter()
+            .filter(|(key, _)| {
+                flatten_result
+                    .iter()
+                    .any(|(score, _, obj)| (&obj == key) && (score >= cutoff_jaccard_score))
+            })
+            .collect();
 
-        let mut similarity_map: HashMap<TermID, (f64, Option<TermsetPairwiseSimilarity>, TermID)> = HashMap::new();
+        let mut result_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
 
         // Iterate over each subject and its terms in the expanded_subject_top_percent_subset_map
-        for (subj, subj_terms) in expanded_subject_top_percent_subset_map {
-            // For each subject, iterate over each object in the object_set
-            for obj in object_set {
-                // Expand the current object's terms using closure
-                let obj_terms = expand_term_using_closure(obj, &self.closure_map, &self.predicates);
-                // Calculate the similarity between the subject's terms and the object's terms
-                let similarity = self.termset_pairwise_similarity(subj_terms, &obj_terms);
+        for (subj, set_of_associated_objects) in top_percent_subset_map {
+            // Calculate the similarity between the subject's terms and the object's terms
+            let similarity =
+                self.termset_pairwise_similarity(set_of_associated_objects, &profile_entities);
 
-                // Use Entry API to efficiently handle insertion and modification
-                // This avoids unnecessary cloning of 'subj'
-                match similarity_map.entry(subj.clone()) {
-                    // If the subject is present in the map
-                    Occupied(mut entry) => {
-                        // If the new best_score is higher than the existing one,
-                        // replace the existing tuple with the new one
-                        if entry.get().0 < similarity.best_score {
-                            entry.insert((similarity.best_score, Some(similarity), subj.clone()));
-                        }
-                    },
-                    // If the subject is not present in the map
-                    Vacant(entry) => {
-                        // Add the subject along with the associated tuple
-                        entry.insert((similarity.best_score, Some(similarity), subj.clone()));
-                    },
-                }
-            }
+            result_vec.push((similarity.best_score, Some(similarity), subj.clone()));
         }
 
-        // Convert the HashMap back to a Vec
-        let mut similarity_vec: Vec<_> = similarity_map.into_iter().map(|(_, v)| v).collect();
+        result_vec = sort_with_jaccard_as_tie_breaker(result_vec, flatten_result);
 
-        similarity_vec = hashed_dual_sort(similarity_vec);
-
-        similarity_vec
+        result_vec
     }
 
-    // This function is used to search associations.
-    pub fn associations_search(
+    fn get_or_set_prefix_expansion_cache(
         &mut self,
-        // these params align with OAK's associations_subject_search()
-        object_closure_predicates: &HashSet<TermID>, // Set of predicates for object closure
-        object_set: &HashSet<TermID>,                // Set of objects
-        _include_similarity_object: bool,            // Flag to include similarity object
-        subject_set: &Option<HashSet<TermID>>,       // Optional set of subjects
-        subject_prefixes: &Option<Vec<TermID>>,      // Optional vector of subject prefixes
-        quick_search: bool,                          // Flag for quick search
-        limit: Option<usize>,                        // Optional limit for results
-    ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        // Returns a vector of tuples containing score, optional pairwise similarity and term ID
-
-        // Generate cache key based on subject prefixes, object closure predicates and quick search flag
+        object_closure_predicates: &HashSet<TermID>,
+        subject_set: &Option<HashSet<TermID>>,
+        subject_prefixes: &Option<Vec<TermID>>,
+        quick_search: bool,
+    ) -> HashMap<String, HashSet<String>> {
+        // Determine cache key.
         let cache_key = if let Some(subject_prefixes) = subject_prefixes {
             get_prefix_association_key(subject_prefixes, object_closure_predicates, &quick_search)
         } else {
             String::new()
         };
-
-        // Clone object closure predicates into a vector
-        let assoc_predicate_terms_vec: Vec<TermID> =
-            object_closure_predicates.iter().cloned().collect();
-
-        // Expand subject map using prefix expansion cache
-        let expanded_subject_map = self
+        // Get or set cache key based on the `quick_search` flag.
+        let all_object_for_subjects = self
             .prefix_expansion_cache
-            .entry(cache_key.clone())
+            .entry(cache_key)
             .or_insert_with(|| {
-                // Get subject vector based on subject prefixes or subject set
+                let assoc_predicate_terms_vec: Vec<TermID> =
+                    object_closure_predicates.iter().cloned().collect();
+
                 let subject_vec = match subject_prefixes {
                     Some(subject_prefixes) => get_curies_from_prefixes(
                         Some(subject_prefixes),
@@ -602,47 +567,74 @@ impl RustSemsimian {
                     }
                 };
 
-                // Get all objects for subjects
-                let all_object_for_subjects = get_objects_for_subjects(
+                let query_result = get_objects_for_subjects(
                     RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
                     Some(&subject_vec),
                     Some(&assoc_predicate_terms_vec),
                 )
                 .unwrap();
 
-                // Initialize a new HashMap
-                let mut map = HashMap::new();
+                if quick_search {
+                    // Expand each subject using closure
+                    let mut all_object_ancestors_for_subjects_map = HashMap::new();
 
-                // Iterate over each subject and object set
-                for (subj, obj_set) in all_object_for_subjects.iter() {
-                    let mut expanded_terms: HashSet<String> = HashSet::new();
-                    // Expand each term using closure
-                    for term in obj_set {
-                        let expanded =
-                            expand_term_using_closure(term, &self.closure_map, &self.predicates)
-                                .into_iter()
-                                .collect::<HashSet<String>>();
-                        expanded_terms.extend(expanded);
+                    // Iterate over each subject and object set
+                    for (subj, set_of_associated_objects) in query_result.iter() {
+                        let mut ancestors_set: HashSet<String> = HashSet::new();
+                        // Expand each term using closure
+                        for term in set_of_associated_objects {
+                            let ancestors = expand_term_using_closure(
+                                term,
+                                &self.closure_map,
+                                &self.predicates,
+                            )
+                            .into_iter()
+                            .collect::<HashSet<String>>();
+                            ancestors_set.extend(ancestors);
+                        }
+                        all_object_ancestors_for_subjects_map
+                            .insert(subj.to_string(), ancestors_set);
                     }
-                    map.insert(subj.to_string(), expanded_terms);
+                    // ! Since this is flattened search, the values for this HashMap are the flattened one.
+                    all_object_ancestors_for_subjects_map
+                } else {
+                    // ! If full search.
+                    query_result
                 }
-                map
             })
             .clone();
 
-        // Perform quick search or full search based on the flag
-        let mut result;
-        result = self.flatten_closure_search(object_set, &expanded_subject_map);
+        all_object_for_subjects
+    }
+
+    // This function is used to search associations.
+    pub fn associations_search(
+        &mut self,
+        object_closure_predicates: &HashSet<TermID>,
+        object_set: &HashSet<TermID>,
+        _include_similarity_object: bool,
+        subject_set: &Option<HashSet<TermID>>,
+        subject_prefixes: &Option<Vec<TermID>>,
+        quick_search: bool,
+        limit: Option<usize>,
+    ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
+        // Get or set cache based on `quick_search` flag
+        let all_associations = self.get_or_set_prefix_expansion_cache(
+            object_closure_predicates,
+            subject_set,
+            subject_prefixes,
+            quick_search,
+        );
+
+        let mut result = self.flatten_closure_search(object_set, &all_associations);
         if !quick_search {
-            result = self.full_search(object_set, &expanded_subject_map, &result, &limit);
+            result = self.full_search(object_set, &all_associations, &result, &limit);
         }
 
-        // Truncate the result to the limit if provided
         if let Some(limit) = limit {
             result.truncate(limit);
         }
 
-        // Return the result
         result
     }
 }
