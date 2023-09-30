@@ -509,10 +509,10 @@ pub fn hashed_dual_sort(
 
 pub fn sort_with_jaccard_as_tie_breaker(
     mut vec_to_sort: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
-    flatten_result: &Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
+    flatten_result: &[(f64, Option<TermsetPairwiseSimilarity>, TermID)],
 ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
     let flatten_result_hash: HashMap<_, _> = flatten_result
-        .into_iter()
+        .iter()
         .map(|x| (x.2.clone(), x))
         .collect();
 

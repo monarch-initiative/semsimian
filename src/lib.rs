@@ -510,7 +510,7 @@ impl RustSemsimian {
         // f64 values in flatten_result are the top top_percent
         // ![top_percent is variable depending on 'limit' requested.]
         let top_percent_subset_map: HashMap<&String, &HashSet<String>> = all_object_for_subjects
-            .into_iter()
+            .iter()
             .filter(|(key, _)| {
                 flatten_result
                     .iter()
@@ -524,7 +524,7 @@ impl RustSemsimian {
         for (subj, set_of_associated_objects) in top_percent_subset_map {
             // Calculate the similarity between the subject's terms and the object's terms
             let similarity =
-                self.termset_pairwise_similarity(set_of_associated_objects, &profile_entities);
+                self.termset_pairwise_similarity(set_of_associated_objects, profile_entities);
 
             result_vec.push((similarity.best_score, Some(similarity), subj.clone()));
         }
