@@ -27,16 +27,14 @@ fn criterion_benchmark(c: &mut Criterion) {
     let assoc_predicate: HashSet<TermID> =
         black_box(HashSet::from(["biolink:has_phenotype".to_string()]));
     let subject_prefixes: Option<Vec<TermID>> = black_box(Some(vec!["MGI:".to_string()]));
-     // Alzheimer disease 2 profile
-    let object_terms: HashSet<TermID> = black_box(HashSet::from(
-        [
-            "HP:0002511".to_string(),
-            "HP:0002423".to_string(),
-            "HP:0002185".to_string(),
-            "HP:0001300".to_string(),
-            "HP:0000726".to_string()
-        ]
-    ));
+    // Alzheimer disease 2 profile
+    let object_terms: HashSet<TermID> = black_box(HashSet::from([
+        "HP:0002511".to_string(),
+        "HP:0002423".to_string(),
+        "HP:0002185".to_string(),
+        "HP:0001300".to_string(),
+        "HP:0000726".to_string(),
+    ]));
     let limit: Option<usize> = black_box(Some(10));
 
     let mut bench_grp = c.benchmark_group("search_bench_group");
