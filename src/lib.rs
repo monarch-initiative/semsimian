@@ -483,7 +483,7 @@ impl RustSemsimian {
     pub fn full_search(
         &self,
         profile_entities: &HashSet<String>,
-        all_object_for_subjects: &HashMap<TermID, HashSet<TermID>>,
+        all_associated_objects_for_subjects: &HashMap<TermID, HashSet<TermID>>,
         flatten_result: &Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
         limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
@@ -509,7 +509,7 @@ impl RustSemsimian {
         // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
         // f64 values in flatten_result are the top top_percent
         // ![top_percent is variable depending on 'limit' requested.]
-        let top_percent_subset_map: HashMap<&String, &HashSet<String>> = all_object_for_subjects
+        let top_percent_subset_map: HashMap<&String, &HashSet<String>> = all_associated_objects_for_subjects
             .iter()
             .filter(|(key, _)| {
                 flatten_result
@@ -548,7 +548,7 @@ impl RustSemsimian {
             String::new()
         };
         // Get or set cache key based on the `quick_search` flag.
-        let all_object_for_subjects = self
+        let all_associated_objects_for_subjects = self
             .prefix_expansion_cache
             .entry(cache_key)
             .or_insert_with(|| {
@@ -604,7 +604,7 @@ impl RustSemsimian {
             })
             .clone();
 
-        all_object_for_subjects
+        all_associated_objects_for_subjects
     }
 
     // This function is used to search associations.
