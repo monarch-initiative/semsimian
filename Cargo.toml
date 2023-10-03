@@ -37,11 +37,11 @@ name = "termset_pairwise_similarity_benchmark"
 harness = false
 
 [[bench]]
-name = "association_search_benchmark"
+name = "association_full_search_benchmark"
 harness = false
 
 [[bench]]
-name = "association_quick_search_benchmark"
+name = "association_flat_search_benchmark"
 harness = false
 
 [[bench]]
