@@ -492,10 +492,7 @@ impl RustSemsimian {
         if let Some(flatten_result) = flatten_result {
             let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
                                                               // Extract f64 items from flatten_result, sort in descending order and remove duplicates
-            let mut f64_items: Vec<f64> = flatten_result
-                .iter()
-                .map(|(item, _, _)| *item)
-                .collect();
+            let mut f64_items: Vec<f64> = flatten_result.iter().map(|(item, _, _)| *item).collect();
             f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
             f64_items.dedup();
 
@@ -528,20 +525,22 @@ impl RustSemsimian {
                 .iter()
                 .map(|(key, value)| (key.to_string(), (*value).clone()))
                 .collect();
-            let result = self.calculate_similarity_for_association_search(&associations, profile_entities);
+            let result =
+                self.calculate_similarity_for_association_search(&associations, profile_entities);
             sort_with_jaccard_as_tie_breaker(result, flatten_result)
-
         } else {
-            let result = self.calculate_similarity_for_association_search(all_associated_objects_for_subjects, profile_entities);
+            let result = self.calculate_similarity_for_association_search(
+                all_associated_objects_for_subjects,
+                profile_entities,
+            );
             hashed_dual_sort(result)
         }
-        
     }
     fn calculate_similarity_for_association_search(
         &mut self,
         associations: &HashMap<String, HashSet<String>>,
         profile_entities: &HashSet<String>,
-    )-> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>{
+    ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let mut result_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
 
         // Iterate over each subject and its terms in the expanded_subject_top_percent_subset_map

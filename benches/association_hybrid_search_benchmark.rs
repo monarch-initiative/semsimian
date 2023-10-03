@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use semsimian::{Predicate, RustSemsimian, TermID, enums::SearchTypeEnum};
+use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut db_path = PathBuf::new();
