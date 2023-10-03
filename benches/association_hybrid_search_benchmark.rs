@@ -21,13 +21,12 @@ fn criterion_benchmark(c: &mut Criterion) {
         "UPHENO:0000001".to_string(),
     ]));
 
-    let mut rss = black_box(RustSemsimian::new(None, predicates, None, db));
+    let mut rss = RustSemsimian::new(None, predicates, None, db);
     rss.update_closure_and_ic_map();
 
     let assoc_predicate: HashSet<TermID> =
         black_box(HashSet::from(["biolink:has_phenotype".to_string()]));
-
-    let subject_prefixes: Option<Vec<TermID>> = black_box(Some(vec!["MONDO:".to_string()]));
+    let subject_prefixes: Option<Vec<TermID>> = black_box(Some(vec!["MGI:".to_string()]));
     // Alzheimer disease 2 profile
     let object_terms: HashSet<TermID> = black_box(HashSet::from([
         "HP:0002511".to_string(),
@@ -36,13 +35,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         "HP:0001300".to_string(),
         "HP:0000726".to_string(),
     ]));
-    let search_type: SearchTypeEnum = SearchTypeEnum::Full;
+    let search_type: SearchTypeEnum = SearchTypeEnum::Hybrid;
     let limit: Option<usize> = black_box(Some(10));
 
     let mut bench_grp = c.benchmark_group("search_bench_group");
     bench_grp.sample_size(10);
     // .measurement_time(Duration::from_secs(300));
-    bench_grp.bench_function("search", move |b| {
+    bench_grp.bench_function("quick_search", move |b| {
         b.iter(|| {
             rss.associations_search(
                 &assoc_predicate,

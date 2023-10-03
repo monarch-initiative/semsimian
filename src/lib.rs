@@ -483,13 +483,12 @@ impl RustSemsimian {
     // For each subject-object pair, it expands the object using closure and calculates the pairwise similarity.
     // The result is a vector of tuples containing the best score, the TermsetPairwiseSimilarity, and the TermID.
     pub fn full_search(
-        &self,
+        &mut self,
         profile_entities: &HashSet<String>,
         all_associated_objects_for_subjects: &HashMap<TermID, HashSet<TermID>>,
         flatten_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
         limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let associations: HashMap<String, HashSet<String>>;
         if flatten_result.is_some() {
             let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
                                                               // Extract f64 items from flatten_result, sort in descending order and remove duplicates
@@ -527,14 +526,24 @@ impl RustSemsimian {
                     })
                     .collect();
             // Cast top_percent_subset_map as the datatype of all_associated_objects_for_subjects
-            associations = top_percent_subset_map
+            let associations = top_percent_subset_map
                 .iter()
                 .map(|(key, value)| (key.to_string(), (*value).clone()))
                 .collect();
-        } else {
-            associations = all_associated_objects_for_subjects.to_owned();
-        }
+            let result = self.calculate_similarity_for_association_search(&associations, profile_entities);
+            sort_with_jaccard_as_tie_breaker(result, &flatten_result.unwrap())
 
+        } else {
+            let result = self.calculate_similarity_for_association_search(&all_associated_objects_for_subjects, profile_entities);
+            hashed_dual_sort(result)
+        }
+        
+    }
+    fn calculate_similarity_for_association_search(
+        &mut self,
+        associations: &HashMap<String, HashSet<String>>,
+        profile_entities: &HashSet<String>,
+    )-> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>{
         let mut result_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
 
         // Iterate over each subject and its terms in the expanded_subject_top_percent_subset_map
@@ -545,10 +554,6 @@ impl RustSemsimian {
 
             result_vec.push((similarity.best_score, Some(similarity), subj.clone()));
         }
-
-        // result_vec = sort_with_jaccard_as_tie_breaker(result_vec, flatten_result);
-        result_vec = hashed_dual_sort(result_vec);
-
         result_vec
     }
 

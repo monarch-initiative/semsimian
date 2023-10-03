@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use semsimian::{Predicate, RustSemsimian, TermID};
+use semsimian::{Predicate, RustSemsimian, TermID, enums::SearchTypeEnum};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut db_path = PathBuf::new();
@@ -35,6 +35,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         "HP:0001300".to_string(),
         "HP:0000726".to_string(),
     ]));
+    let search_type: SearchTypeEnum = SearchTypeEnum::Flat;
     let limit: Option<usize> = black_box(Some(10));
 
     let mut bench_grp = c.benchmark_group("search_bench_group");
@@ -48,7 +49,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 true,
                 &None,
                 &subject_prefixes,
-                true,
+                &search_type,
                 limit,
             )
         })
