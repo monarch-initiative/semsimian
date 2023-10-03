@@ -659,9 +659,6 @@ impl RustSemsimian {
             SearchTypeEnum::Full => {
                 result = self.full_search(object_set, &all_associations, None, &limit);
             }
-            _ => {
-                todo!("Handle this condition.")
-            }
         }
 
         if let Some(limit) = limit {
