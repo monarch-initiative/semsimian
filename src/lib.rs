@@ -682,7 +682,7 @@ impl SearchType {
     fn new(value: Option<&str>) -> PyResult<Self> {
         let value = value.unwrap_or("flat");
         Ok(SearchType {
-            value: SearchTypeEnum::from_str(value)?,
+            value: SearchTypeEnum::from_string(value)?,
         })
     }
 
@@ -693,7 +693,7 @@ impl SearchType {
 
     #[setter]
     fn set_value(&mut self, value: &str) -> PyResult<()> {
-        self.value = SearchTypeEnum::from_str(value)?;
+        self.value = SearchTypeEnum::from_string(value)?;
         Ok(())
     }
 }

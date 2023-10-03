@@ -16,7 +16,7 @@ impl SearchTypeEnum {
         }
     }
 
-    pub fn from_str(s: &str) -> PyResult<Self> {
+    pub fn from_string(s: &str) -> PyResult<Self> {
         match s {
             "flat" => Ok(SearchTypeEnum::Flat),
             "full" => Ok(SearchTypeEnum::Full),
