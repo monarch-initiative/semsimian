@@ -1,4 +1,4 @@
-use semsimian::{Predicate, RustSemsimian, TermID};
+use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
 use std::{collections::HashSet, path::PathBuf};
 
 #[test]
@@ -34,6 +34,7 @@ fn test_large_associations_search() {
         "HP:0001300".to_string(),
         "HP:0000726".to_string(),
     ]);
+    let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: Option<usize> = Some(10);
 
     // Call the function under test
@@ -43,7 +44,7 @@ fn test_large_associations_search() {
         true,
         &None,
         &subject_prefixes,
-        false,
+        &search_type_full,
         limit,
     );
 
@@ -86,6 +87,8 @@ fn test_large_associations_quick_search() {
         "HP:0000726".to_string(),
     ]);
 
+    let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
+    let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: Option<usize> = Some(10);
 
     // Call the function under test
@@ -95,7 +98,7 @@ fn test_large_associations_quick_search() {
         true,
         &None,
         &subject_prefixes,
-        false,
+        &search_type_full,
         limit,
     );
     // Call the function under test
@@ -105,7 +108,7 @@ fn test_large_associations_quick_search() {
         true,
         &None,
         &subject_prefixes,
-        true,
+        &search_type_flat,
         limit,
     );
 

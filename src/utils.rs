@@ -12,7 +12,7 @@ use std::io::{BufReader, BufWriter};
 
 use crate::db_query::get_subjects;
 use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
-use crate::SimilarityMap;
+use crate::{SearchTypeEnum, SimilarityMap};
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
@@ -453,7 +453,7 @@ pub fn get_best_score(
 pub fn get_prefix_association_key(
     subject_prefixes: &[TermID],
     object_closure_predicates: &HashSet<TermID>,
-    quick_search_flag: &bool,
+    search_type: &SearchTypeEnum,
 ) -> String {
     // Convert subject_prefixes to a sorted string
     let subject_prefixes_string = subject_prefixes
@@ -473,7 +473,7 @@ pub fn get_prefix_association_key(
     };
 
     // Concatenate subject_prefixes_string , object_closure_predicates_string and quick_search_flag
-    subject_prefixes_string + &object_closure_predicates_string + &quick_search_flag.to_string()
+    subject_prefixes_string + &object_closure_predicates_string + search_type.as_str()
 }
 
 pub fn get_curies_from_prefixes(
@@ -511,10 +511,8 @@ pub fn sort_with_jaccard_as_tie_breaker(
     mut vec_to_sort: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
     flatten_result: &[(f64, Option<TermsetPairwiseSimilarity>, TermID)],
 ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-    let flatten_result_hash: HashMap<_, _> = flatten_result
-        .iter()
-        .map(|x| (x.2.clone(), x))
-        .collect();
+    let flatten_result_hash: HashMap<_, _> =
+        flatten_result.iter().map(|x| (x.2.clone(), x)).collect();
 
     vec_to_sort.sort_unstable_by(|a, b| {
         let score_a = a.0;

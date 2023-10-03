@@ -1,5 +1,6 @@
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
-use pyo3::prelude::*;
+use enums::SearchTypeEnum;
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
@@ -8,6 +9,7 @@ use std::{
 };
 
 pub mod db_query;
+pub mod enums;
 pub mod similarity;
 pub mod termset_pairwise_similarity;
 pub mod utils;
@@ -484,52 +486,68 @@ impl RustSemsimian {
         &self,
         profile_entities: &HashSet<String>,
         all_associated_objects_for_subjects: &HashMap<TermID, HashSet<TermID>>,
-        flatten_result: &Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
+        flatten_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
         limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
+        let associations: HashMap<String, HashSet<String>>;
+        if flatten_result.is_some() {
+            let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
+                                                              // Extract f64 items from flatten_result, sort in descending order and remove duplicates
+            let mut f64_items: Vec<f64> = flatten_result
+                .unwrap()
+                .iter()
+                .map(|(item, _, _)| *item)
+                .collect();
+            f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
+            f64_items.dedup();
 
-        // Extract f64 items from flatten_result, sort in descending order and remove duplicates
-        let mut f64_items: Vec<f64> = flatten_result.iter().map(|(item, _, _)| *item).collect();
-        f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
-        f64_items.dedup();
+            // Calculate the count of top percent items in f64_items. If the calculated value is less than the limit, use the limit instead.
+            let top_percent_f64_count =
+                ((top_percent * f64_items.len() as f64).ceil() as usize).max(limit.unwrap());
 
-        // Calculate the count of top percent items in f64_items. If the calculated value is less than the limit, use the limit instead.
-        let top_percent_f64_count =
-            ((top_percent * f64_items.len() as f64).ceil() as usize).max(limit.unwrap());
-
-        // Declare a variable to hold the cutoff score
-        let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
-            // If it is, set the cutoff score to be the item at the index equal to the count of top percent items
-            &f64_items[top_percent_f64_count]
-        } else {
-            // If it's not, set the cutoff score to be the last item in f64_items
-            f64_items.last().unwrap()
-        };
-        // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
-        // f64 values in flatten_result are the top top_percent
-        // ![top_percent is variable depending on 'limit' requested.]
-        let top_percent_subset_map: HashMap<&String, &HashSet<String>> = all_associated_objects_for_subjects
-            .iter()
-            .filter(|(key, _)| {
-                flatten_result
+            // Declare a variable to hold the cutoff score
+            let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
+                // If it is, set the cutoff score to be the item at the index equal to the count of top percent items
+                &f64_items[top_percent_f64_count]
+            } else {
+                // If it's not, set the cutoff score to be the last item in f64_items
+                f64_items.last().unwrap()
+            };
+            // Create a HashMap which is the subset of expanded_subject_map such that keys are the ones whose
+            // f64 values in flatten_result are the top top_percent
+            // ![top_percent is variable depending on 'limit' requested.]
+            let top_percent_subset_map: HashMap<&String, &HashSet<String>> =
+                all_associated_objects_for_subjects
                     .iter()
-                    .any(|(score, _, obj)| (&obj == key) && (score >= cutoff_jaccard_score))
-            })
-            .collect();
+                    .filter(|(key, _)| {
+                        flatten_result
+                            .unwrap()
+                            .iter()
+                            .any(|(score, _, obj)| (&obj == key) && (score >= cutoff_jaccard_score))
+                    })
+                    .collect();
+            // Cast top_percent_subset_map as the datatype of all_associated_objects_for_subjects
+            associations = top_percent_subset_map
+                .iter()
+                .map(|(key, value)| (key.to_string(), (*value).clone()))
+                .collect();
+        } else {
+            associations = all_associated_objects_for_subjects.to_owned();
+        }
 
         let mut result_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
 
         // Iterate over each subject and its terms in the expanded_subject_top_percent_subset_map
-        for (subj, set_of_associated_objects) in top_percent_subset_map {
+        for (subj, set_of_associated_objects) in associations {
             // Calculate the similarity between the subject's terms and the object's terms
             let similarity =
-                self.termset_pairwise_similarity(set_of_associated_objects, profile_entities);
+                self.termset_pairwise_similarity(&set_of_associated_objects, profile_entities);
 
             result_vec.push((similarity.best_score, Some(similarity), subj.clone()));
         }
 
-        result_vec = sort_with_jaccard_as_tie_breaker(result_vec, flatten_result);
+        // result_vec = sort_with_jaccard_as_tie_breaker(result_vec, flatten_result);
+        result_vec = hashed_dual_sort(result_vec);
 
         result_vec
     }
@@ -539,17 +557,18 @@ impl RustSemsimian {
         object_closure_predicates: &HashSet<TermID>,
         subject_set: &Option<HashSet<TermID>>,
         subject_prefixes: &Option<Vec<TermID>>,
-        quick_search: bool,
+        search_type: &SearchTypeEnum,
     ) -> HashMap<String, HashSet<String>> {
         // Determine cache key.
-        let cache_key = if let Some(subject_prefixes) = subject_prefixes {
-            get_prefix_association_key(subject_prefixes, object_closure_predicates, &quick_search)
-        } else {
-            String::new()
-        };
+        let cache_key = subject_prefixes
+            .as_ref()
+            .map(|prefixes| {
+                get_prefix_association_key(prefixes, object_closure_predicates, search_type)
+            })
+            .unwrap_or_else(String::new);
+
         // Get or set cache key based on the `quick_search` flag.
-        let all_associated_objects_for_subjects = self
-            .prefix_expansion_cache
+        self.prefix_expansion_cache
             .entry(cache_key)
             .or_insert_with(|| {
                 let assoc_predicate_terms_vec: Vec<TermID> =
@@ -574,37 +593,38 @@ impl RustSemsimian {
                 )
                 .unwrap();
 
-                if quick_search {
-                    // Expand each subject using closure
-                    let mut all_object_ancestors_for_subjects_map = HashMap::new();
-
-                    // Iterate over each subject and object set
-                    for (subj, set_of_associated_objects) in query_result.iter() {
-                        let mut ancestors_set: HashSet<String> = HashSet::new();
-                        // Expand each term using closure
-                        for term in set_of_associated_objects {
-                            let ancestors = expand_term_using_closure(
-                                term,
-                                &self.closure_map,
-                                &self.predicates,
-                            )
-                            .into_iter()
-                            .collect::<HashSet<String>>();
-                            ancestors_set.extend(ancestors);
-                        }
-                        all_object_ancestors_for_subjects_map
-                            .insert(subj.to_string(), ancestors_set);
+                match search_type {
+                    SearchTypeEnum::Full => {
+                        // Code for Full search types
+                        query_result
                     }
-                    // ! Since this is flattened search, the values for this HashMap are the flattened one.
-                    all_object_ancestors_for_subjects_map
-                } else {
-                    // ! If full search.
-                    query_result
+                    SearchTypeEnum::Flat | SearchTypeEnum::Hybrid => {
+                        // Code for Flat and Hybrid search type
+                        let mut all_object_ancestors_for_subjects_map = HashMap::new();
+
+                        // Iterate over each subject and object set
+                        for (subj, set_of_associated_objects) in &query_result {
+                            let mut ancestors_set: HashSet<String> = HashSet::new();
+                            // Expand each term using closure
+                            for term in set_of_associated_objects {
+                                let ancestors = expand_term_using_closure(
+                                    term,
+                                    &self.closure_map,
+                                    &self.predicates,
+                                )
+                                .into_iter()
+                                .collect::<HashSet<String>>();
+                                ancestors_set.extend(ancestors);
+                            }
+                            all_object_ancestors_for_subjects_map
+                                .insert(subj.to_string(), ancestors_set);
+                        }
+                        // ! Since this is flattened search, the values for this HashMap are the flattened one.
+                        all_object_ancestors_for_subjects_map
+                    }
                 }
             })
-            .clone();
-
-        all_associated_objects_for_subjects
+            .clone()
     }
 
     // This function is used to search associations.
@@ -615,7 +635,7 @@ impl RustSemsimian {
         _include_similarity_object: bool,
         subject_set: &Option<HashSet<TermID>>,
         subject_prefixes: &Option<Vec<TermID>>,
-        quick_search: bool,
+        search_type: &SearchTypeEnum,
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         // Get or set cache based on `quick_search` flag
@@ -623,12 +643,25 @@ impl RustSemsimian {
             object_closure_predicates,
             subject_set,
             subject_prefixes,
-            quick_search,
+            search_type,
         );
+        let mut result;
 
-        let mut result = self.flatten_closure_search(object_set, &all_associations);
-        if !quick_search {
-            result = self.full_search(object_set, &all_associations, &result, &limit);
+        match search_type {
+            SearchTypeEnum::Flat => {
+                result = self.flatten_closure_search(object_set, &all_associations);
+            }
+            SearchTypeEnum::Hybrid => {
+                let flat_result = self.flatten_closure_search(object_set, &all_associations);
+                result =
+                    self.full_search(object_set, &all_associations, Some(&flat_result), &limit);
+            }
+            SearchTypeEnum::Full => {
+                result = self.full_search(object_set, &all_associations, None, &limit);
+            }
+            _ => {
+                todo!("Handle this condition.")
+            }
         }
 
         if let Some(limit) = limit {
@@ -639,6 +672,32 @@ impl RustSemsimian {
     }
 }
 
+#[pyclass]
+pub struct SearchType {
+    value: SearchTypeEnum,
+}
+
+#[pymethods]
+impl SearchType {
+    #[new]
+    fn new(value: Option<&str>) -> PyResult<Self> {
+        let value = value.unwrap_or("flat");
+        Ok(SearchType {
+            value: SearchTypeEnum::from_str(value)?,
+        })
+    }
+
+    #[getter]
+    fn get_value(&self, py: Python) -> Py<PyString> {
+        PyString::new(py, self.value.as_str()).into()
+    }
+
+    #[setter]
+    fn set_value(&mut self, value: &str) -> PyResult<()> {
+        self.value = SearchTypeEnum::from_str(value)?;
+        Ok(())
+    }
+}
 #[pyclass]
 pub struct Semsimian {
     ss: RustSemsimian,
@@ -808,7 +867,7 @@ impl Semsimian {
         object_closure_predicate_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
         include_similarity_object: bool,
-        quick_search: bool,
+        search_type: String,
         // sort_by_similarity: bool,
         // property_filter: Option<HashMap<String, String>>,
         // subject_closure_predicates: Option<Vec<TermID>>,
@@ -822,6 +881,17 @@ impl Semsimian {
     ) -> PyResult<Vec<(f64, PyObject, String)>> {
         self.ss.update_closure_and_ic_map();
 
+        // Derive SearchTypeEnum value from String search_type
+        let search_type_enum = match search_type.as_str() {
+            "flat" => Ok(SearchTypeEnum::Flat),
+            "full" => Ok(SearchTypeEnum::Full),
+            "hybrid" => Ok(SearchTypeEnum::Hybrid),
+            _ => Err(PyValueError::new_err(format!(
+                "Invalid search type: {}",
+                search_type
+            ))),
+        }?;
+
         let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> =
             self.ss.associations_search(
                 &object_closure_predicate_terms,
@@ -829,7 +899,7 @@ impl Semsimian {
                 include_similarity_object,
                 &subject_terms,
                 &subject_prefixes,
-                quick_search,
+                &search_type_enum,
                 limit,
             );
 
@@ -1257,7 +1327,7 @@ mod tests {
         let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = rss.full_search(
             &object_set,
             &expanded_subject_map,
-            &flattened_search,
+            Some(&flattened_search),
             &limit,
         );
         let result_objects: Vec<TermID> = result
@@ -1285,6 +1355,7 @@ mod tests {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
+        let search_type: SearchTypeEnum = SearchTypeEnum::Flat;
         let limit: Option<usize> = Some(20);
 
         // Call the function under test
@@ -1294,7 +1365,7 @@ mod tests {
             true,
             &None,
             &subject_prefixes,
-            false,
+            &search_type,
             limit,
         );
         // assert_eq!({ result.len() }, limit.unwrap());
@@ -1322,6 +1393,8 @@ mod tests {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
+        let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
+        let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
         let limit: Option<usize> = Some(78);
 
         // Call the function under test
@@ -1331,7 +1404,7 @@ mod tests {
             true,
             &None,
             &subject_prefixes,
-            false,
+            &search_type_flat,
             limit,
         );
 
@@ -1341,7 +1414,7 @@ mod tests {
             true,
             &None,
             &subject_prefixes,
-            true,
+            &search_type_full,
             limit,
         );
 
