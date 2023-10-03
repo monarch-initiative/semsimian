@@ -114,6 +114,7 @@ class testSemsimianWithPython(unittest.TestCase):
         object_terms = {"GO:0019222"}
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
         assoc_predicate = {"biolink:has_nucleus"}
+        search_type = "full"
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,
@@ -125,7 +126,7 @@ class testSemsimianWithPython(unittest.TestCase):
             assoc_predicate,
             object_terms,
             True,
-            False,
+            search_type,
             None,
             subject_prefixes,
             limit,
@@ -137,6 +138,7 @@ class testSemsimianWithPython(unittest.TestCase):
         object_terms = {"GO:0019222"}
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
         assoc_predicate = {"biolink:has_nucleus"}
+        search_type = "flat"
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,
@@ -148,7 +150,7 @@ class testSemsimianWithPython(unittest.TestCase):
             assoc_predicate,
             object_terms,
             True,
-            True,
+            search_type,
             None,
             subject_prefixes,
             limit,
@@ -168,12 +170,14 @@ class testSemsimianWithPython(unittest.TestCase):
             pairwise_similarity_attributes=None,
             resource_path=db_path,
         )
+        search_type = "full"
         limit = 10
         result = semsimian.associations_search(
             assoc_predicate,
             object_terms,
             True,
             False,
+            search_type,
             None,
             subject_prefixes,
             limit,
@@ -193,12 +197,14 @@ class testSemsimianWithPython(unittest.TestCase):
             pairwise_similarity_attributes=None,
             resource_path=db_path,
         )
+        search_type = "flat"
         limit = 10
         result = semsimian.associations_search(
             assoc_predicate,
             object_terms,
             True,
             True,
+            search_type,
             None,
             subject_prefixes,
             limit,
@@ -213,7 +219,7 @@ class testSemsimianWithPython(unittest.TestCase):
         assoc_predicate = {"biolink:has_phenotype"}
         db_path = os.path.expanduser("~/.data/oaklib/phenio.db")
         include_similarity_object = True
-        quick_search = False
+        quick_search = "full"
         subject_terms = None
         limit = 10
 
