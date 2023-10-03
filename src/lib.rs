@@ -489,11 +489,10 @@ impl RustSemsimian {
         flatten_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
         limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        if flatten_result.is_some() {
+        if let Some(flatten_result) = flatten_result {
             let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
                                                               // Extract f64 items from flatten_result, sort in descending order and remove duplicates
             let mut f64_items: Vec<f64> = flatten_result
-                .unwrap()
                 .iter()
                 .map(|(item, _, _)| *item)
                 .collect();
@@ -520,7 +519,6 @@ impl RustSemsimian {
                     .iter()
                     .filter(|(key, _)| {
                         flatten_result
-                            .unwrap()
                             .iter()
                             .any(|(score, _, obj)| (&obj == key) && (score >= cutoff_jaccard_score))
                     })
@@ -531,10 +529,10 @@ impl RustSemsimian {
                 .map(|(key, value)| (key.to_string(), (*value).clone()))
                 .collect();
             let result = self.calculate_similarity_for_association_search(&associations, profile_entities);
-            sort_with_jaccard_as_tie_breaker(result, &flatten_result.unwrap())
+            sort_with_jaccard_as_tie_breaker(result, flatten_result)
 
         } else {
-            let result = self.calculate_similarity_for_association_search(&all_associated_objects_for_subjects, profile_entities);
+            let result = self.calculate_similarity_for_association_search(all_associated_objects_for_subjects, profile_entities);
             hashed_dual_sort(result)
         }
         
@@ -550,7 +548,7 @@ impl RustSemsimian {
         for (subj, set_of_associated_objects) in associations {
             // Calculate the similarity between the subject's terms and the object's terms
             let similarity =
-                self.termset_pairwise_similarity(&set_of_associated_objects, profile_entities);
+                self.termset_pairwise_similarity(set_of_associated_objects, profile_entities);
 
             result_vec.push((similarity.best_score, Some(similarity), subj.clone()));
         }
