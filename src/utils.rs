@@ -12,7 +12,7 @@ use std::io::{BufReader, BufWriter};
 
 use crate::db_query::get_subjects;
 use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
-use crate::{SimilarityMap, SearchTypeEnum};
+use crate::{SearchTypeEnum, SimilarityMap};
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
@@ -511,10 +511,8 @@ pub fn sort_with_jaccard_as_tie_breaker(
     mut vec_to_sort: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
     flatten_result: &[(f64, Option<TermsetPairwiseSimilarity>, TermID)],
 ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-    let flatten_result_hash: HashMap<_, _> = flatten_result
-        .iter()
-        .map(|x| (x.2.clone(), x))
-        .collect();
+    let flatten_result_hash: HashMap<_, _> =
+        flatten_result.iter().map(|x| (x.2.clone(), x)).collect();
 
     vec_to_sort.sort_unstable_by(|a, b| {
         let score_a = a.0;
