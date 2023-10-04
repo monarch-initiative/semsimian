@@ -443,6 +443,7 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         weights: &HashMap<TermID, f64>,
         negated_terms: &HashSet<TermID>,
+        compute_all_termset_items: Option<bool>
     ) -> TermsetPairwiseSimilarity {
         /// Compares a set of subject terms to a set of object terms and returns a TermsetPairwiseSimilarity object.
         /// This function is similar to termset_pairwise_similarity, but it accepts weights for each term,
@@ -470,11 +471,13 @@ impl RustSemsimian {
         /// ...
         ///
         /// # Arguments
-        ///
         ///        subject_terms: a HashSet of the terms for termset 1
         //         object_terms: a HashSet of the terms for termset 2
         //         weights: a HashMap of the terms and their weights
         //         negated_terms: a HashSet of the terms that have been ruled out by the clinician
+        //         compute_all_termset_items: a boolean that determines whether to compute all items
+        //                                    in the termset (subject_best_matches, object_best_matches, etc)
+        //                                     (default: true) or only average_termset_information_content
 
         let metric = "ancestor_information_content_negated_weighted";
         let all_by_all: SimilarityMap =
