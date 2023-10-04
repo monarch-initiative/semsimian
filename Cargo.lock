@@ -1822,6 +1822,7 @@ dependencies = [
  "lazy_static",
  "ordered-float",
  "pyo3",
+ "pyo3-build-config",
  "rayon",
  "rusqlite",
 ]

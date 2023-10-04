@@ -32,6 +32,9 @@ debug = true
 criterion = { version = "0.5.1", features = ["html_reports"] }
 flamegraph = "0.6.3"
 
+[build-dependencies]
+pyo3-build-config = { version = "*", features = ["extension-module"] }
+
 [[bench]]
 name = "termset_pairwise_similarity_benchmark"
 harness = false
