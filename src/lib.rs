@@ -443,12 +443,15 @@ impl RustSemsimian {
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
         weights: &HashMap<TermID, f64>,
-        negated_terms: &HashSet<TermID>,
-        only_compute_average_ic: bool
-    ) -> TermsetPairwiseSimilarity {
-        /// Compares a set of subject terms to a set of object terms and returns a TermsetPairwiseSimilarity object.
+        negated_terms: &HashSet<TermID>
+    ) -> f64 {
+        /// Compares a set of subject terms to a set of object terms and returns the average pairwise
+        /// Resnik similarity (i.e. IC of most informative common ancestor) between the two sets.
+        ///
         /// This function is similar to termset_pairwise_similarity, but it accepts weights for each term,
-        /// such that the similarity score is weighted by the term's weight.
+        /// such that the similarity score is weighted by the term's weight. Also this current function
+        /// returns only the average pairwise similarity score, rather than the full
+        /// TermsetPairwiseSimilarity object.
         ///
         /// Also, this function accepts a set of negated terms, which are terms that have been excluded
         /// by the clinician.
@@ -473,14 +476,10 @@ impl RustSemsimian {
         ///
         /// # Arguments
         ///        subject_terms: a HashSet of the terms for termset 1
-        //         object_terms: a HashSet of the terms for termset 2
-        //         weights: a HashMap of the terms and their weights
-        //         negated_terms: a HashSet of the terms that have been ruled out by the clinician
-        //         compute_all_termset_items: a boolean that determines whether to compute all items
-        //                                    in the termset (subject_best_matches, object_best_matches, etc)
-        //                                     (default: true) or only average_termset_information_content
+        ///         object_terms: a HashSet of the terms for termset 2
+        ///         weights: a HashMap of the terms and their weights
+        ///         negated_terms: a HashSet of the terms that have been ruled out by the clinician
 
-        let metric = "ancestor_information_content";
         let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
 
@@ -494,68 +493,7 @@ impl RustSemsimian {
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
-
-        let average_termset_information_content = &self
-            .termset_comparison(subject_terms, object_terms)
-            .unwrap();
-
-        if only_compute_average_ic {
-            let subject_termset = Vec::new();
-            let object_termset = Vec::new();
-            let subject_best_matches = BTreeMap::new();
-            let subject_best_matches_similarity_map = BTreeMap::new();
-            let object_best_matches = BTreeMap::new();
-            let object_best_matches_similarity_map = BTreeMap::new();
-            let best_score: f64 = f64::NAN;
-
-            return TermsetPairwiseSimilarity::new(
-                subject_termset,
-                subject_best_matches,
-                subject_best_matches_similarity_map,
-                object_termset,
-                object_best_matches,
-                object_best_matches_similarity_map,
-                *average_termset_information_content,
-                best_score,
-                metric.to_string(),
-            )
-        } else {
-            let db_path = RESOURCE_PATH.lock().unwrap();
-            let all_terms: HashSet<String> = subject_terms
-                .iter()
-                .chain(object_terms.iter())
-                .cloned()
-                .collect();
-            let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-            let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms_vec).unwrap();
-
-            let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-                get_termset_vector(subject_terms, &term_label_map);
-            let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-                get_termset_vector(object_terms, &term_label_map);
-
-            let (subject_best_matches, subject_best_matches_similarity_map) =
-                get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
-            let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
-                &object_termset,
-                &all_by_all_object_perspective,
-                &term_label_map,
-                metric,
-            );
-            let best_score = get_best_score(&subject_best_matches, &object_best_matches);
-
-            return TermsetPairwiseSimilarity::new(
-                subject_termset,
-                subject_best_matches,
-                subject_best_matches_similarity_map,
-                object_termset,
-                object_best_matches,
-                object_best_matches_similarity_map,
-                *average_termset_information_content,
-                best_score,
-                metric.to_string(),
-            )
-        }
+        return self.termset_comparison(subject_terms, object_terms).unwrap();
     }
 
     // This function takes a set of objects and an expanded subject map as input.
@@ -1381,11 +1319,9 @@ mod tests {
             rss.termset_pairwise_similarity_weighted_negated(&subject_terms,
                                                              &object_terms,
                                                              &HashMap::new(),
-                                                             &HashSet::new(),
-                                                             false);
+                                                             &HashSet::new());
 
-        assert_eq!(tsps.average_score, 5.4154243283740175);
-        assert_eq!(tsps.best_score, 5.8496657269155685);
+        assert_eq!(tsps, 5.4154243283740175);
     }
 
     #[test]
