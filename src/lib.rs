@@ -19,6 +19,7 @@ use rayon::prelude::*;
 mod test_utils;
 
 use std::fmt;
+use std::num::FpCategory::Nan;
 
 use similarity::{
     calculate_average_termset_information_content, calculate_cosine_similarity_for_nodes,
@@ -33,6 +34,7 @@ use utils::{
 
 use db_query::get_labels;
 use lazy_static::lazy_static;
+use rusqlite::Statement;
 use termset_pairwise_similarity::TermsetPairwiseSimilarity;
 
 use crate::utils::get_best_score;
@@ -443,7 +445,7 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         weights: &HashMap<TermID, f64>,
         negated_terms: &HashSet<TermID>,
-        compute_all_termset_items: Option<bool>
+        compute_all_termset_items: Option<bool> // default (None) is true
     ) -> TermsetPairwiseSimilarity {
         /// Compares a set of subject terms to a set of object terms and returns a TermsetPairwiseSimilarity object.
         /// This function is similar to termset_pairwise_similarity, but it accepts weights for each term,
@@ -493,44 +495,72 @@ impl RustSemsimian {
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
-        let db_path = RESOURCE_PATH.lock().unwrap();
-        let all_terms: HashSet<String> = subject_terms
-            .iter()
-            .chain(object_terms.iter())
-            .cloned()
-            .collect();
-        let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms_vec).unwrap();
 
-        let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-            get_termset_vector(subject_terms, &term_label_map);
-        let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-            get_termset_vector(object_terms, &term_label_map);
         let average_termset_information_content = &self
             .termset_comparison(subject_terms, object_terms)
             .unwrap();
 
-        let (subject_best_matches, subject_best_matches_similarity_map) =
-            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
-        let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
-            &object_termset,
-            &all_by_all_object_perspective,
-            &term_label_map,
-            metric,
-        );
-        let best_score = get_best_score(&subject_best_matches, &object_best_matches);
+        if compute_all_termset_items.is_none() || compute_all_termset_items.unwrap_or(true) {
+            let db_path = RESOURCE_PATH.lock().unwrap();
+            let all_terms: HashSet<String> = subject_terms
+                    .iter()
+                    .chain(object_terms.iter())
+                    .cloned()
+                    .collect();
+            let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
+            let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms_vec).unwrap();
 
-        TermsetPairwiseSimilarity::new(
-            subject_termset,
-            subject_best_matches,
-            subject_best_matches_similarity_map,
-            object_termset,
-            object_best_matches,
-            object_best_matches_similarity_map,
-            *average_termset_information_content,
-            best_score,
-            metric.to_string(),
-        )
+            let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+                    get_termset_vector(subject_terms, &term_label_map);
+            let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+                    get_termset_vector(object_terms, &term_label_map);
+
+            let (subject_best_matches, subject_best_matches_similarity_map) =
+                    get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+            let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
+                    &object_termset,
+                    &all_by_all_object_perspective,
+                    &term_label_map,
+                    metric,
+            );
+            let best_score = get_best_score(&subject_best_matches, &object_best_matches);
+
+            return TermsetPairwiseSimilarity::new(
+                subject_termset,
+                subject_best_matches,
+                subject_best_matches_similarity_map,
+                object_termset,
+                object_best_matches,
+                object_best_matches_similarity_map,
+                *average_termset_information_content,
+                best_score,
+                metric.to_string(),
+            )
+        } else {
+            let subject_termset = Vec::new();
+            let object_termset = Vec::new();
+            let subject_best_matches = BTreeMap::new();
+            let subject_best_matches_similarity_map = BTreeMap::new();
+            let object_best_matches = BTreeMap::new();
+            let object_best_matches_similarity_map = BTreeMap::new();
+            let best_score: f64 = f64::NAN;
+
+            return TermsetPairwiseSimilarity::new(
+                subject_termset,
+                subject_best_matches,
+                subject_best_matches_similarity_map,
+                object_termset,
+                object_best_matches,
+                object_best_matches_similarity_map,
+                *average_termset_information_content,
+                best_score,
+                metric.to_string(),
+            )
+        }
+
+
+
+
     }
 
     // This function takes a set of objects and an expanded subject map as input.
