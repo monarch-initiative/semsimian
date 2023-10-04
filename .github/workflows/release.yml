@@ -64,7 +64,7 @@ jobs:
       run: |
         pip install semsimian --no-index --find-links dist --force-reinstall
     - name: Run cargo test
-      run: cargo test
+      run: cargo test --features ci
     - name: Upload wheels for Linux
       uses: actions/upload-artifact@v3
       with:
@@ -95,7 +95,7 @@ jobs:
       run: |
         pip install semsimian --no-index --find-links dist --force-reinstall
     - name: Run cargo test
-      run: cargo test
+      run: cargo test --features ci
     - name: Upload wheels for Windows
       uses: actions/upload-artifact@v3
       with:
