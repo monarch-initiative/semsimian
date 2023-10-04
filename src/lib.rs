@@ -19,7 +19,6 @@ use rayon::prelude::*;
 mod test_utils;
 
 use std::fmt;
-use std::num::FpCategory::Nan;
 
 use similarity::{
     calculate_average_termset_information_content, calculate_cosine_similarity_for_nodes,
@@ -445,7 +444,7 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         weights: &HashMap<TermID, f64>,
         negated_terms: &HashSet<TermID>,
-        compute_all_termset_items: Option<bool> // default (None) is true
+        only_compute_average_ic: bool
     ) -> TermsetPairwiseSimilarity {
         /// Compares a set of subject terms to a set of object terms and returns a TermsetPairwiseSimilarity object.
         /// This function is similar to termset_pairwise_similarity, but it accepts weights for each term,
@@ -481,7 +480,7 @@ impl RustSemsimian {
         //                                    in the termset (subject_best_matches, object_best_matches, etc)
         //                                     (default: true) or only average_termset_information_content
 
-        let metric = "ancestor_information_content_negated_weighted";
+        let metric = "ancestor_information_content";
         let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
 
@@ -500,43 +499,7 @@ impl RustSemsimian {
             .termset_comparison(subject_terms, object_terms)
             .unwrap();
 
-        if compute_all_termset_items.is_none() || compute_all_termset_items.unwrap_or(true) {
-            let db_path = RESOURCE_PATH.lock().unwrap();
-            let all_terms: HashSet<String> = subject_terms
-                    .iter()
-                    .chain(object_terms.iter())
-                    .cloned()
-                    .collect();
-            let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-            let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms_vec).unwrap();
-
-            let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-                    get_termset_vector(subject_terms, &term_label_map);
-            let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
-                    get_termset_vector(object_terms, &term_label_map);
-
-            let (subject_best_matches, subject_best_matches_similarity_map) =
-                    get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
-            let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
-                    &object_termset,
-                    &all_by_all_object_perspective,
-                    &term_label_map,
-                    metric,
-            );
-            let best_score = get_best_score(&subject_best_matches, &object_best_matches);
-
-            return TermsetPairwiseSimilarity::new(
-                subject_termset,
-                subject_best_matches,
-                subject_best_matches_similarity_map,
-                object_termset,
-                object_best_matches,
-                object_best_matches_similarity_map,
-                *average_termset_information_content,
-                best_score,
-                metric.to_string(),
-            )
-        } else {
+        if only_compute_average_ic {
             let subject_termset = Vec::new();
             let object_termset = Vec::new();
             let subject_best_matches = BTreeMap::new();
@@ -556,11 +519,43 @@ impl RustSemsimian {
                 best_score,
                 metric.to_string(),
             )
+        } else {
+            let db_path = RESOURCE_PATH.lock().unwrap();
+            let all_terms: HashSet<String> = subject_terms
+                .iter()
+                .chain(object_terms.iter())
+                .cloned()
+                .collect();
+            let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
+            let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms_vec).unwrap();
+
+            let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+                get_termset_vector(subject_terms, &term_label_map);
+            let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+                get_termset_vector(object_terms, &term_label_map);
+
+            let (subject_best_matches, subject_best_matches_similarity_map) =
+                get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+            let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
+                &object_termset,
+                &all_by_all_object_perspective,
+                &term_label_map,
+                metric,
+            );
+            let best_score = get_best_score(&subject_best_matches, &object_best_matches);
+
+            return TermsetPairwiseSimilarity::new(
+                subject_termset,
+                subject_best_matches,
+                subject_best_matches_similarity_map,
+                object_termset,
+                object_best_matches,
+                object_best_matches_similarity_map,
+                *average_termset_information_content,
+                best_score,
+                metric.to_string(),
+            )
         }
-
-
-
-
     }
 
     // This function takes a set of objects and an expanded subject map as input.
@@ -1369,6 +1364,7 @@ mod tests {
         assert_eq!(tsps.average_score, 5.4154243283740175);
         assert_eq!(tsps.best_score, 5.8496657269155685);
     }
+
     #[test]
     fn test_termset_pairwise_similarity_weighted_negated() {
         let db = Some("tests/data/go-nucleus.db");
@@ -1381,7 +1377,13 @@ mod tests {
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
         let mut rss = RustSemsimian::new(None, predicates, None, db);
         rss.update_closure_and_ic_map();
-        let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_terms, &object_terms);
+        let tsps =
+            rss.termset_pairwise_similarity_weighted_negated(&subject_terms,
+                                                             &object_terms,
+                                                             &HashMap::new(),
+                                                             &HashSet::new(),
+                                                             false);
+
         assert_eq!(tsps.average_score, 5.4154243283740175);
         assert_eq!(tsps.best_score, 5.8496657269155685);
     }
