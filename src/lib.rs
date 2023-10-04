@@ -1,3 +1,6 @@
+#[cfg(test)]
+use rstest::rstest;
+
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use enums::SearchTypeEnum;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
@@ -1303,29 +1306,54 @@ mod tests {
         assert_eq!(tsps.best_score, 5.8496657269155685);
     }
 
-    #[test]
-    fn test_termset_pairwise_similarity_weighted_negated() {
+    #[rstest(
+        weights, negated_terms, expected_tsps,
+        case(
+            HashMap::from([
+                ("GO:0005634".to_string(), 0.5),
+                ("GO:0016020".to_string(), 0.5),
+                ("GO:0031965".to_string(), 0.5),
+                ("GO:0005773".to_string(), 0.5)
+            ]),
+            HashSet::new(),
+            5.4154243283740175
+        ),
+        // case(
+        //     HashMap::from([
+        //         ("GO:0005634".to_string(), 0.3),
+        //         ("GO:0016020".to_string(), 0.7),
+        //         ("GO:0031965".to_string(), 0.2),
+        //         ("GO:0005773".to_string(), 0.8)
+        //     ]),
+        //     HashSet::from(["GO:0001234".to_string(), "GO:5678901".to_string()]),
+        //     7.123456789 // Change this to the expected value for the second case
+        // ),
+        // // Add more test cases as needed
+    )]
+    fn test_termset_pairwise_similarity_weighted_negated(
+        weights: HashMap<String, f64>,
+        negated_terms: HashSet<String>,
+        expected_tsps: f64,
+    ) {
         let db = Some("tests/data/go-nucleus.db");
         // Call the function with the test parameters
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
         ]);
-        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
-        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-        let weights = HashMap::from([
-            ("GO:0005634".to_string(), 0.5), ("GO:0016020".to_string(), 0.5),
-            ("GO:0031965".to_string(), 0.5), ("GO:0005773".to_string(), 0.5)]);
-        let negated_terms = HashSet::new();
         let mut rss = RustSemsimian::new(None, predicates, None, db);
         rss.update_closure_and_ic_map();
-        let tsps =
-            rss.termset_pairwise_similarity_weighted_negated(&subject_terms,
-                                                             &object_terms,
-                                                             &weights,
-                                                             &negated_terms);
 
-        assert_eq!(tsps, 5.4154243283740175);
+        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let tsps = rss.termset_pairwise_similarity_weighted_negated(
+            &subject_terms,
+            &object_terms,
+            &weights,
+            &negated_terms,
+        );
+        assert_eq!(tsps, expected_tsps);
     }
 
     #[test]
