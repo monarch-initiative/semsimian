@@ -93,8 +93,8 @@ pub fn calculate_weighted_term_pairwise_information_content(
 ) -> f64 {
     let entity1_len = entity1.len() as f64;
 
-    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, &(e1_term, e1_weight, _)| {
-        let max_ic = entity2.iter().fold(0.0, |max_ic, &(e2_term, e2_weight, _)| {
+    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, _)| {
+        let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, _)| {
             let (_max_ic_ancestors1, ic) = calculate_max_information_content(
                 closure_map,
                 ic_map,
