@@ -1379,6 +1379,7 @@ mod tests {
         object_dat: Vec<(TermID, f64, bool)>,
         expected_tsps: f64
     ) {
+        let epsilon = 0.0001; // tolerance for floating point comparisons
         let db = Some("tests/data/go-nucleus.db");
         // Call the function with the test parameters
         let predicates: Option<Vec<Predicate>> = Some(vec![
@@ -1389,7 +1390,11 @@ mod tests {
         rss.update_closure_and_ic_map();
 
         let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat);
-        assert_eq!(tsps, expected_tsps);
+        // assert approximately equal
+        assert!(
+            (tsps - expected_tsps).abs() <= epsilon,
+            "Difference between tsps and expected_tsps is too large: {}", (tsps - expected_tsps).abs()
+        );
     }
 
     #[test]
