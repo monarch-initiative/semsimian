@@ -105,18 +105,9 @@ pub fn calculate_weighted_term_pairwise_information_content(
             );
             f64::max(max_ic, ic)
         });
-        dbg!(e1_term);
-        dbg!(max_ic);
-        dbg!(e1_weight);
-        dbg!(sum + (max_ic * e1_weight));
-        dbg!("------------");
         sum + (max_ic * e1_weight)
     });
 
-    dbg!(entity1_to_entity2_sum_resnik_sim);
-    dbg!(sum_of_weights_entity1);
-    dbg!(entity1_to_entity2_sum_resnik_sim / sum_of_weights_entity1);
-    dbg!("========================================");
     entity1_to_entity2_sum_resnik_sim / sum_of_weights_entity1
 }
 
