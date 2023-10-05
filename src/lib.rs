@@ -498,20 +498,20 @@ impl RustSemsimian {
         }
         // return self.termset_comparison(&subject_terms, &object_terms).unwrap();
         let subject_to_object_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
-            &semsimian.closure_map,
-            &semsimian.ic_map,
+            &self.closure_map,
+            &self.ic_map,
             &subject_dat,
             &object_dat,
-            &semsimian.predicates,
+            &self.predicates,
         );
 
 
         let object_to_subject_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
-            &semsimian.closure_map,
-            &semsimian.ic_map,
+            &self.closure_map,
+            &self.ic_map,
             &subject_dat,
             &object_dat,
-            &semsimian.predicates,
+            &self.predicates,
         );
 
         (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
