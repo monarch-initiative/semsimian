@@ -91,7 +91,7 @@ pub fn calculate_weighted_term_pairwise_information_content(
     entity2: &Vec<(TermID, f64, bool)>,
     predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
-    let entity1_len = entity1.len() as f64;
+    let sum_of_weights_entity1: f64 = entity1.iter().map(|(_, weight, _)| weight).sum();
 
     let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, _)| {
         let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, _)| {
@@ -102,14 +102,14 @@ pub fn calculate_weighted_term_pairwise_information_content(
                 &e2_term,
                 predicates,
             );
-            let weighted_ic = ic * e2_weight;
+            let weighted_ic = ic * e1_weight;
             f64::max(max_ic, weighted_ic)
         });
 
         sum + (max_ic * e1_weight)
     });
 
-    entity1_to_entity2_sum_resnik_sim / entity1_len
+    entity1_to_entity2_sum_resnik_sim / sum_of_weights_entity1
 }
 
 pub fn calculate_average_termset_information_content(
