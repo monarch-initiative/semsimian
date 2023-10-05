@@ -84,6 +84,38 @@ pub fn calculate_term_pairwise_information_content(
     entity1_to_entity2_sum_resnik_sim / entity1_len
 }
 
+pub fn calculate_weighted_term_pairwise_information_content(
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    entity1: &Vec<(TermID, f64, bool)>,
+    entity2: &Vec<(TermID, f64, bool)>,
+    predicates: &Option<Vec<Predicate>>,
+) -> f64 {
+    // At each iteration, it calculates the IC score using the calculate_max_information_content function,
+    // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
+    // it updates the maximum IC value. Thus, at the end of the iterations,
+    // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
+    // representing the best match between entity1 and entity2.
+    let entity1_len = entity1.len() as f64;
+
+    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, e1_term| {
+        let max_ic = entity2.iter().fold(0.0, |max_ic, e2_term| {
+            let (_max_ic_ancestors1, ic) = calculate_max_information_content(
+                closure_map,
+                ic_map,
+                e1_term,
+                e2_term,
+                predicates,
+            );
+            f64::max(max_ic, ic)
+        });
+
+        sum + max_ic
+    });
+
+    entity1_to_entity2_sum_resnik_sim / entity1_len
+}
+
 pub fn calculate_average_termset_information_content(
     semsimian: &RustSemsimian,
     subject_terms: &HashSet<TermID>,

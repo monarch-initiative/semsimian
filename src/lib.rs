@@ -38,6 +38,7 @@ use db_query::get_labels;
 use lazy_static::lazy_static;
 use rusqlite::Statement;
 use termset_pairwise_similarity::TermsetPairwiseSimilarity;
+use crate::similarity::calculate_weighted_term_pairwise_information_content;
 
 use crate::utils::get_best_score;
 
@@ -495,7 +496,28 @@ impl RustSemsimian {
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
-        return self.termset_comparison(&subject_terms, &object_terms).unwrap();
+        // return self.termset_comparison(&subject_terms, &object_terms).unwrap();
+        let subject_to_object_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
+            &semsimian.closure_map,
+            &semsimian.ic_map,
+            &subject_dat,
+            &object_dat,
+            &semsimian.predicates,
+        );
+
+
+        let object_to_subject_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
+            &semsimian.closure_map,
+            &semsimian.ic_map,
+            &subject_dat,
+            &object_dat,
+            &semsimian.predicates,
+        );
+
+        (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
+
+}
+
     }
 
     // This function takes a set of objects and an expanded subject map as input.
