@@ -509,8 +509,8 @@ impl RustSemsimian {
         let object_to_subject_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
             &self.closure_map,
             &self.ic_map,
-            &subject_dat,
             &object_dat,
+            &subject_dat,
             &self.predicates,
         );
 
