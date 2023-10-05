@@ -133,12 +133,36 @@ class testSemsimianWithPython(unittest.TestCase):
         )
         self.assertEqual(len(result), limit)
 
-    def test_association_quick_search(self):
+    def test_association_flat_search(self):
         subject_prefixes = ["GO:"]
         object_terms = {"GO:0019222"}
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
         assoc_predicate = {"biolink:has_nucleus"}
         search_type = "flat"
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            pairwise_similarity_attributes=None,
+            resource_path=self.db,
+        )
+        limit = 10
+        result = semsimian.associations_search(
+            assoc_predicate,
+            object_terms,
+            True,
+            search_type,
+            None,
+            subject_prefixes,
+            limit,
+        )
+        self.assertEqual(len(result), limit)
+    
+    def test_association_hybrid_search(self):
+        subject_prefixes = ["GO:"]
+        object_terms = {"GO:0019222"}
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        assoc_predicate = {"biolink:has_nucleus"}
+        search_type = "hybrid"
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,

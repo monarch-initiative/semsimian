@@ -500,8 +500,12 @@ impl RustSemsimian {
             f64_items.dedup();
 
             // Calculate the count of top percent items in f64_items. If the calculated value is less than the limit, use the limit instead.
-            let top_percent_f64_count =
-                ((top_percent * f64_items.len() as f64).ceil() as usize).max(limit.unwrap());
+            let top_percent_f64_count = if let Some(limit) = limit {
+                ((top_percent * f64_items.len() as f64).ceil() as usize).max(*limit)
+            } else {
+                flatten_result.len()
+            };
+            
 
             // Declare a variable to hold the cutoff score
             let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
@@ -571,7 +575,10 @@ impl RustSemsimian {
                 get_prefix_association_key(prefixes, object_closure_predicates, search_type)
             })
             .unwrap_or_else(String::new);
-
+        
+        if self.prefix_expansion_cache.contains_key(&cache_key) {
+            println!("Using cache! {:?}", cache_key);
+        }
         // Get or set cache key based on the `quick_search` flag.
         self.prefix_expansion_cache
             .entry(cache_key)
