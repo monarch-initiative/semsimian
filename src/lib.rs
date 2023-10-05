@@ -443,10 +443,8 @@ impl RustSemsimian {
 
     pub fn termset_pairwise_similarity_weighted_negated(
         &self,
-        subject_terms: &HashSet<TermID>,
-        object_terms: &HashSet<TermID>,
-        weights: &HashMap<TermID, f64>,
-        negated_terms: &HashSet<TermID>
+        subject_dat: &Vec<(TermID, f64, bool)>,
+        object_dat: &Vec<(TermID, f64, bool)>,
     ) -> f64 {
         /// Compares a set of subject terms to a set of object terms and returns the average pairwise
         /// Resnik similarity (i.e. IC of most informative common ancestor) between the two sets.
@@ -478,13 +476,14 @@ impl RustSemsimian {
         /// ...
         ///
         /// # Arguments
-        ///        subject_terms: a HashSet of the terms for termset 1
-        ///         object_terms: a HashSet of the terms for termset 2
-        ///         weights: a HashMap of the terms and their weights
-        ///         negated_terms: a HashSet of the terms that have been ruled out by the clinician
+        ///        subject_dat: tuples of terms for termset 1 (term_id, weight, negated)
+        ///        object_dat: tuples of terms for termset 2 (term_id, weight, negated)
+
+        let subject_terms = subject_dat.iter().map(|(term, _, _)| term.clone()).collect::<HashSet<TermID>>();
+        let object_terms = object_dat.iter().map(|(term, _, _)| term.clone()).collect::<HashSet<TermID>>();
 
         let all_by_all: SimilarityMap =
-            self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
+            self.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &None, &None);
 
         let mut all_by_all_object_perspective: SimilarityMap =
             HashMap::with_capacity(all_by_all.len());
@@ -496,7 +495,7 @@ impl RustSemsimian {
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
-        return self.termset_comparison(subject_terms, object_terms).unwrap();
+        return self.termset_comparison(&subject_terms, &object_terms).unwrap();
     }
 
     // This function takes a set of objects and an expanded subject map as input.
@@ -1307,33 +1306,20 @@ mod tests {
     }
 
     #[rstest(
-        weights, negated_terms, expected_tsps,
+        subject_dat, object_dat, expected_tsps,
         case(
-            HashMap::from([
-                ("GO:0005634".to_string(), 0.5),
-                ("GO:0016020".to_string(), 0.5),
-                ("GO:0031965".to_string(), 0.5),
-                ("GO:0005773".to_string(), 0.5)
-            ]),
-            HashSet::new(),
-            5.4154243283740175
+        Vec::from([("GO:0005634".to_string(), 0.5, false),
+                   ("GO:0016020".to_string(), 0.5, false)]),
+        Vec::from([("GO:0031965".to_string(), 0.5, false),
+                   ("GO:0005773".to_string(), 0.5, false)]),
+        5.4154243283740175
         ),
-        // case(
-        //     HashMap::from([
-        //         ("GO:0005634".to_string(), 0.3),
-        //         ("GO:0016020".to_string(), 0.7),
-        //         ("GO:0031965".to_string(), 0.2),
-        //         ("GO:0005773".to_string(), 0.8)
-        //     ]),
-        //     HashSet::from(["GO:0001234".to_string(), "GO:5678901".to_string()]),
-        //     7.123456789 // Change this to the expected value for the second case
-        // ),
-        // // Add more test cases as needed
+        // Add more test cases as needed
     )]
     fn test_termset_pairwise_similarity_weighted_negated(
-        weights: HashMap<String, f64>,
-        negated_terms: HashSet<String>,
-        expected_tsps: f64,
+        subject_dat: Vec<(TermID, f64, bool)>,
+        object_dat: Vec<(TermID, f64, bool)>,
+        expected_tsps: f64
     ) {
         let db = Some("tests/data/go-nucleus.db");
         // Call the function with the test parameters
@@ -1344,15 +1330,7 @@ mod tests {
         let mut rss = RustSemsimian::new(None, predicates, None, db);
         rss.update_closure_and_ic_map();
 
-        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
-        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-
-        let tsps = rss.termset_pairwise_similarity_weighted_negated(
-            &subject_terms,
-            &object_terms,
-            &weights,
-            &negated_terms,
-        );
+        let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat);
         assert_eq!(tsps, expected_tsps);
     }
 
