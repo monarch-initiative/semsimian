@@ -1377,14 +1377,18 @@ mod tests {
         //
         // test negated terms
         //
-        // termset 1 -> 2 = (5.8496657269155685 * 0.50 + 4.8496657269155685 * 0.25) / (sum of weights, 0.75) = 5.5163323936
-        // termset 2 -> 1 = (5.8496657269155685 * 0.65 + 5.112700132749362 * 0.15) / (sum of weights, 0.80) = 5.711484678
-        // average of termset 1 -> 2 and termset 2 -> 1 = (5.5163323936 + 5.711484678)/ 2 = 5.6139085358
+        // the label for GO:0005634 is "nucleus"
+        // the label for GO:0016020 is "membrane"
+        // the label for GO:0031965 is "nuclear membrane"
+        // the label for GO:0005773 is "vacuole"
+
+        // test negated term in termset1 that matches a term in termset2
         case(
-            Vec::from([("GO:0005634".to_string(), 0.50, false),
-                       ("GO:0016020".to_string(), 0.25, false)]),
-            Vec::from([("GO:0031965".to_string(), 0.65, false),
-                       ("GO:0005773".to_string(), 0.15, false)]),
+            Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
+                       ("GO:0016020".to_string(), 1.0, false),      // membrane
+                       ("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
+                       ("GO:0005773".to_string(), 1.0, false)]),    // vacuole
             5.6139085358
         ),
 
@@ -1408,7 +1412,7 @@ mod tests {
         // assert approximately equal
         assert!(
             (tsps - expected_tsps).abs() <= epsilon,
-            "Difference between tsps and expected_tsps is too large: {}", (tsps - expected_tsps).abs()
+            "Expected and actual tsps are not (approximately) equal - difference is {}", (tsps - expected_tsps).abs()
         );
     }
 
