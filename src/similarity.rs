@@ -91,26 +91,22 @@ pub fn calculate_weighted_term_pairwise_information_content(
     entity2: &Vec<(TermID, f64, bool)>,
     predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
-    // At each iteration, it calculates the IC score using the calculate_max_information_content function,
-    // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
-    // it updates the maximum IC value. Thus, at the end of the iterations,
-    // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
-    // representing the best match between entity1 and entity2.
     let entity1_len = entity1.len() as f64;
 
-    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, e1_term| {
-        let max_ic = entity2.iter().fold(0.0, |max_ic, e2_term| {
+    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, &(e1_term, e1_weight, _)| {
+        let max_ic = entity2.iter().fold(0.0, |max_ic, &(e2_term, e2_weight, _)| {
             let (_max_ic_ancestors1, ic) = calculate_max_information_content(
                 closure_map,
                 ic_map,
-                e1_term,
-                e2_term,
+                &e1_term,
+                &e2_term,
                 predicates,
             );
-            f64::max(max_ic, ic)
+            let weighted_ic = ic * e2_weight;
+            f64::max(max_ic, weighted_ic)
         });
 
-        sum + max_ic
+        sum + (max_ic * e1_weight)
     });
 
     entity1_to_entity2_sum_resnik_sim / entity1_len
