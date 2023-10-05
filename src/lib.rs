@@ -1333,6 +1333,11 @@ mod tests {
         // GO:0016020 <-> GO:0031965 = 4.8496657269155685
         // GO:0016020 <-> GO:0005773 = 2.264703226194412
 
+        // the label for GO:0005634 is "nucleus"
+        // the label for GO:0016020 is "membrane"
+        // the label for GO:0031965 is "nuclear membrane"
+        // the label for GO:0005773 is "vacuole"
+
         //
         // test even weights, should be the same as unweighted
         //
@@ -1355,13 +1360,9 @@ mod tests {
             5.4154243283740175
         ),
 
+        //
         // test uneven weights
-        // in go-nucleus.db, these are the Resnik (max IC) scores for the following pairs:
-        // GO:0005634 <-> GO:0031965 = 5.8496657269155685
-        // GO:0005634 <-> GO:0005773 = 5.112700132749362
-        // GO:0016020 <-> GO:0031965 = 4.8496657269155685
-        // GO:0016020 <-> GO:0005773 = 2.264703226194412
-
+        //
         // termset 1 -> 2 = (5.8496657269155685 * 0.50 + 4.8496657269155685 * 0.25) / (sum of weights, 0.75) = 5.5163323936
         // termset 2 -> 1 = (5.8496657269155685 * 0.65 + 5.112700132749362 * 0.15) / (sum of weights, 0.80) = 5.711484678
         // average of termset 1 -> 2 and termset 2 -> 1 = (5.5163323936 + 5.711484678)/ 2 = 5.6139085358
@@ -1372,7 +1373,21 @@ mod tests {
                        ("GO:0005773".to_string(), 0.15, false)]),
             5.6139085358
         ),
-        // Add more test cases as needed
+
+        //
+        // test negated terms
+        //
+        // termset 1 -> 2 = (5.8496657269155685 * 0.50 + 4.8496657269155685 * 0.25) / (sum of weights, 0.75) = 5.5163323936
+        // termset 2 -> 1 = (5.8496657269155685 * 0.65 + 5.112700132749362 * 0.15) / (sum of weights, 0.80) = 5.711484678
+        // average of termset 1 -> 2 and termset 2 -> 1 = (5.5163323936 + 5.711484678)/ 2 = 5.6139085358
+        case(
+            Vec::from([("GO:0005634".to_string(), 0.50, false),
+                       ("GO:0016020".to_string(), 0.25, false)]),
+            Vec::from([("GO:0031965".to_string(), 0.65, false),
+                       ("GO:0005773".to_string(), 0.15, false)]),
+            5.6139085358
+        ),
+
     )]
     fn test_termset_pairwise_similarity_weighted_negated(
         subject_dat: Vec<(TermID, f64, bool)>,
