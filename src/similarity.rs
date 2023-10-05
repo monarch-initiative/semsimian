@@ -95,6 +95,15 @@ pub fn calculate_weighted_term_pairwise_information_content(
     let sum_of_weights_entity1: f64 = entity1.iter().map(|(_, weight, _)| weight).sum();
 
     let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, _)| {
+        // let ic: f64 =
+        // if e1_term is negated
+        //      if e1_term is ancestor of e2_term OR e2_term == e1_term
+        //           ic(e2_term)
+        //      else
+        //           0.0
+        // else
+        //     same as below
+
         let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, _)| {
             let (_max_ic_ancestors1, ic) = calculate_max_information_content(
                 closure_map,

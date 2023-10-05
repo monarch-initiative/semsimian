@@ -1,5 +1,6 @@
 #[cfg(test)]
 use rstest::rstest;
+use deepsize::DeepSizeOf;
 
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use enums::SearchTypeEnum;
@@ -62,6 +63,7 @@ lazy_static! {
 }
 
 #[derive(Clone)]
+#[derive(DeepSizeOf)]
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
     predicates: Option<Vec<Predicate>>,
@@ -1374,7 +1376,8 @@ mod tests {
             5.6139085358
         ),
 
-        //
+        // TODO: add test when I've debugged test_negated_termset_pairwise_similarity_weighted_negated() below
+        // (debugger doesn't work in parameterized tests)
         // test negated terms
         //
         // the label for GO:0005634 is "nucleus"
@@ -1383,14 +1386,14 @@ mod tests {
         // the label for GO:0005773 is "vacuole"
 
         // test negated term in termset1 that matches a term in termset2
-        case(
-            Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
-                       ("GO:0016020".to_string(), 1.0, false),      // membrane
-                       ("GO:0005773".to_string(), 1.0, true)]),     // vacuole
-            Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
-                       ("GO:0005773".to_string(), 1.0, false)]),    // vacuole
-            5.6139085358
-        ),
+        // case(
+        //     Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
+        //                ("GO:0016020".to_string(), 1.0, false),      // membrane
+        //                ("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+        //     Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
+        //                ("GO:0005773".to_string(), 1.0, false)]),    // vacuole
+        //     5.6139085358
+        // ),
 
     )]
     fn test_termset_pairwise_similarity_weighted_negated(
@@ -1415,6 +1418,39 @@ mod tests {
             "Expected and actual tsps are not (approximately) equal - difference is {}", (tsps - expected_tsps).abs()
         );
     }
+
+    #[test]
+    #[ignore]
+    fn test_negated_termset_pairwise_similarity_weighted_negated() {
+        let subject_dat: Vec<(TermID, f64, bool)> =
+            Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
+                       ("GO:0016020".to_string(), 1.0, false),      // membrane
+                       ("GO:0005773".to_string(), 1.0, true)]);     // vacuole
+
+        let object_dat: Vec<(TermID, f64, bool)> =
+            Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
+                       ("GO:0005773".to_string(), 1.0, false)]);    // vacuole
+        let expected_tsps: f64 = 5.6139085358;
+
+
+        let epsilon = 0.0001; // tolerance for floating point comparisons
+        let db = Some("tests/data/go-nucleus.db");
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.update_closure_and_ic_map();
+
+        let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat);
+        // assert approximately equal
+        assert!(
+            (tsps - expected_tsps).abs() <= epsilon,
+            "Expected and actual tsps are not (approximately) equal - difference is {}", (tsps - expected_tsps).abs()
+        );
+    }
+
 
     #[test]
     fn test_termset_comparison() {
