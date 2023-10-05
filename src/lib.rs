@@ -337,7 +337,7 @@ impl RustSemsimian {
 
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
                         && minimum_resnik_threshold
-                            .map_or(true, |t| ancestor_information_content > t)
+                        .map_or(true, |t| ancestor_information_content > t)
                     {
                         // Write the line to the TSV file
                         let mut output_bytes: Vec<u8> = output_map
@@ -515,9 +515,6 @@ impl RustSemsimian {
         );
 
         (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
-
-}
-
     }
 
     // This function takes a set of objects and an expanded subject map as input.
@@ -574,7 +571,7 @@ impl RustSemsimian {
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if let Some(flatten_result) = flatten_result {
             let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
-                                                              // Extract f64 items from flatten_result, sort in descending order and remove duplicates
+            // Extract f64 items from flatten_result, sort in descending order and remove duplicates
             let mut f64_items: Vec<f64> = flatten_result.iter().map(|(item, _, _)| *item).collect();
             f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
             f64_items.dedup();
@@ -676,7 +673,7 @@ impl RustSemsimian {
                     Some(&subject_vec),
                     Some(&assoc_predicate_terms_vec),
                 )
-                .unwrap();
+                    .unwrap();
 
                 match search_type {
                     SearchTypeEnum::Full => {
@@ -697,8 +694,8 @@ impl RustSemsimian {
                                     &self.closure_map,
                                     &self.predicates,
                                 )
-                                .into_iter()
-                                .collect::<HashSet<String>>();
+                                    .into_iter()
+                                    .collect::<HashSet<String>>();
                                 ancestors_set.extend(ancestors);
                             }
                             all_object_ancestors_for_subjects_map
