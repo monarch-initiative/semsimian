@@ -102,10 +102,11 @@ pub fn calculate_weighted_term_pairwise_information_content(
                 &e2_term,
                 predicates,
             );
-            let weighted_ic = ic * e1_weight;
-            f64::max(max_ic, weighted_ic)
+            f64::max(max_ic, ic)
         });
-
+        dbg!("e1_term: {}", e1_term);
+        dbg!("max_ic: {}", max_ic);
+        dbg!("e1_weight: {}", e1_weight);
         sum + (max_ic * e1_weight)
     });
 
