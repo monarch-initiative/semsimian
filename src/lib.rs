@@ -490,8 +490,11 @@ impl RustSemsimian {
         limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if let Some(flatten_result) = flatten_result {
-            let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
-                                                              // Extract f64 items from flatten_result, sort in descending order and remove duplicates
+            let mut top_percent = flatten_result.len() as f64; // Top percentage to be considered for the full search
+            if let Some(limit) = limit {
+                top_percent = *limit as f64 / 1000.0; // Extract f64 items from flatten_result, sort in descending order and remove duplicates
+            }
+
             let mut f64_items: Vec<f64> = flatten_result.iter().map(|(item, _, _)| *item).collect();
             f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
             f64_items.dedup();
@@ -641,24 +644,48 @@ impl RustSemsimian {
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let mut result;
-    
+
         match search_type {
             SearchTypeEnum::Flat | SearchTypeEnum::Full => {
-                result = self.perform_search( object_closure_predicates, object_set, subject_set, subject_prefixes, search_type, None, &limit);
+                result = self.perform_search(
+                    object_closure_predicates,
+                    object_set,
+                    subject_set,
+                    subject_prefixes,
+                    search_type,
+                    None,
+                    &limit,
+                );
             }
             SearchTypeEnum::Hybrid => {
-                let flat_result = self.perform_search(object_closure_predicates, object_set, subject_set, subject_prefixes, &SearchTypeEnum::Flat, None, &None);
-                result = self.perform_search( object_closure_predicates, object_set, subject_set, subject_prefixes, &SearchTypeEnum::Full, Some(&flat_result), &limit);
+                let flat_result = self.perform_search(
+                    object_closure_predicates,
+                    object_set,
+                    subject_set,
+                    subject_prefixes,
+                    &SearchTypeEnum::Flat,
+                    None,
+                    &None,
+                );
+                result = self.perform_search(
+                    object_closure_predicates,
+                    object_set,
+                    subject_set,
+                    subject_prefixes,
+                    &SearchTypeEnum::Full,
+                    Some(&flat_result),
+                    &limit,
+                );
             }
         }
-    
+
         if let Some(limit) = limit {
             result.truncate(limit);
         }
-    
+
         result
     }
-    
+
     fn perform_search(
         &mut self,
         object_closure_predicates: &HashSet<TermID>,
@@ -675,13 +702,12 @@ impl RustSemsimian {
             subject_prefixes,
             search_type,
         );
-    
+
         match search_type {
             SearchTypeEnum::Flat => self.flatten_closure_search(object_set, &all_associations),
             _ => self.full_search(object_set, &all_associations, flat_result, limit),
         }
     }
-    
 }
 
 #[pyclass]
