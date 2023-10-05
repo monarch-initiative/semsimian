@@ -1417,7 +1417,7 @@ mod tests {
     }
 
     #[test]
-    fn test_associations_quick_search() {
+    fn test_associations_flat_n_full_search() {
         let db = Some("tests/data/go-nucleus.db");
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
@@ -1453,6 +1453,156 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type_full,
+            limit,
+        );
+
+        dbg!(&result_1.len());
+        dbg!(&result_2.len());
+
+        let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
+        let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
+
+        // Assert that there is at least 80% match between result_1_matches and result_2_matches
+        let match_count = result_1_matches
+            .iter()
+            .filter(|&x| result_2_matches.contains(x))
+            .count();
+        let match_percentage = (match_count as f32 / result_1_matches.len() as f32) * 100.0;
+
+        dbg!(&match_percentage);
+        assert_eq!(match_percentage, 100.0);
+
+        // ! Double check there aren't terms in one and not the other
+        let result_1_unique: Vec<_> = result_1_matches
+            .iter()
+            .filter(|&x| !result_2_matches.contains(x))
+            .cloned()
+            .collect();
+
+        let result_2_unique: Vec<_> = result_2_matches
+            .iter()
+            .filter(|&x| !result_1_matches.contains(x))
+            .cloned()
+            .collect();
+
+        dbg!(&result_1_unique);
+        dbg!(&result_2_unique);
+        assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
+        assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
+    }
+
+    #[test]
+    fn test_associations_hybrid_n_full_search() {
+        let db = Some("tests/data/go-nucleus.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
+        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
+        let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
+        let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
+        let limit: Option<usize> = Some(78);
+
+        // Call the function under test
+        let result_1 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type_hybrid,
+            limit,
+        );
+
+        let result_2 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type_full,
+            limit,
+        );
+
+        dbg!(&result_1.len());
+        dbg!(&result_2.len());
+
+        let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
+        let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
+
+        // Assert that there is at least 80% match between result_1_matches and result_2_matches
+        let match_count = result_1_matches
+            .iter()
+            .filter(|&x| result_2_matches.contains(x))
+            .count();
+        let match_percentage = (match_count as f32 / result_1_matches.len() as f32) * 100.0;
+
+        dbg!(&match_percentage);
+        assert_eq!(match_percentage, 100.0);
+
+        // ! Double check there aren't terms in one and not the other
+        let result_1_unique: Vec<_> = result_1_matches
+            .iter()
+            .filter(|&x| !result_2_matches.contains(x))
+            .cloned()
+            .collect();
+
+        let result_2_unique: Vec<_> = result_2_matches
+            .iter()
+            .filter(|&x| !result_1_matches.contains(x))
+            .cloned()
+            .collect();
+
+        dbg!(&result_1_unique);
+        dbg!(&result_2_unique);
+        assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
+        assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
+    }
+
+    #[test]
+    fn test_associations_hybrid_n_flat_search() {
+        let db = Some("tests/data/go-nucleus.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
+        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
+        let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
+        let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
+        let limit: Option<usize> = Some(78);
+
+        // Call the function under test
+        let result_1 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type_hybrid,
+            limit,
+        );
+
+        let result_2 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type_flat,
             limit,
         );
 
