@@ -1314,7 +1314,9 @@ mod tests {
         // GO:0016020 <-> GO:0031965 = 4.8496657269155685
         // GO:0016020 <-> GO:0005773 = 2.264703226194412
 
+        //
         // test even weights, should be the same as unweighted
+        //
         // termset 1 -> 2 = (5.8496657269155685 + 4.8496657269155685) / 2 = 5.3496657269155685
         // termset 2 -> 1 = (5.8496657269155685 + 5.112700132749362) / 2 = 5.481182929832465
         // average of termset 1 -> 2 and termset 2 -> 1 =
@@ -1334,15 +1336,22 @@ mod tests {
             5.4154243283740175
         ),
 
-        // TODO: test uneven weights
+        // test uneven weights
+        // in go-nucleus.db, these are the Resnik (max IC) scores for the following pairs:
+        // GO:0005634 <-> GO:0031965 = 5.8496657269155685
+        // GO:0005634 <-> GO:0005773 = 5.112700132749362
+        // GO:0016020 <-> GO:0031965 = 4.8496657269155685
+        // GO:0016020 <-> GO:0005773 = 2.264703226194412
+
+        // termset 1 -> 2 = (5.8496657269155685 * 0.50 + 4.8496657269155685 * 0.25) / (sum of weights, 0.75) = 5.5163323936
+        // termset 2 -> 1 = (5.8496657269155685 * 0.65 + 5.112700132749362 * 0.15) / (sum of weights, 0.80) = 5.711484678
+        // average of termset 1 -> 2 and termset 2 -> 1 = (5.5163323936 + 5.711484678)/ 2 = 5.6139085358
         case(
-            Vec::from([("GO:0005634".to_string(), 1.0, false),
-                       ("GO:0016020".to_string(), 1.0, false)]),
-            Vec::from([("GO:0031965".to_string(), 1.0, false),
-                       ("GO:0005773".to_string(), 1.0, false)]),
-
-
-            5.4154243283740175
+            Vec::from([("GO:0005634".to_string(), 0.50, false),
+                       ("GO:0016020".to_string(), 0.25, false)]),
+            Vec::from([("GO:0031965".to_string(), 0.65, false),
+                       ("GO:0005773".to_string(), 0.15, false)]),
+            5.6139085358
         ),
         // Add more test cases as needed
     )]
