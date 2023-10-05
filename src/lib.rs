@@ -640,35 +640,48 @@ impl RustSemsimian {
         search_type: &SearchTypeEnum,
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        // Get or set cache based on `quick_search` flag
+        let mut result;
+    
+        match search_type {
+            SearchTypeEnum::Flat | SearchTypeEnum::Full => {
+                result = self.perform_search( object_closure_predicates, object_set, subject_set, subject_prefixes, search_type, None, &limit);
+            }
+            SearchTypeEnum::Hybrid => {
+                let flat_result = self.perform_search(object_closure_predicates, object_set, subject_set, subject_prefixes, &SearchTypeEnum::Flat, None, &None);
+                result = self.perform_search( object_closure_predicates, object_set, subject_set, subject_prefixes, &SearchTypeEnum::Full, Some(&flat_result), &limit);
+            }
+        }
+    
+        if let Some(limit) = limit {
+            result.truncate(limit);
+        }
+    
+        result
+    }
+    
+    fn perform_search(
+        &mut self,
+        object_closure_predicates: &HashSet<TermID>,
+        object_set: &HashSet<TermID>,
+        subject_set: &Option<HashSet<TermID>>,
+        subject_prefixes: &Option<Vec<TermID>>,
+        search_type: &SearchTypeEnum,
+        flat_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
+        limit: &Option<usize>,
+    ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let all_associations = self.get_or_set_prefix_expansion_cache(
             object_closure_predicates,
             subject_set,
             subject_prefixes,
             search_type,
         );
-        let mut result;
-
+    
         match search_type {
-            SearchTypeEnum::Flat => {
-                result = self.flatten_closure_search(object_set, &all_associations);
-            }
-            SearchTypeEnum::Hybrid => {
-                let flat_result = self.flatten_closure_search(object_set, &all_associations);
-                result =
-                    self.full_search(object_set, &all_associations, Some(&flat_result), &limit);
-            }
-            SearchTypeEnum::Full => {
-                result = self.full_search(object_set, &all_associations, None, &limit);
-            }
+            SearchTypeEnum::Flat => self.flatten_closure_search(object_set, &all_associations),
+            _ => self.full_search(object_set, &all_associations, flat_result, limit),
         }
-
-        if let Some(limit) = limit {
-            result.truncate(limit);
-        }
-
-        result
     }
+    
 }
 
 #[pyclass]
