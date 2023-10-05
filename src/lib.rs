@@ -1307,12 +1307,13 @@ mod tests {
 
     #[rstest(
         subject_dat, object_dat, expected_tsps,
+        // test even weights, should be the same as unweighted
         case(
-        Vec::from([("GO:0005634".to_string(), 0.5, false),
-                   ("GO:0016020".to_string(), 0.5, false)]),
-        Vec::from([("GO:0031965".to_string(), 0.5, false),
-                   ("GO:0005773".to_string(), 0.5, false)]),
-        5.4154243283740175
+            Vec::from([("GO:0005634".to_string(), 1.0, false),
+                       ("GO:0016020".to_string(), 1.0, false)]),
+            Vec::from([("GO:0031965".to_string(), 1.0, false),
+                       ("GO:0005773".to_string(), 1.0, false)]),
+            5.4154243283740175
         ),
         // Add more test cases as needed
     )]

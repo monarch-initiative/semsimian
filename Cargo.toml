@@ -32,6 +32,7 @@ debug = true
 criterion = { version = "0.5.1", features = ["html_reports"] }
 flamegraph = "0.6.3"
 rstest = "*"
+approx = "*"
 
 [[bench]]
 name = "termset_pairwise_similarity_benchmark"
