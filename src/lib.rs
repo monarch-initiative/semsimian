@@ -448,38 +448,38 @@ impl RustSemsimian {
         subject_dat: &Vec<(TermID, f64, bool)>,
         object_dat: &Vec<(TermID, f64, bool)>,
     ) -> f64 {
-        /// Compares a set of subject terms to a set of object terms and returns the average pairwise
-        /// Resnik similarity (i.e. IC of most informative common ancestor) between the two sets.
-        ///
-        /// This function is similar to termset_pairwise_similarity, but it accepts weights for each term,
-        /// such that the similarity score is weighted by the term's weight. Also this current function
-        /// returns only the average pairwise similarity score, rather than the full
-        /// TermsetPairwiseSimilarity object.
-        ///
-        /// Also, this function accepts a set of negated terms, which are terms that have been excluded
-        /// by the clinician.
-        ///
-        /// This is used for example in N3C work, in which we have a Spark DF of "profiles":
-        /// profile_id  term_id  weight  negated
-        /// 1           HP:1234  0.5     false
-        /// 1           HP:5678  0.2     false
-        /// 1           HP:9012  0.3     true
-        /// 2           HP:6789  0.3     false
-        /// 2           HP:3456  0.7     false
-        /// ...
-        ///
-        /// and a Spark DF of Patient phenotypes:
-        /// patient_id  term_id  negated
-        /// 1           HP:1234  false
-        /// 1           HP:5678  false
-        /// 1           HP:9012  false
-        /// 2           HP:6789  false
-        /// 2           HP:3456  true
-        /// ...
-        ///
-        /// # Arguments
-        ///        subject_dat: tuples of terms for termset 1 (term_id, weight, negated)
-        ///        object_dat: tuples of terms for termset 2 (term_id, weight, negated)
+        // Compares a set of subject terms to a set of object terms and returns the average pairwise
+        // Resnik similarity (i.e. IC of most informative common ancestor) between the two sets.
+        //
+        // This function is similar to termset_pairwise_similarity, but it accepts weights for each term,
+        // such that the similarity score is weighted by the term's weight. Also this current function
+        // returns only the average pairwise similarity score, rather than the full
+        // TermsetPairwiseSimilarity object.
+        //
+        // Also, this function accepts a set of negated terms, which are terms that have been excluded
+        // by the clinician.
+        //
+        // This is used for example in N3C work, in which we have a Spark DF of "profiles":
+        // profile_id  term_id  weight  negated
+        // 1           HP:1234  0.5     false
+        // 1           HP:5678  0.2     false
+        // 1           HP:9012  0.3     true
+        // 2           HP:6789  0.3     false
+        // 2           HP:3456  0.7     false
+        // ...
+        //
+        // and a Spark DF of Patient phenotypes:
+        // patient_id  term_id  negated
+        // 1           HP:1234  false
+        // 1           HP:5678  false
+        // 1           HP:9012  false
+        // 2           HP:6789  false
+        // 2           HP:3456  true
+        // ...
+        //
+        // # Arguments
+        //        subject_dat: tuples of terms for termset 1 (term_id, weight, negated)
+        //        object_dat: tuples of terms for termset 2 (term_id, weight, negated)
 
         let subject_terms = subject_dat.iter().map(|(term, _, _)| term.clone()).collect::<HashSet<TermID>>();
         let object_terms = object_dat.iter().map(|(term, _, _)| term.clone()).collect::<HashSet<TermID>>();

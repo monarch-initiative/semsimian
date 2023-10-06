@@ -97,7 +97,7 @@ pub fn calculate_weighted_term_pairwise_information_content(
     let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, e1_negated)| {
         // algorithm for negated phenotypes
         // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
-        let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, e2_negated)| {
+        let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, _, e2_negated)| {
             let ic: f64 = if *e1_negated {
                 if *e2_negated {
                     // case d - both terms are negated
