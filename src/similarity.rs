@@ -144,7 +144,11 @@ pub fn calculate_weighted_term_pairwise_information_content(
                 }
             };
 
-            f64::max(max_ic, ic)
+            if f64::abs(ic) > f64::abs(max_ic) {
+                ic
+            } else {
+                max_ic
+            }
         });
         sum + (max_ic * e1_weight)
     });
