@@ -1442,44 +1442,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn test_negated_termset_pairwise_similarity_weighted_negated() {
-        let subject_dat: Vec<(TermID, f64, bool)> =
-            Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
-                       ("GO:0016020".to_string(), 1.0, false),      // membrane
-                       ("GO:0005773".to_string(), 1.0, true)]);     // vacuole
-
-        let object_dat: Vec<(TermID, f64, bool)> =
-            Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
-                       ("GO:0005773".to_string(), 1.0, false)]);    // vacuole
-        let expected_tsps: f64 = 0.14787657917;
-
-
-        let epsilon = 0.0001; // tolerance for floating point comparisons
-        let db = Some("tests/data/go-nucleus.db");
-        // Call the function with the test parameters
-        let predicates: Option<Vec<Predicate>> = Some(vec![
-            "rdfs:subClassOf".to_string(),
-            "BFO:0000050".to_string(),
-        ]);
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
-        rss.update_closure_and_ic_map();
-
-        let GO_0005773_ic: f64 = get_ic_of_term("GO:0005773", &rss.ic_map, &Some(vec![
-            "rdfs:subClassOf".to_string(),
-            "BFO:0000050".to_string()]));
-
-        let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat);
-        // assert approximately equal
-        assert!(
-            (tsps - expected_tsps).abs() <= epsilon,
-            "Expected {} and actual {} tsps are not (approximately) equal - difference is {}",
-            expected_tsps, tsps, (tsps - expected_tsps).abs()
-        );
-    }
-
-
-    #[test]
     fn test_termset_comparison() {
         let spo = Some(BFO_SPO.clone());
         let predicates: Option<Vec<Predicate>> = Some(vec![
