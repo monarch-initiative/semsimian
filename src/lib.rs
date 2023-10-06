@@ -62,8 +62,7 @@ lazy_static! {
     static ref RESOURCE_PATH: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 }
 
-#[derive(Clone)]
-#[derive(DeepSizeOf)]
+#[derive(Clone, DeepSizeOf)]
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
     predicates: Option<Vec<Predicate>>,
@@ -1415,7 +1414,8 @@ mod tests {
         // assert approximately equal
         assert!(
             (tsps - expected_tsps).abs() <= epsilon,
-            "Expected and actual tsps are not (approximately) equal - difference is {}", (tsps - expected_tsps).abs()
+            "Expected {} and actual {} tsps are not (approximately) equal- difference is {}",
+            expected_tsps, tsps, (tsps - expected_tsps).abs()
         );
     }
 
@@ -1447,7 +1447,8 @@ mod tests {
         // assert approximately equal
         assert!(
             (tsps - expected_tsps).abs() <= epsilon,
-            "Expected and actual tsps are not (approximately) equal - difference is {}", (tsps - expected_tsps).abs()
+            "Expected {} and actual {} tsps are not (approximately) equal - difference is {}",
+            expected_tsps, tsps, (tsps - expected_tsps).abs()
         );
     }
 
@@ -1578,6 +1579,7 @@ mod tests {
         // assert_eq!({ result.len() }, limit.unwrap());
         //result is a Vec<(f64, obj, String)> I want the count of tuples in the vector that has the f64 value as the first one
         // dbg!(&result.iter().map(|(score, _, _)| score).collect::<Vec<_>>());
+        let foo = rss.deep_size_of();
         let unique_scores: HashSet<_> =
             result.iter().map(|(score, _, _)| score.to_bits()).collect();
         let count = unique_scores.len();
