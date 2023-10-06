@@ -175,7 +175,7 @@ pub fn get_ancestors_of_term(
     let predicate_set_key = predicate_set_to_key(predicates);
     let ancestors: HashSet<TermID> = closure_map.get(&predicate_set_key)
         .and_then(|closure_map| closure_map.get(entity))
-        .copied()
+        .cloned()
         .unwrap();
     ancestors
 }
