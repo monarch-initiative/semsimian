@@ -98,11 +98,13 @@ pub fn calculate_weighted_term_pairwise_information_content(
         // algorithm for negated phenotypes
         // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
         let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, e2_negated)| {
-            let ic: f64 = if e1_negated {
-                if e2_negated {
+            let ic: f64 = if *e1_negated {
+                if *e2_negated {
                     // case d - both terms are negated
                     // return -(min IC of the two) if the terms are the same or one is a subclass of the other
-                    if e1_term.term == e2_term.term || e1_term.ancestors.contains(e2_term.term) || e2_term.ancestors.contains(e1_term.term) {
+                    if e1_term == e2_term ||
+                        get_ancestors_of_term(e1_term, closure_map, predicates).contains(e2_term) ||
+                        get_ancestors_of_term(e2_term, closure_map, predicates).contains(e1_term) {
                         -f64::min(get_ic_of_term(e1_term, ic_map, predicates),
                                     get_ic_of_term(e2_term, ic_map, predicates))
                     } else {  // otherwise, return 0
@@ -111,17 +113,19 @@ pub fn calculate_weighted_term_pairwise_information_content(
                 } else {
                     // case c - only term1 is negated
                     // return -IC of term2 if term2 is a subclass of term1 or term2 is the same as term1
-                    if e2_term.ancestors.contains(e1_term.term) || e2_term.term == e1_term.term {
+                    if e2_term == e1_term ||
+                        get_ancestors_of_term(e2_term, closure_map, predicates).contains(e1_term) {
                         -get_ic_of_term(e2_term, ic_map, predicates)
                     } else {
                         0.0
                     }
                 }
             } else {
-                if e2_negated {
+                if *e2_negated {
                     // case b - only term2 is negated
                     // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
-                    if e1_term.ancestors.contains(e2_term.term) || e1_term.term == e2_term.term {
+                    if e1_term == e2_term ||
+                        get_ancestors_of_term(e1_term, closure_map, predicates).contains(e2_term) {
                         -get_ic_of_term(e1_term, ic_map, predicates)
                     } else {
                         0.0
@@ -132,8 +136,8 @@ pub fn calculate_weighted_term_pairwise_information_content(
                     let (_, ic) = calculate_max_information_content(
                         closure_map,
                         ic_map,
-                        &e1_term.term,
-                        &e2_term.term,
+                        &e1_term,
+                        &e2_term,
                         predicates,
                     );
                     ic
@@ -149,17 +153,31 @@ pub fn calculate_weighted_term_pairwise_information_content(
 }
 
 pub fn get_ic_of_term(
-    entity1: &str,
+    entity: &str,
     ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
     // get IC of a single term
     let predicate_set_key = predicate_set_to_key(predicates);
     let ic: f64 = ic_map.get(&predicate_set_key)
-        .and_then(|ic_map| ic_map.get(entity1))
+        .and_then(|ic_map| ic_map.get(entity))
         .copied()
         .unwrap();
     ic
+}
+
+pub fn get_ancestors_of_term(
+    entity: &str,
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    predicates: &Option<Vec<Predicate>>,
+) -> HashSet<TermID> {
+    // get IC of a single term
+    let predicate_set_key = predicate_set_to_key(predicates);
+    let ancestors: HashSet<TermID> = closure_map.get(&predicate_set_key)
+        .and_then(|closure_map| closure_map.get(entity))
+        .copied()
+        .unwrap();
+    ancestors
 }
 
 pub fn calculate_average_termset_information_content(
