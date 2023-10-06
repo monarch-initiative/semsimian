@@ -905,6 +905,15 @@ impl Semsimian {
         Ok(tsps.into_py(py))
     }
 
+    fn termset_pairwise_similarity_weighted_negated(
+        &mut self,
+        subject_dat: Vec<(TermID, f64, bool)>,
+        object_dat: Vec<(TermID, f64, bool)>
+     ) -> PyResult<f64> {
+        self.ss.update_closure_and_ic_map();
+        return Ok(self.ss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat));
+    }
+
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
         Ok(self.ss.spo.to_vec())
     }
