@@ -577,15 +577,23 @@ impl RustSemsimian {
         limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if let Some(flatten_result) = flatten_result {
-            let top_percent = limit.unwrap() as f64 / 1000.0; // Top percentage to be considered for the full search
-            // Extract f64 items from flatten_result, sort in descending order and remove duplicates
+
+            let mut top_percent = flatten_result.len() as f64; // Top percentage to be considered for the full search
+            if let Some(limit) = limit {
+                top_percent = *limit as f64 / 1000.0; // Extract f64 items from flatten_result, sort in descending order and remove duplicates
+            }
+
             let mut f64_items: Vec<f64> = flatten_result.iter().map(|(item, _, _)| *item).collect();
             f64_items.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
             f64_items.dedup();
 
             // Calculate the count of top percent items in f64_items. If the calculated value is less than the limit, use the limit instead.
-            let top_percent_f64_count =
-                ((top_percent * f64_items.len() as f64).ceil() as usize).max(limit.unwrap());
+            let top_percent_f64_count = if let Some(limit) = limit {
+                ((top_percent * f64_items.len() as f64).ceil() as usize).max(*limit)
+            } else {
+                flatten_result.len()
+            };
+            
 
             // Declare a variable to hold the cutoff score
             let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
@@ -655,7 +663,10 @@ impl RustSemsimian {
                 get_prefix_association_key(prefixes, object_closure_predicates, search_type)
             })
             .unwrap_or_else(String::new);
-
+        
+        if self.prefix_expansion_cache.contains_key(&cache_key) {
+            println!("Using cache! {:?}", cache_key);
+        }
         // Get or set cache key based on the `quick_search` flag.
         self.prefix_expansion_cache
             .entry(cache_key)
@@ -727,26 +738,39 @@ impl RustSemsimian {
         search_type: &SearchTypeEnum,
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        // Get or set cache based on `quick_search` flag
-        let all_associations = self.get_or_set_prefix_expansion_cache(
-            object_closure_predicates,
-            subject_set,
-            subject_prefixes,
-            search_type,
-        );
         let mut result;
 
         match search_type {
-            SearchTypeEnum::Flat => {
-                result = self.flatten_closure_search(object_set, &all_associations);
+            SearchTypeEnum::Flat | SearchTypeEnum::Full => {
+                result = self.perform_search(
+                    object_closure_predicates,
+                    object_set,
+                    subject_set,
+                    subject_prefixes,
+                    search_type,
+                    None,
+                    &limit,
+                );
             }
             SearchTypeEnum::Hybrid => {
-                let flat_result = self.flatten_closure_search(object_set, &all_associations);
-                result =
-                    self.full_search(object_set, &all_associations, Some(&flat_result), &limit);
-            }
-            SearchTypeEnum::Full => {
-                result = self.full_search(object_set, &all_associations, None, &limit);
+                let flat_result = self.perform_search(
+                    object_closure_predicates,
+                    object_set,
+                    subject_set,
+                    subject_prefixes,
+                    &SearchTypeEnum::Flat,
+                    None,
+                    &None,
+                );
+                result = self.perform_search(
+                    object_closure_predicates,
+                    object_set,
+                    subject_set,
+                    subject_prefixes,
+                    &SearchTypeEnum::Full,
+                    Some(&flat_result),
+                    &limit,
+                );
             }
         }
 
@@ -755,6 +779,29 @@ impl RustSemsimian {
         }
 
         result
+    }
+
+    fn perform_search(
+        &mut self,
+        object_closure_predicates: &HashSet<TermID>,
+        object_set: &HashSet<TermID>,
+        subject_set: &Option<HashSet<TermID>>,
+        subject_prefixes: &Option<Vec<TermID>>,
+        search_type: &SearchTypeEnum,
+        flat_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
+        limit: &Option<usize>,
+    ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
+        let all_associations = self.get_or_set_prefix_expansion_cache(
+            object_closure_predicates,
+            subject_set,
+            subject_prefixes,
+            search_type,
+        );
+
+        match search_type {
+            SearchTypeEnum::Flat => self.flatten_closure_search(object_set, &all_associations),
+            _ => self.full_search(object_set, &all_associations, flat_result, limit),
+        }
     }
 }
 
@@ -1592,7 +1639,7 @@ mod tests {
     }
 
     #[test]
-    fn test_associations_quick_search() {
+    fn test_associations_flat_n_full_search() {
         let db = Some("tests/data/go-nucleus.db");
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
@@ -1628,6 +1675,156 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type_full,
+            limit,
+        );
+
+        dbg!(&result_1.len());
+        dbg!(&result_2.len());
+
+        let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
+        let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
+
+        // Assert that there is at least 80% match between result_1_matches and result_2_matches
+        let match_count = result_1_matches
+            .iter()
+            .filter(|&x| result_2_matches.contains(x))
+            .count();
+        let match_percentage = (match_count as f32 / result_1_matches.len() as f32) * 100.0;
+
+        dbg!(&match_percentage);
+        assert_eq!(match_percentage, 100.0);
+
+        // ! Double check there aren't terms in one and not the other
+        let result_1_unique: Vec<_> = result_1_matches
+            .iter()
+            .filter(|&x| !result_2_matches.contains(x))
+            .cloned()
+            .collect();
+
+        let result_2_unique: Vec<_> = result_2_matches
+            .iter()
+            .filter(|&x| !result_1_matches.contains(x))
+            .cloned()
+            .collect();
+
+        dbg!(&result_1_unique);
+        dbg!(&result_2_unique);
+        assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
+        assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
+    }
+
+    #[test]
+    fn test_associations_hybrid_n_full_search() {
+        let db = Some("tests/data/go-nucleus.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
+        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
+        let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
+        let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
+        let limit: Option<usize> = Some(78);
+
+        // Call the function under test
+        let result_1 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type_hybrid,
+            limit,
+        );
+
+        let result_2 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type_full,
+            limit,
+        );
+
+        dbg!(&result_1.len());
+        dbg!(&result_2.len());
+
+        let result_1_matches: Vec<&String> = result_1.iter().map(|(_, _, c)| c).collect();
+        let result_2_matches: Vec<&String> = result_2.iter().map(|(_, _, c)| c).collect();
+
+        // Assert that there is at least 80% match between result_1_matches and result_2_matches
+        let match_count = result_1_matches
+            .iter()
+            .filter(|&x| result_2_matches.contains(x))
+            .count();
+        let match_percentage = (match_count as f32 / result_1_matches.len() as f32) * 100.0;
+
+        dbg!(&match_percentage);
+        assert_eq!(match_percentage, 100.0);
+
+        // ! Double check there aren't terms in one and not the other
+        let result_1_unique: Vec<_> = result_1_matches
+            .iter()
+            .filter(|&x| !result_2_matches.contains(x))
+            .cloned()
+            .collect();
+
+        let result_2_unique: Vec<_> = result_2_matches
+            .iter()
+            .filter(|&x| !result_1_matches.contains(x))
+            .cloned()
+            .collect();
+
+        dbg!(&result_1_unique);
+        dbg!(&result_2_unique);
+        assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
+        assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
+    }
+
+    #[test]
+    fn test_associations_hybrid_n_flat_search() {
+        let db = Some("tests/data/go-nucleus.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_nucleus".to_string()]);
+        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
+        let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
+        let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
+        let limit: Option<usize> = Some(78);
+
+        // Call the function under test
+        let result_1 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type_hybrid,
+            limit,
+        );
+
+        let result_2 = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type_flat,
             limit,
         );
 
