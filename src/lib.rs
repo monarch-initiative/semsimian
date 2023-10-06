@@ -515,7 +515,13 @@ impl RustSemsimian {
             &self.predicates,
         );
 
-        (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
+        let sim = (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0;
+        if sim < 0.0 {
+            0.0
+        }
+        else {
+            sim
+        }
     }
 
     // This function takes a set of objects and an expanded subject map as input.
