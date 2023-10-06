@@ -94,24 +94,82 @@ pub fn calculate_weighted_term_pairwise_information_content(
 ) -> f64 {
     let sum_of_weights_entity1: f64 = entity1.iter().map(|(_, weight, _)| weight).sum();
 
-    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, _)| {
-        // let ic: f64 =
-        // if e1_term is negated
-        //      if e1_term is ancestor of e2_term OR e2_term == e1_term
-        //           ic(e2_term)
-        //      else
-        //           0.0
-        // else
-        //     same as below
-
+    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, negated)| {
+        // algorithm for negated phenotypes
+        // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
         let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, _)| {
-            let (_max_ic_ancestors1, ic) = calculate_max_information_content(
-                closure_map,
-                ic_map,
-                &e1_term,
-                &e2_term,
-                predicates,
-            );
+
+        //         if term1 is negated:
+        //             if term2 is negated:
+        //                 // case d
+        //                 if term1 == term2 or term1 is a subclass of term2 or term2 is a subclass of term1:
+        //                     -min(IC(term1), IC(term2))
+        //                 else
+        //                     0.0
+        //             else:
+        //                 // case c
+        //                 if term2 is a subclass of term1 OR term2 == term1:
+        //                     -IC(term2)
+        //                 else:
+        //                     0.0
+        //
+        //         else:
+        //
+        //             if term2 is negated:
+        //
+        //                 // case b
+        //                 if term1 is a subclass of term2 OR term1 == term2:
+        //                     -IC(term1)
+        //                 else:
+        //                     0.0
+        //
+        //             else:
+        //                // case a
+        //                IC(mica(term1, term2))
+        //
+        //     if abs(ic from above) > max_ic then max_ic = ic from above
+
+            let ic: f64 = if e1_term.negated {
+                if e2_term.negated {
+                    // case d - both terms are negated
+                    // return -(min IC of the two) if the terms are the same or one is a subclass of the other
+                    if e1_term.term == e2_term.term || e1_term.ancestors.contains(e2_term.term) || e2_term.ancestors.contains(e1_term.term) {
+                        -f64::min(e1_term.ic, e2_term.ic)
+                    } else {  // otherwise, return 0
+                        0.0
+                    }
+                } else {
+                    // case c - only term1 is negated
+                    // return -IC of term2 if term2 is a subclass of term1 or term2 is the same as term1
+                    if e2_term.ancestors.contains(e1_term.term) || e2_term.term == e1_term.term {
+                        -e2_term.ic
+                    } else {
+                        0.0
+                    }
+                }
+            } else {
+                if e2_term.negated {
+                    // case b - only term2 is negated
+                    // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
+                    if e1_term.ancestors.contains(e2_term.term) || e1_term.term == e2_term.term {
+                        -e1_term.ic
+                    } else {
+                        0.0
+                    }
+                } else {
+                    // case a - neither term is negated, so standard term similarity
+                    // return IC of the most informative common ancestor
+                    let (_, ic) = calculate_max_information_content(
+                        closure_map,
+                        ic_map,
+                        &e1_term.term,
+                        &e2_term.term,
+                        predicates,
+                    );
+                    ic
+                }
+            };
+
             f64::max(max_ic, ic)
         });
         sum + (max_ic * e1_weight)

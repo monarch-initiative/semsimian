@@ -1395,45 +1395,6 @@ mod tests {
         //     5.6139085358
         // ),
 
-        // algorithm for negated phenotypes
-        // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
-        //
-        // for term1 in termset1:
-        //
-        //     for term2 in termset2:
-        //
-        //         if term1 is negated:
-        //
-        //             if term2 is negated:
-        //                 // case d
-        //                 if term1 == term2 or term1 is a subclass of term2 or term2 is a subclass of term1:
-        //                     -min(IC(term1), IC(term2))
-        //                 else
-        //                     0.0
-        //
-        //             else:
-        //                 // case c
-        //                 if term2 is a subclass of term1 OR term2 == term1:
-        //                     -IC(term2)
-        //                 else:
-        //                     0.0
-        //
-        //         else:
-        //
-        //             if term2 is negated:
-        //
-        //                 // case b
-        //                 if term1 is a subclass of term2 OR term1 == term2:
-        //                     -IC(term1)
-        //                 else:
-        //                     0.0
-        //
-        //             else:
-        //                // case a
-        //                IC(mica(term1, term2))
-        //
-        //     if abs(ic from above) > max_ic then max_ic = ic from above
-
     )]
     fn test_termset_pairwise_similarity_weighted_negated(
         subject_dat: Vec<(TermID, f64, bool)>,
