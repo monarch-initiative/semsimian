@@ -105,8 +105,8 @@ pub fn calculate_weighted_term_pairwise_information_content(
                     if e1_term == e2_term ||
                         get_ancestors_of_term(e1_term, closure_map, predicates).contains(e2_term) ||
                         get_ancestors_of_term(e2_term, closure_map, predicates).contains(e1_term) {
-                        -f64::min(get_ic_of_term(e1_term, ic_map, predicates),
-                                    get_ic_of_term(e2_term, ic_map, predicates))
+                        f64::min(get_ic_of_term(e1_term, ic_map, predicates),
+                                 get_ic_of_term(e2_term, ic_map, predicates))
                     } else {  // otherwise, return 0
                         0.0
                     }

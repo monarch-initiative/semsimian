@@ -1404,6 +1404,14 @@ mod tests {
             0.14787657917
         ),
 
+        // test matching two negated terms
+        case(
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),    // vacuole
+            // GO:0005773 <-> GO:0005773 = 7.4346282276367246
+            7.4346282276367246
+        ),
+
         // test that minimum is 0 (not a negative IC)
         case(
             Vec::from([("GO:0005773".to_string(), 1.0, true)]),     // vacuole
