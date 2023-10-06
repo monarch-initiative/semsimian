@@ -98,37 +98,6 @@ pub fn calculate_weighted_term_pairwise_information_content(
         // algorithm for negated phenotypes
         // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
         let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, _)| {
-
-        //         if term1 is negated:
-        //             if term2 is negated:
-        //                 // case d
-        //                 if term1 == term2 or term1 is a subclass of term2 or term2 is a subclass of term1:
-        //                     -min(IC(term1), IC(term2))
-        //                 else
-        //                     0.0
-        //             else:
-        //                 // case c
-        //                 if term2 is a subclass of term1 OR term2 == term1:
-        //                     -IC(term2)
-        //                 else:
-        //                     0.0
-        //
-        //         else:
-        //
-        //             if term2 is negated:
-        //
-        //                 // case b
-        //                 if term1 is a subclass of term2 OR term1 == term2:
-        //                     -IC(term1)
-        //                 else:
-        //                     0.0
-        //
-        //             else:
-        //                // case a
-        //                IC(mica(term1, term2))
-        //
-        //     if abs(ic from above) > max_ic then max_ic = ic from above
-
             let ic: f64 = if e1_term.negated {
                 if e2_term.negated {
                     // case d - both terms are negated
