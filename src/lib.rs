@@ -1383,7 +1383,6 @@ mod tests {
             5.6139085358
         ),
 
-        // TODO: add test when I've debugged test_negated_termset_pairwise_similarity_weighted_negated() below
         //
         // test negated terms
         //
