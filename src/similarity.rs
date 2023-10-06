@@ -101,7 +101,7 @@ pub fn calculate_weighted_term_pairwise_information_content(
             let ic: f64 = if *e1_negated {
                 if *e2_negated {
                     // case d - both terms are negated
-                    // return -(min IC of the two) if the terms are the same or one is a subclass of the other
+                    // return (min IC of the two) if the terms are the same or one is a subclass of the other
                     if e1_term == e2_term ||
                         get_ancestors_of_term(e1_term, closure_map, predicates).contains(e2_term) ||
                         get_ancestors_of_term(e2_term, closure_map, predicates).contains(e1_term) {
