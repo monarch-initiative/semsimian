@@ -1021,6 +1021,7 @@ mod tests {
         collections::HashSet,
         io::{BufRead, BufReader},
     };
+    use crate::similarity::get_ic_of_term;
 
     #[test]
     fn test_object_creation() {
@@ -1333,6 +1334,7 @@ mod tests {
         // GO:0005634 <-> GO:0005773 = 5.112700132749362
         // GO:0016020 <-> GO:0031965 = 4.8496657269155685
         // GO:0016020 <-> GO:0005773 = 2.264703226194412
+        // GO:0005773 <-> GO:0005773 = 7.4346282276367246
 
         // the label for GO:0005634 is "nucleus"
         // the label for GO:0016020 is "membrane"
@@ -1376,24 +1378,38 @@ mod tests {
         ),
 
         // TODO: add test when I've debugged test_negated_termset_pairwise_similarity_weighted_negated() below
-        // (debugger doesn't work in parameterized tests)
+        //
         // test negated terms
         //
-        // the label for GO:0005634 is "nucleus"
-        // the label for GO:0016020 is "membrane"
-        // the label for GO:0031965 is "nuclear membrane"
-        // the label for GO:0005773 is "vacuole"
 
-        // test negated term in termset1 that matches a term in termset2
-        // case(
-        //     Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
-        //                ("GO:0016020".to_string(), 1.0, false),      // membrane
-        //                ("GO:0005773".to_string(), 1.0, true)]),     // vacuole
-        //     Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
-        //                ("GO:0005773".to_string(), 1.0, false)]),    // vacuole
-        //     5.6139085358
-        // ),
+        // test negated term in termset1 that exactly matches a term in termset2
+        case(
+            Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
+                       ("GO:0016020".to_string(), 1.0, false),      // membrane
+                       ("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
+                       ("GO:0005773".to_string(), 1.0, false)]),    // vacuole
+            // termset 1 -> 2 = (5.8496657269155685 * 1 +
+            //                   4.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 3 = 1.0882344087
+            // termset 2 -> 1 = (5.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 2 = -0.79248125036
+            // average of termset 1 -> 2 and termset 2 -> 1 = (1.0882344087 + -0.79248125036)/ 2 = 0.14787657917
+            0.14787657917
+        ),
 
+        // test that minimum is 0 (not a negative IC)
+        case(
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0005773".to_string(), 1.0, false)]),    // vacuole
+            // termset 1 -> 2 = (5.8496657269155685 * 1 +
+            //                   4.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 3 = 1.0882344087
+            // termset 2 -> 1 = (5.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 2 = -0.79248125036
+            // average of termset 1 -> 2 and termset 2 -> 1 = (1.0882344087 + -0.79248125036)/ 2 = 0.14787657917
+            0.0
+        ),
     )]
     fn test_termset_pairwise_similarity_weighted_negated(
         subject_dat: Vec<(TermID, f64, bool)>,
@@ -1430,7 +1446,7 @@ mod tests {
         let object_dat: Vec<(TermID, f64, bool)> =
             Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
                        ("GO:0005773".to_string(), 1.0, false)]);    // vacuole
-        let expected_tsps: f64 = 5.6139085358;
+        let expected_tsps: f64 = 0.14787657917;
 
 
         let epsilon = 0.0001; // tolerance for floating point comparisons
@@ -1442,6 +1458,10 @@ mod tests {
         ]);
         let mut rss = RustSemsimian::new(None, predicates, None, db);
         rss.update_closure_and_ic_map();
+
+        let GO_0005773_ic: f64 = get_ic_of_term("GO:0005773", &rss.ic_map, &Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string()]));
 
         let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat);
         // assert approximately equal
