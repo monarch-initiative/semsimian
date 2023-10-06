@@ -94,16 +94,17 @@ pub fn calculate_weighted_term_pairwise_information_content(
 ) -> f64 {
     let sum_of_weights_entity1: f64 = entity1.iter().map(|(_, weight, _)| weight).sum();
 
-    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, negated)| {
+    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, e1_negated)| {
         // algorithm for negated phenotypes
         // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
-        let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, _)| {
-            let ic: f64 = if e1_term.negated {
-                if e2_term.negated {
+        let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, e2_weight, e2_negated)| {
+            let ic: f64 = if e1_negated {
+                if e2_negated {
                     // case d - both terms are negated
                     // return -(min IC of the two) if the terms are the same or one is a subclass of the other
                     if e1_term.term == e2_term.term || e1_term.ancestors.contains(e2_term.term) || e2_term.ancestors.contains(e1_term.term) {
-                        -f64::min(e1_term.ic, e2_term.ic)
+                        -f64::min(get_ic_of_term(e1_term, ic_map, predicates),
+                                    get_ic_of_term(e2_term, ic_map, predicates))
                     } else {  // otherwise, return 0
                         0.0
                     }
@@ -111,17 +112,17 @@ pub fn calculate_weighted_term_pairwise_information_content(
                     // case c - only term1 is negated
                     // return -IC of term2 if term2 is a subclass of term1 or term2 is the same as term1
                     if e2_term.ancestors.contains(e1_term.term) || e2_term.term == e1_term.term {
-                        -e2_term.ic
+                        -get_ic_of_term(e2_term, ic_map, predicates)
                     } else {
                         0.0
                     }
                 }
             } else {
-                if e2_term.negated {
+                if e2_negated {
                     // case b - only term2 is negated
                     // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
                     if e1_term.ancestors.contains(e2_term.term) || e1_term.term == e2_term.term {
-                        -e1_term.ic
+                        -get_ic_of_term(e1_term, ic_map, predicates)
                     } else {
                         0.0
                     }
@@ -145,6 +146,20 @@ pub fn calculate_weighted_term_pairwise_information_content(
     });
 
     entity1_to_entity2_sum_resnik_sim / sum_of_weights_entity1
+}
+
+pub fn get_ic_of_term(
+    entity1: &str,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    predicates: &Option<Vec<Predicate>>,
+) -> f64 {
+    // get IC of a single term
+    let predicate_set_key = predicate_set_to_key(predicates);
+    let ic: f64 = ic_map.get(&predicate_set_key)
+        .and_then(|ic_map| ic_map.get(entity1))
+        .copied()
+        .unwrap();
+    ic
 }
 
 pub fn calculate_average_termset_information_content(
