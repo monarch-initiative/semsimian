@@ -492,20 +492,12 @@ impl RustSemsimian {
         //        subject_dat: tuples of terms for termset 1 (term_id, weight, negated)
         //        object_dat: tuples of terms for termset 2 (term_id, weight, negated)
 
-        let subject_terms = subject_dat.iter().map(|(term, _, _)| term.clone()).collect::<HashSet<TermID>>();
-        let object_terms = object_dat.iter().map(|(term, _, _)| term.clone()).collect::<HashSet<TermID>>();
-
-        let all_by_all: SimilarityMap;
-        let all_by_all_object_perspective: SimilarityMap;
-        (all_by_all, all_by_all_object_perspective) = self.get_both_all_by_all_objects(&subject_terms, &object_terms);
-
         // return self.termset_comparison(&subject_terms, &object_terms).unwrap();
         let subject_to_object_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
             &self,
             &subject_dat,
             &object_dat
         );
-
 
         let object_to_subject_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
             &self,
@@ -591,7 +583,7 @@ impl RustSemsimian {
             } else {
                 flatten_result.len()
             };
-            
+
 
             // Declare a variable to hold the cutoff score
             let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
@@ -661,7 +653,7 @@ impl RustSemsimian {
                 get_prefix_association_key(prefixes, object_closure_predicates, search_type)
             })
             .unwrap_or_else(String::new);
-        
+
         if self.prefix_expansion_cache.contains_key(&cache_key) {
             println!("Using cache! {:?}", cache_key);
         }
@@ -1627,7 +1619,6 @@ mod tests {
         // assert_eq!({ result.len() }, limit.unwrap());
         //result is a Vec<(f64, obj, String)> I want the count of tuples in the vector that has the f64 value as the first one
         // dbg!(&result.iter().map(|(score, _, _)| score).collect::<Vec<_>>());
-        let foo = rss.deep_size_of();
         let unique_scores: HashSet<_> =
             result.iter().map(|(score, _, _)| score.to_bits()).collect();
         let count = unique_scores.len();
