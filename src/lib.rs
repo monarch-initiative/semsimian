@@ -494,10 +494,10 @@ impl RustSemsimian {
 
         // return self.termset_comparison(&subject_terms, &object_terms).unwrap();
         let subject_to_object_average_resnik_sim: f64 =
-            calculate_weighted_term_pairwise_information_content(&self, &subject_dat, &object_dat);
+            calculate_weighted_term_pairwise_information_content(self, subject_dat, object_dat);
 
         let object_to_subject_average_resnik_sim: f64 =
-            calculate_weighted_term_pairwise_information_content(&self, &object_dat, &subject_dat);
+            calculate_weighted_term_pairwise_information_content(self, object_dat, subject_dat);
 
         let sim =
             (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0;
@@ -940,9 +940,9 @@ impl Semsimian {
         object_dat: Vec<(TermID, f64, bool)>,
     ) -> PyResult<f64> {
         self.ss.update_closure_and_ic_map();
-        return Ok(self
+        Ok(self
             .ss
-            .termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat));
+            .termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat))
     }
 
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
@@ -1447,7 +1447,7 @@ mod tests {
             Vec::from([("GO:0005773".to_string(), 1.0, true)]),     // vacuole
             Vec::from([("GO:0005773".to_string(), 1.0, true)]),    // vacuole
             // GO:0005773 <-> GO:0005773 = 7.4346282276367246
-            7.4346282276367246
+            7.434_628_227_636_725
         ),
 
         // test that minimum is 0 (not a negative IC)

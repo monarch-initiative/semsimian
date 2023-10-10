@@ -86,8 +86,8 @@ pub fn calculate_term_pairwise_information_content(
 
 pub fn calculate_weighted_term_pairwise_information_content(
     rss: &RustSemsimian,
-    entity1: &Vec<(TermID, f64, bool)>,
-    entity2: &Vec<(TermID, f64, bool)>,
+    entity1: &[(TermID, f64, bool)],
+    entity2: &[(TermID, f64, bool)],
 ) -> f64 {
     let sum_of_weights_entity1: f64 = entity1.iter().map(|(_, weight, _)| weight).sum();
 
@@ -142,34 +142,32 @@ pub fn calculate_weighted_term_pairwise_information_content(
                                     0.0
                                 }
                             }
-                        } else {
-                            if *e2_negated {
-                                // case b - only term2 is negated
-                                // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
-                                if e1_term == e2_term
-                                    || get_ancestors_of_term(
-                                        e1_term,
-                                        &rss.closure_map,
-                                        &rss.predicates,
-                                    )
-                                    .contains(e2_term)
-                                {
-                                    -get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates)
-                                } else {
-                                    0.0
-                                }
-                            } else {
-                                // case a - neither term is negated, so standard term similarity
-                                // return IC of the most informative common ancestor
-                                let (_, ic) = calculate_max_information_content(
+                        } else if *e2_negated {
+                            // case b - only term2 is negated
+                            // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
+                            if e1_term == e2_term
+                                || get_ancestors_of_term(
+                                    e1_term,
                                     &rss.closure_map,
-                                    &rss.ic_map,
-                                    &e1_term,
-                                    &e2_term,
                                     &rss.predicates,
-                                );
-                                ic
+                                )
+                                .contains(e2_term)
+                            {
+                                -get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates)
+                            } else {
+                                0.0
                             }
+                        } else {
+                            // case a - neither term is negated, so standard term similarity
+                            // return IC of the most informative common ancestor
+                            let (_, ic) = calculate_max_information_content(
+                                &rss.closure_map,
+                                &rss.ic_map,
+                                e1_term,
+                                e2_term,
+                                &rss.predicates,
+                            );
+                            ic
                         };
 
                         if f64::abs(ic) > f64::abs(max_ic) {
