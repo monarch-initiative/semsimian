@@ -1,4 +1,3 @@
-use std::alloc::dealloc;
 use crate::Predicate;
 use crate::PredicateSetKey;
 use crate::RustSemsimian;

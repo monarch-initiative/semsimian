@@ -37,7 +37,6 @@ use utils::{
 
 use db_query::get_labels;
 use lazy_static::lazy_static;
-use rusqlite::Statement;
 use termset_pairwise_similarity::TermsetPairwiseSimilarity;
 use crate::similarity::calculate_weighted_term_pairwise_information_content;
 
@@ -384,12 +383,12 @@ impl RustSemsimian {
         ))
     }
 
-    pub fn termset_pairwise_similarity(
+    fn get_both_all_by_all_objects(
         &self,
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
-    ) -> TermsetPairwiseSimilarity {
-        let metric = "ancestor_information_content";
+    ) -> (SimilarityMap, SimilarityMap) {
+
         let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
 
@@ -403,6 +402,18 @@ impl RustSemsimian {
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
+        (all_by_all, all_by_all_object_perspective)
+    }
+
+    pub fn termset_pairwise_similarity(
+        &self,
+        subject_terms: &HashSet<TermID>,
+        object_terms: &HashSet<TermID>,
+    ) -> TermsetPairwiseSimilarity {
+        let metric = "ancestor_information_content";
+        let all_by_all: SimilarityMap;
+        let all_by_all_object_perspective: SimilarityMap;
+        (all_by_all, all_by_all_object_perspective) = self.get_both_all_by_all_objects(subject_terms, object_terms);
         let db_path = RESOURCE_PATH.lock().unwrap();
         let all_terms: HashSet<String> = subject_terms
             .iter()
@@ -1083,7 +1094,6 @@ mod tests {
         collections::HashSet,
         io::{BufRead, BufReader},
     };
-    use crate::similarity::get_ic_of_term;
 
     #[test]
     fn test_object_creation() {
