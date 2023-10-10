@@ -495,35 +495,22 @@ impl RustSemsimian {
         let subject_terms = subject_dat.iter().map(|(term, _, _)| term.clone()).collect::<HashSet<TermID>>();
         let object_terms = object_dat.iter().map(|(term, _, _)| term.clone()).collect::<HashSet<TermID>>();
 
-        let all_by_all: SimilarityMap =
-            self.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &None, &None);
+        let all_by_all: SimilarityMap;
+        let all_by_all_object_perspective: SimilarityMap;
+        (all_by_all, all_by_all_object_perspective) = self.get_both_all_by_all_objects(&subject_terms, &object_terms);
 
-        let mut all_by_all_object_perspective: SimilarityMap =
-            HashMap::with_capacity(all_by_all.len());
-        for (key1, value1) in all_by_all.iter() {
-            for (key2, value2) in value1.iter() {
-                all_by_all_object_perspective
-                    .entry(key2.to_owned())
-                    .or_insert_with(HashMap::new)
-                    .insert(key1.to_owned(), value2.to_owned());
-            }
-        }
         // return self.termset_comparison(&subject_terms, &object_terms).unwrap();
         let subject_to_object_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
-            &self.closure_map,
-            &self.ic_map,
+            &self,
             &subject_dat,
-            &object_dat,
-            &self.predicates,
+            &object_dat
         );
 
 
         let object_to_subject_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
-            &self.closure_map,
-            &self.ic_map,
+            &self,
             &object_dat,
             &subject_dat,
-            &self.predicates,
         );
 
         let sim = (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0;

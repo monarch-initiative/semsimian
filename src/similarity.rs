@@ -85,11 +85,9 @@ pub fn calculate_term_pairwise_information_content(
 }
 
 pub fn calculate_weighted_term_pairwise_information_content(
-    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    rss: &RustSemsimian,
     entity1: &Vec<(TermID, f64, bool)>,
     entity2: &Vec<(TermID, f64, bool)>,
-    predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
     let sum_of_weights_entity1: f64 = entity1.iter().map(|(_, weight, _)| weight).sum();
 
@@ -102,10 +100,10 @@ pub fn calculate_weighted_term_pairwise_information_content(
                     // case d - both terms are negated
                     // return (min IC of the two) if the terms are the same or one is a subclass of the other
                     if e1_term == e2_term ||
-                        get_ancestors_of_term(e1_term, closure_map, predicates).contains(e2_term) ||
-                        get_ancestors_of_term(e2_term, closure_map, predicates).contains(e1_term) {
-                        f64::min(get_ic_of_term(e1_term, ic_map, predicates),
-                                 get_ic_of_term(e2_term, ic_map, predicates))
+                        get_ancestors_of_term(e1_term, &rss.closure_map, &rss.predicates).contains(e2_term) ||
+                        get_ancestors_of_term(e2_term, &rss.closure_map, &rss.predicates).contains(e1_term) {
+                        f64::min(get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates),
+                                 get_ic_of_term(e2_term, &rss.ic_map, &rss.predicates))
                     } else {  // otherwise, return 0
                         0.0
                     }
@@ -113,8 +111,8 @@ pub fn calculate_weighted_term_pairwise_information_content(
                     // case c - only term1 is negated
                     // return -IC of term2 if term2 is a subclass of term1 or term2 is the same as term1
                     if e2_term == e1_term ||
-                        get_ancestors_of_term(e2_term, closure_map, predicates).contains(e1_term) {
-                        -get_ic_of_term(e2_term, ic_map, predicates)
+                        get_ancestors_of_term(e2_term, &rss.closure_map, &rss.predicates).contains(e1_term) {
+                        -get_ic_of_term(e2_term, &rss.ic_map, &rss.predicates)
                     } else {
                         0.0
                     }
@@ -124,8 +122,8 @@ pub fn calculate_weighted_term_pairwise_information_content(
                     // case b - only term2 is negated
                     // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
                     if e1_term == e2_term ||
-                        get_ancestors_of_term(e1_term, closure_map, predicates).contains(e2_term) {
-                        -get_ic_of_term(e1_term, ic_map, predicates)
+                        get_ancestors_of_term(e1_term, &rss.closure_map, &rss.predicates).contains(e2_term) {
+                        -get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates)
                     } else {
                         0.0
                     }
@@ -133,11 +131,11 @@ pub fn calculate_weighted_term_pairwise_information_content(
                     // case a - neither term is negated, so standard term similarity
                     // return IC of the most informative common ancestor
                     let (_, ic) = calculate_max_information_content(
-                        closure_map,
-                        ic_map,
+                        &rss.closure_map,
+                        &rss.ic_map,
                         &e1_term,
                         &e2_term,
-                        predicates,
+                        &rss.predicates,
                     );
                     ic
                 }
