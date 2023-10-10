@@ -1,6 +1,6 @@
+use deepsize::DeepSizeOf;
 #[cfg(test)]
 use rstest::rstest;
-use deepsize::DeepSizeOf;
 
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use enums::SearchTypeEnum;
@@ -35,10 +35,10 @@ use utils::{
     rearrange_columns_and_rewrite, sort_with_jaccard_as_tie_breaker,
 };
 
+use crate::similarity::calculate_weighted_term_pairwise_information_content;
 use db_query::get_labels;
 use lazy_static::lazy_static;
 use termset_pairwise_similarity::TermsetPairwiseSimilarity;
-use crate::similarity::calculate_weighted_term_pairwise_information_content;
 
 use crate::utils::get_best_score;
 
@@ -337,7 +337,7 @@ impl RustSemsimian {
 
                     if minimum_jaccard_threshold.map_or(true, |t| jaccard_similarity > t)
                         && minimum_resnik_threshold
-                        .map_or(true, |t| ancestor_information_content > t)
+                            .map_or(true, |t| ancestor_information_content > t)
                     {
                         // Write the line to the TSV file
                         let mut output_bytes: Vec<u8> = output_map
@@ -388,7 +388,6 @@ impl RustSemsimian {
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
     ) -> (SimilarityMap, SimilarityMap) {
-
         let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
 
@@ -413,7 +412,8 @@ impl RustSemsimian {
         let metric = "ancestor_information_content";
         let all_by_all: SimilarityMap;
         let all_by_all_object_perspective: SimilarityMap;
-        (all_by_all, all_by_all_object_perspective) = self.get_both_all_by_all_similarity_maps(subject_terms, object_terms);
+        (all_by_all, all_by_all_object_perspective) =
+            self.get_both_all_by_all_similarity_maps(subject_terms, object_terms);
         let db_path = RESOURCE_PATH.lock().unwrap();
         let all_terms: HashSet<String> = subject_terms
             .iter()
@@ -493,23 +493,17 @@ impl RustSemsimian {
         //        object_dat: tuples of terms for termset 2 (term_id, weight, negated)
 
         // return self.termset_comparison(&subject_terms, &object_terms).unwrap();
-        let subject_to_object_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
-            &self,
-            &subject_dat,
-            &object_dat
-        );
+        let subject_to_object_average_resnik_sim: f64 =
+            calculate_weighted_term_pairwise_information_content(&self, &subject_dat, &object_dat);
 
-        let object_to_subject_average_resnik_sim: f64 = calculate_weighted_term_pairwise_information_content(
-            &self,
-            &object_dat,
-            &subject_dat,
-        );
+        let object_to_subject_average_resnik_sim: f64 =
+            calculate_weighted_term_pairwise_information_content(&self, &object_dat, &subject_dat);
 
-        let sim = (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0;
+        let sim =
+            (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0;
         if sim < 0.0 {
             0.0
-        }
-        else {
+        } else {
             sim
         }
     }
@@ -567,7 +561,6 @@ impl RustSemsimian {
         limit: &Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if let Some(flatten_result) = flatten_result {
-
             let mut top_percent = flatten_result.len() as f64; // Top percentage to be considered for the full search
             if let Some(limit) = limit {
                 top_percent = *limit as f64 / 1000.0; // Extract f64 items from flatten_result, sort in descending order and remove duplicates
@@ -583,7 +576,6 @@ impl RustSemsimian {
             } else {
                 flatten_result.len()
             };
-
 
             // Declare a variable to hold the cutoff score
             let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
@@ -681,7 +673,7 @@ impl RustSemsimian {
                     Some(&subject_vec),
                     Some(&assoc_predicate_terms_vec),
                 )
-                    .unwrap();
+                .unwrap();
 
                 match search_type {
                     SearchTypeEnum::Full => {
@@ -702,8 +694,8 @@ impl RustSemsimian {
                                     &self.closure_map,
                                     &self.predicates,
                                 )
-                                    .into_iter()
-                                    .collect::<HashSet<String>>();
+                                .into_iter()
+                                .collect::<HashSet<String>>();
                                 ancestors_set.extend(ancestors);
                             }
                             all_object_ancestors_for_subjects_map
@@ -945,10 +937,12 @@ impl Semsimian {
     fn termset_pairwise_similarity_weighted_negated(
         &mut self,
         subject_dat: Vec<(TermID, f64, bool)>,
-        object_dat: Vec<(TermID, f64, bool)>
-     ) -> PyResult<f64> {
+        object_dat: Vec<(TermID, f64, bool)>,
+    ) -> PyResult<f64> {
         self.ss.update_closure_and_ic_map();
-        return Ok(self.ss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat));
+        return Ok(self
+            .ss
+            .termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat));
     }
 
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
@@ -1472,7 +1466,7 @@ mod tests {
     fn test_termset_pairwise_similarity_weighted_negated(
         subject_dat: Vec<(TermID, f64, bool)>,
         object_dat: Vec<(TermID, f64, bool)>,
-        expected_tsps: f64
+        expected_tsps: f64,
     ) {
         let epsilon = 0.0001; // tolerance for floating point comparisons
         let db = Some("tests/data/go-nucleus.db");
@@ -1489,7 +1483,9 @@ mod tests {
         assert!(
             (tsps - expected_tsps).abs() <= epsilon,
             "Expected {} and actual {} tsps are not (approximately) equal- difference is {}",
-            expected_tsps, tsps, (tsps - expected_tsps).abs()
+            expected_tsps,
+            tsps,
+            (tsps - expected_tsps).abs()
         );
     }
 

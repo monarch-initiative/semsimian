@@ -91,64 +91,95 @@ pub fn calculate_weighted_term_pairwise_information_content(
 ) -> f64 {
     let sum_of_weights_entity1: f64 = entity1.iter().map(|(_, weight, _)| weight).sum();
 
-    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, (e1_term, e1_weight, e1_negated)| {
-        // algorithm for negated phenotypes
-        // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
-        let max_ic = entity2.iter().fold(0.0, |max_ic, (e2_term, _, e2_negated)| {
-            let ic: f64 = if *e1_negated {
-                if *e2_negated {
-                    // case d - both terms are negated
-                    // return (min IC of the two) if the terms are the same or one is a subclass of the other
-                    if e1_term == e2_term ||
-                        get_ancestors_of_term(e1_term, &rss.closure_map, &rss.predicates).contains(e2_term) ||
-                        get_ancestors_of_term(e2_term, &rss.closure_map, &rss.predicates).contains(e1_term) {
-                        f64::min(get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates),
-                                 get_ic_of_term(e2_term, &rss.ic_map, &rss.predicates))
-                    } else {  // otherwise, return 0
-                        0.0
-                    }
-                } else {
-                    // case c - only term1 is negated
-                    // return -IC of term2 if term2 is a subclass of term1 or term2 is the same as term1
-                    if e2_term == e1_term ||
-                        get_ancestors_of_term(e2_term, &rss.closure_map, &rss.predicates).contains(e1_term) {
-                        -get_ic_of_term(e2_term, &rss.ic_map, &rss.predicates)
-                    } else {
-                        0.0
-                    }
-                }
-            } else {
-                if *e2_negated {
-                    // case b - only term2 is negated
-                    // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
-                    if e1_term == e2_term ||
-                        get_ancestors_of_term(e1_term, &rss.closure_map, &rss.predicates).contains(e2_term) {
-                        -get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates)
-                    } else {
-                        0.0
-                    }
-                } else {
-                    // case a - neither term is negated, so standard term similarity
-                    // return IC of the most informative common ancestor
-                    let (_, ic) = calculate_max_information_content(
-                        &rss.closure_map,
-                        &rss.ic_map,
-                        &e1_term,
-                        &e2_term,
-                        &rss.predicates,
-                    );
-                    ic
-                }
-            };
+    let entity1_to_entity2_sum_resnik_sim =
+        entity1
+            .iter()
+            .fold(0.0, |sum, (e1_term, e1_weight, e1_negated)| {
+                // algorithm for negated phenotypes
+                // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
+                let max_ic = entity2
+                    .iter()
+                    .fold(0.0, |max_ic, (e2_term, _, e2_negated)| {
+                        let ic: f64 = if *e1_negated {
+                            if *e2_negated {
+                                // case d - both terms are negated
+                                // return (min IC of the two) if the terms are the same or one is a subclass of the other
+                                if e1_term == e2_term
+                                    || get_ancestors_of_term(
+                                        e1_term,
+                                        &rss.closure_map,
+                                        &rss.predicates,
+                                    )
+                                    .contains(e2_term)
+                                    || get_ancestors_of_term(
+                                        e2_term,
+                                        &rss.closure_map,
+                                        &rss.predicates,
+                                    )
+                                    .contains(e1_term)
+                                {
+                                    f64::min(
+                                        get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates),
+                                        get_ic_of_term(e2_term, &rss.ic_map, &rss.predicates),
+                                    )
+                                } else {
+                                    // otherwise, return 0
+                                    0.0
+                                }
+                            } else {
+                                // case c - only term1 is negated
+                                // return -IC of term2 if term2 is a subclass of term1 or term2 is the same as term1
+                                if e2_term == e1_term
+                                    || get_ancestors_of_term(
+                                        e2_term,
+                                        &rss.closure_map,
+                                        &rss.predicates,
+                                    )
+                                    .contains(e1_term)
+                                {
+                                    -get_ic_of_term(e2_term, &rss.ic_map, &rss.predicates)
+                                } else {
+                                    0.0
+                                }
+                            }
+                        } else {
+                            if *e2_negated {
+                                // case b - only term2 is negated
+                                // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
+                                if e1_term == e2_term
+                                    || get_ancestors_of_term(
+                                        e1_term,
+                                        &rss.closure_map,
+                                        &rss.predicates,
+                                    )
+                                    .contains(e2_term)
+                                {
+                                    -get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates)
+                                } else {
+                                    0.0
+                                }
+                            } else {
+                                // case a - neither term is negated, so standard term similarity
+                                // return IC of the most informative common ancestor
+                                let (_, ic) = calculate_max_information_content(
+                                    &rss.closure_map,
+                                    &rss.ic_map,
+                                    &e1_term,
+                                    &e2_term,
+                                    &rss.predicates,
+                                );
+                                ic
+                            }
+                        };
 
-            if f64::abs(ic) > f64::abs(max_ic) {
-                ic
-            } else {
-                max_ic
-            }
-        });
-        sum + (max_ic * e1_weight)
-    });
+                        if f64::abs(ic) > f64::abs(max_ic) {
+                            ic
+                        } else {
+                            max_ic
+                        }
+                    });
+                sum + (max_ic * e1_weight)
+            });
 
     entity1_to_entity2_sum_resnik_sim / sum_of_weights_entity1
 }
@@ -160,7 +191,8 @@ pub fn get_ic_of_term(
 ) -> f64 {
     // get IC of a single term
     let predicate_set_key = predicate_set_to_key(predicates);
-    let ic: f64 = ic_map.get(&predicate_set_key)
+    let ic: f64 = ic_map
+        .get(&predicate_set_key)
         .and_then(|ic_map| ic_map.get(entity))
         .copied()
         .unwrap();
@@ -174,7 +206,8 @@ pub fn get_ancestors_of_term(
 ) -> HashSet<TermID> {
     // get IC of a single term
     let predicate_set_key = predicate_set_to_key(predicates);
-    let ancestors: HashSet<TermID> = closure_map.get(&predicate_set_key)
+    let ancestors: HashSet<TermID> = closure_map
+        .get(&predicate_set_key)
         .and_then(|closure_map| closure_map.get(entity))
         .cloned()
         .unwrap();
