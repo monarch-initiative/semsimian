@@ -146,12 +146,8 @@ pub fn calculate_weighted_term_pairwise_information_content(
                             // case b - only term2 is negated
                             // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
                             if e1_term == e2_term
-                                || get_ancestors_of_term(
-                                    e1_term,
-                                    &rss.closure_map,
-                                    &rss.predicates,
-                                )
-                                .contains(e2_term)
+                                || get_ancestors_of_term(e1_term, &rss.closure_map, &rss.predicates)
+                                    .contains(e2_term)
                             {
                                 -get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates)
                             } else {
