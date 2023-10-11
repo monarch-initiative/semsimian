@@ -444,8 +444,8 @@ impl RustSemsimian {
 
     pub fn termset_pairwise_similarity_weighted_negated(
         &self,
-        subject_dat: &Vec<(TermID, f64, bool)>,
-        object_dat: &Vec<(TermID, f64, bool)>,
+        subject_dat: &[(TermID, f64, bool)],
+        object_dat: &[(TermID, f64, bool)],
     ) -> f64 {
         // Compares a set of subject terms to a set of object terms and returns the average pairwise
         // Resnik similarity (i.e. IC of most informative common ancestor) between the two sets.
