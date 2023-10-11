@@ -20,7 +20,7 @@ pub mod utils;
 
 use rayon::prelude::*;
 
-mod test_utils;
+mod test_constants;
 
 use std::fmt;
 
@@ -1049,8 +1049,8 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 mod tests {
 
     use super::*;
-    use crate::test_utils::test_constants::BFO_SPO;
-    use crate::{test_utils::test_constants::SPO_FRUITS, RustSemsimian};
+    use crate::test_constants::test_constants::BFO_SPO;
+    use crate::{test_constants::test_constants::SPO_FRUITS, RustSemsimian};
     use std::{
         collections::HashSet,
         io::{BufRead, BufReader},
@@ -1267,7 +1267,7 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_output() {
-        let output_columns = crate::test_utils::test_constants::OUTPUT_COLUMNS_VECTOR.clone();
+        let output_columns = crate::test_constants::test_constants::OUTPUT_COLUMNS_VECTOR.clone();
         let mut rss = RustSemsimian::new(
             Some(SPO_FRUITS.clone()),
             Some(vec!["related_to".to_string()]),
