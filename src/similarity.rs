@@ -584,9 +584,11 @@ mod tests {
         rss.update_closure_and_ic_map();
 
         // Test case 1: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let entity1: HashSet<TermID> =
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
 
-        let entity2: HashSet<TermID> = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
         let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
         let expected_value = 5.4154243283740175;
@@ -598,8 +600,11 @@ mod tests {
         dbg!(&tsps);
 
         // Test case 2: Normal case, entities have terms.
-        let entity1: HashSet<TermID> =
-            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string(), "GO:0005773".to_string()]);
+        let entity1: HashSet<TermID> = HashSet::from([
+            "GO:0005634".to_string(),
+            "GO:0016020".to_string(),
+            "GO:0005773".to_string(),
+        ]);
 
         let entity2: HashSet<TermID> =
             HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);

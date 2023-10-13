@@ -505,7 +505,6 @@ impl RustSemsimian {
             } else {
                 flatten_result.len()
             };
-            
 
             // Declare a variable to hold the cutoff score
             let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
@@ -575,7 +574,7 @@ impl RustSemsimian {
                 get_prefix_association_key(prefixes, object_closure_predicates, search_type)
             })
             .unwrap_or_else(String::new);
-        
+
         if self.prefix_expansion_cache.contains_key(&cache_key) {
             println!("Using cache! {:?}", cache_key);
         }
@@ -1745,35 +1744,45 @@ mod tests_local {
         inner_subject_matches_2.insert("match_source".to_string(), "GO:0005634".to_string());
         inner_subject_matches_2.insert("match_source_label".to_string(), "nucleus".to_string());
         inner_subject_matches_2.insert("match_target".to_string(), "GO:0031965".to_string());
-        inner_subject_matches_2.insert("match_target_label".to_string(), "nuclear membrane".to_string());
+        inner_subject_matches_2.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
         inner_subject_matches_2.insert("score".to_string(), "5.8496657269155685".to_string());
 
         inner_subject_matches_1.insert("match_source".to_string(), "GO:0016020".to_string());
         inner_subject_matches_1.insert("match_source_label".to_string(), "membrane".to_string());
         inner_subject_matches_1.insert("match_target".to_string(), "GO:0031965".to_string());
-        inner_subject_matches_1.insert("match_target_label".to_string(), "nuclear membrane".to_string());
+        inner_subject_matches_1.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
         inner_subject_matches_1.insert("score".to_string(), "4.8496657269155685".to_string());
 
         inner_object_matches_2.insert("match_source".to_string(), "GO:0031965".to_string());
-        inner_object_matches_2.insert("match_source_label".to_string(), "nuclear membrane".to_string());
+        inner_object_matches_2.insert(
+            "match_source_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
         inner_object_matches_2.insert("match_target".to_string(), "GO:0005634".to_string());
         inner_object_matches_2.insert("match_target_label".to_string(), "nucleus".to_string());
         inner_object_matches_2.insert("score".to_string(), "5.8496657269155685".to_string());
 
         inner_object_matches_1.insert("match_source".to_string(), "GO:0005773".to_string());
         inner_object_matches_1.insert("match_source_label".to_string(), "vacuole".to_string());
-        inner_object_matches_1.insert("match_target".to_string(),  "GO:0005634".to_string());
-        inner_object_matches_1.insert("match_target_label".to_string(), "nuclear membrane".to_string());
+        inner_object_matches_1.insert("match_target".to_string(), "GO:0005634".to_string());
+        inner_object_matches_1.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
         inner_object_matches_1.insert("score".to_string(), "5.112700132749362".to_string());
         // Insert some values into the BTreeMaps
-        
+
         subject_best_matches.insert("GO:0016020".to_string(), inner_subject_matches_1);
         subject_best_matches.insert("GO:0005634".to_string(), inner_subject_matches_2);
 
         object_best_matches.insert("GO:0031965".to_string(), inner_object_matches_1);
         object_best_matches.insert("GO:0005773".to_string(), inner_object_matches_2);
-        
-
 
         // Call the function with the test data
         let result = get_best_score(&subject_best_matches, &object_best_matches);
