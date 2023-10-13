@@ -584,27 +584,30 @@ mod tests {
         rss.update_closure_and_ic_map();
 
         // Test case 1: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = HashSet::from(["GO:0005634".to_string()]);
+        let entity1: HashSet<TermID> = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
 
-        let entity2: HashSet<TermID> = HashSet::from(["GO:0031965".to_string()]);
+        let entity2: HashSet<TermID> = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
-        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
-        let expected_value = 5.8496657269155685;
+        let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 5.4154243283740175;
 
-        println!("Case X pheno_score: {phenio_score}");
-        assert_eq!(phenio_score, expected_value);
+        println!("Case X pheno_score: {avg_ic_score}");
+        assert_eq!(avg_ic_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
+        dbg!(&tsps);
 
         // Test case 2: Normal case, entities have terms.
         let entity1: HashSet<TermID> =
-            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string(), "GO:0005773".to_string()]);
 
         let entity2: HashSet<TermID> =
             HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
-        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
-        let expected_value = 5.4154243283740175;
+        let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 6.34340010221605;
 
-        println!("Case 3 pheno_score: {phenio_score}");
-        assert_eq!(phenio_score, expected_value);
+        println!("Case 3 pheno_score: {avg_ic_score}");
+        assert_eq!(avg_ic_score, expected_value);
     }
 }
