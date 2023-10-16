@@ -156,7 +156,7 @@ class testSemsimianWithPython(unittest.TestCase):
             limit,
         )
         self.assertEqual(len(result), limit)
-    
+
     def test_association_hybrid_search(self):
         subject_prefixes = ["GO:"]
         object_terms = {"GO:0019222"}
@@ -280,6 +280,12 @@ class testSemsimianWithPython(unittest.TestCase):
         print(f"Second compare time: {interval_2} sec")
         self.assertTrue(interval_1 - interval_2 >= 0)
         self.assertEqual(len(search_1), len(search_2))
+
+    def test_termset_pairwise_similarity_weighted_negated_method_exists(self):
+        # assert method exists
+        self.assertTrue(
+            hasattr(self.semsimian, "termset_pairwise_similarity_weighted_negated"))
+        pass
 
 
 if __name__ == "__main__":
