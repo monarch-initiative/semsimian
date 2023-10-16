@@ -1,3 +1,7 @@
+use deepsize::DeepSizeOf;
+#[cfg(test)]
+use rstest::rstest;
+
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use enums::SearchTypeEnum;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
@@ -16,7 +20,7 @@ pub mod utils;
 
 use rayon::prelude::*;
 
-mod test_utils;
+mod test_constants;
 
 use std::fmt;
 
@@ -31,6 +35,7 @@ use utils::{
     rearrange_columns_and_rewrite, sort_with_jaccard_as_tie_breaker,
 };
 
+use crate::similarity::calculate_weighted_term_pairwise_information_content;
 use db_query::get_labels;
 use lazy_static::lazy_static;
 use termset_pairwise_similarity::TermsetPairwiseSimilarity;
@@ -56,7 +61,7 @@ lazy_static! {
     static ref RESOURCE_PATH: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 }
 
-#[derive(Clone)]
+#[derive(Clone, DeepSizeOf)]
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
     predicates: Option<Vec<Predicate>>,
@@ -435,6 +440,60 @@ impl RustSemsimian {
             best_score,
             metric.to_string(),
         )
+    }
+
+    pub fn termset_pairwise_similarity_weighted_negated(
+        &self,
+        subject_dat: &[(TermID, f64, bool)],
+        object_dat: &[(TermID, f64, bool)],
+    ) -> f64 {
+        // Compares a set of subject terms to a set of object terms and returns the average pairwise
+        // Resnik similarity (i.e. IC of most informative common ancestor) between the two sets.
+        //
+        // This function is similar to termset_pairwise_similarity, but it accepts weights for each term,
+        // such that the similarity score is weighted by the term's weight. Also this current function
+        // returns only the average pairwise similarity score, rather than the full
+        // TermsetPairwiseSimilarity object.
+        //
+        // Also, this function accepts a set of negated terms, which are terms that have been excluded
+        // by the clinician.
+        //
+        // This is used for example in N3C work, in which we have a Spark DF of "profiles":
+        // profile_id  term_id  weight  negated
+        // 1           HP:1234  0.5     false
+        // 1           HP:5678  0.2     false
+        // 1           HP:9012  0.3     true
+        // 2           HP:6789  0.3     false
+        // 2           HP:3456  0.7     false
+        // ...
+        //
+        // and a Spark DF of Patient phenotypes:
+        // patient_id  term_id  negated
+        // 1           HP:1234  false
+        // 1           HP:5678  false
+        // 1           HP:9012  false
+        // 2           HP:6789  false
+        // 2           HP:3456  true
+        // ...
+        //
+        // # Arguments
+        //        subject_dat: tuples of terms for termset 1 (term_id, weight, negated)
+        //        object_dat: tuples of terms for termset 2 (term_id, weight, negated)
+
+        // return self.termset_comparison(&subject_terms, &object_terms).unwrap();
+        let subject_to_object_average_resnik_sim: f64 =
+            calculate_weighted_term_pairwise_information_content(self, subject_dat, object_dat);
+
+        let object_to_subject_average_resnik_sim: f64 =
+            calculate_weighted_term_pairwise_information_content(self, object_dat, subject_dat);
+
+        let sim =
+            (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0;
+        if sim < 0.0 {
+            0.0
+        } else {
+            sim
+        }
     }
 
     // This function takes a set of objects and an expanded subject map as input.
@@ -863,6 +922,17 @@ impl Semsimian {
         Ok(tsps.into_py(py))
     }
 
+    fn termset_pairwise_similarity_weighted_negated(
+        &mut self,
+        subject_dat: Vec<(TermID, f64, bool)>,
+        object_dat: Vec<(TermID, f64, bool)>,
+    ) -> PyResult<f64> {
+        self.ss.update_closure_and_ic_map();
+        Ok(self
+            .ss
+            .termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat))
+    }
+
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
         Ok(self.ss.spo.to_vec())
     }
@@ -979,8 +1049,8 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 mod tests {
 
     use super::*;
-    use crate::test_utils::test_constants::BFO_SPO;
-    use crate::{test_utils::test_constants::SPO_FRUITS, RustSemsimian};
+    use crate::test_constants::test_constants::BFO_SPO;
+    use crate::{test_constants::test_constants::SPO_FRUITS, RustSemsimian};
     use std::{
         collections::HashSet,
         io::{BufRead, BufReader},
@@ -1197,7 +1267,7 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_output() {
-        let output_columns = crate::test_utils::test_constants::OUTPUT_COLUMNS_VECTOR.clone();
+        let output_columns = crate::test_constants::test_constants::OUTPUT_COLUMNS_VECTOR.clone();
         let mut rss = RustSemsimian::new(
             Some(SPO_FRUITS.clone()),
             Some(vec!["related_to".to_string()]),
@@ -1287,6 +1357,124 @@ mod tests {
         let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms);
         assert_eq!(tsps.average_score, 5.4154243283740175);
         assert_eq!(tsps.best_score, 5.8496657269155685);
+    }
+
+    #[rstest(
+        subject_dat, object_dat, expected_tsps,
+
+        // in go-nucleus.db, these are the Resnik (max IC) scores for the following pairs:
+        // GO:0005634 <-> GO:0031965 = 5.8496657269155685
+        // GO:0005634 <-> GO:0005773 = 5.112700132749362
+        // GO:0016020 <-> GO:0031965 = 4.8496657269155685
+        // GO:0016020 <-> GO:0005773 = 2.264703226194412
+        // GO:0005773 <-> GO:0005773 = 7.4346282276367246
+
+        // the label for GO:0005634 is "nucleus"
+        // the label for GO:0016020 is "membrane"
+        // the label for GO:0031965 is "nuclear membrane"
+        // the label for GO:0005773 is "vacuole"
+
+        //
+        // test even weights, should be the same as unweighted
+        //
+        // termset 1 -> 2 = (5.8496657269155685 + 4.8496657269155685) / 2 = 5.3496657269155685
+        // termset 2 -> 1 = (5.8496657269155685 + 5.112700132749362) / 2 = 5.481182929832465
+        // average of termset 1 -> 2 and termset 2 -> 1 =
+        // (5.3496657269155685 + 5.481182929832465)/ 2 = 5.4154243283740175
+        case(
+            Vec::from([("GO:0005634".to_string(), 1.0, false),
+                       ("GO:0016020".to_string(), 1.0, false)]),
+            Vec::from([("GO:0031965".to_string(), 1.0, false),
+                       ("GO:0005773".to_string(), 1.0, false)]),
+            5.4154243283740175
+        ),
+        case(
+            Vec::from([("GO:0005634".to_string(), 0.5, false),
+                       ("GO:0016020".to_string(), 0.5, false)]),
+            Vec::from([("GO:0031965".to_string(), 0.5, false),
+                       ("GO:0005773".to_string(), 0.5, false)]),
+            5.4154243283740175
+        ),
+
+        //
+        // test uneven weights
+        //
+        // termset 1 -> 2 = (5.8496657269155685 * 0.50 + 4.8496657269155685 * 0.25) / (sum of weights, 0.75) = 5.5163323936
+        // termset 2 -> 1 = (5.8496657269155685 * 0.65 + 5.112700132749362 * 0.15) / (sum of weights, 0.80) = 5.711484678
+        // average of termset 1 -> 2 and termset 2 -> 1 = (5.5163323936 + 5.711484678)/ 2 = 5.6139085358
+        case(
+            Vec::from([("GO:0005634".to_string(), 0.50, false),
+                       ("GO:0016020".to_string(), 0.25, false)]),
+            Vec::from([("GO:0031965".to_string(), 0.65, false),
+                       ("GO:0005773".to_string(), 0.15, false)]),
+            5.6139085358
+        ),
+
+        //
+        // test negated terms
+        //
+
+        // test negated term in termset1 that exactly matches a term in termset2
+        case(
+            Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
+                       ("GO:0016020".to_string(), 1.0, false),      // membrane
+                       ("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
+                       ("GO:0005773".to_string(), 1.0, false)]),    // vacuole
+            // termset 1 -> 2 = (5.8496657269155685 * 1 +
+            //                   4.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 3 = 1.0882344087
+            // termset 2 -> 1 = (5.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 2 = -0.79248125036
+            // average of termset 1 -> 2 and termset 2 -> 1 = (1.0882344087 + -0.79248125036)/ 2 = 0.14787657917
+            0.14787657917
+        ),
+
+        // test matching two negated terms
+        case(
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),    // vacuole
+            // GO:0005773 <-> GO:0005773 = 7.4346282276367246
+            7.434_628_227_636_725
+        ),
+
+        // test that minimum is 0 (not a negative IC)
+        case(
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0005773".to_string(), 1.0, false)]),    // vacuole
+            // termset 1 -> 2 = (5.8496657269155685 * 1 +
+            //                   4.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 3 = 1.0882344087
+            // termset 2 -> 1 = (5.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 2 = -0.79248125036
+            // average of termset 1 -> 2 and termset 2 -> 1 = (1.0882344087 + -0.79248125036)/ 2 = 0.14787657917
+            0.0
+        ),
+    )]
+    fn test_termset_pairwise_similarity_weighted_negated(
+        subject_dat: Vec<(TermID, f64, bool)>,
+        object_dat: Vec<(TermID, f64, bool)>,
+        expected_tsps: f64,
+    ) {
+        let epsilon = 0.0001; // tolerance for floating point comparisons
+        let db = Some("tests/data/go-nucleus.db");
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.update_closure_and_ic_map();
+
+        let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat);
+        // assert approximately equal
+        assert!(
+            (tsps - expected_tsps).abs() <= epsilon,
+            "Expected {} and actual {} tsps are not (approximately) equal- difference is {}",
+            expected_tsps,
+            tsps,
+            (tsps - expected_tsps).abs()
+        );
     }
 
     #[test]

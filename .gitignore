@@ -6,3 +6,5 @@ tests/data/output/*.tsv
 flamegraph.svg
 notebooks/.ipynb_checkpoints/*
 src/pseudocode.rst
+.idea/
+venv/
