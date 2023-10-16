@@ -614,7 +614,7 @@ impl RustSemsimian {
             let similarity =
                 self.termset_pairwise_similarity(set_of_associated_objects, profile_entities);
 
-            result_vec.push((similarity.best_score, Some(similarity), subj.clone()));
+            result_vec.push((similarity.average_score, Some(similarity), subj.clone()));
         }
         result_vec
     }
@@ -1918,5 +1918,64 @@ mod tests_local {
             "Time taken for second termset_pairwise_similarity: {:?}",
             elapsed_time
         );
+    }
+
+    #[test]
+    fn test_get_best_score() {
+        let mut subject_best_matches = BTreeMap::new();
+        let mut inner_subject_matches_1 = BTreeMap::new();
+        let mut inner_subject_matches_2 = BTreeMap::new();
+        let mut object_best_matches = BTreeMap::new();
+        let mut inner_object_matches_1 = BTreeMap::new();
+        let mut inner_object_matches_2 = BTreeMap::new();
+
+        inner_subject_matches_2.insert("match_source".to_string(), "GO:0005634".to_string());
+        inner_subject_matches_2.insert("match_source_label".to_string(), "nucleus".to_string());
+        inner_subject_matches_2.insert("match_target".to_string(), "GO:0031965".to_string());
+        inner_subject_matches_2.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
+        inner_subject_matches_2.insert("score".to_string(), "5.8496657269155685".to_string());
+
+        inner_subject_matches_1.insert("match_source".to_string(), "GO:0016020".to_string());
+        inner_subject_matches_1.insert("match_source_label".to_string(), "membrane".to_string());
+        inner_subject_matches_1.insert("match_target".to_string(), "GO:0031965".to_string());
+        inner_subject_matches_1.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
+        inner_subject_matches_1.insert("score".to_string(), "4.8496657269155685".to_string());
+
+        inner_object_matches_2.insert("match_source".to_string(), "GO:0031965".to_string());
+        inner_object_matches_2.insert(
+            "match_source_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
+        inner_object_matches_2.insert("match_target".to_string(), "GO:0005634".to_string());
+        inner_object_matches_2.insert("match_target_label".to_string(), "nucleus".to_string());
+        inner_object_matches_2.insert("score".to_string(), "5.8496657269155685".to_string());
+
+        inner_object_matches_1.insert("match_source".to_string(), "GO:0005773".to_string());
+        inner_object_matches_1.insert("match_source_label".to_string(), "vacuole".to_string());
+        inner_object_matches_1.insert("match_target".to_string(), "GO:0005634".to_string());
+        inner_object_matches_1.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
+        inner_object_matches_1.insert("score".to_string(), "5.112700132749362".to_string());
+        // Insert some values into the BTreeMaps
+
+        subject_best_matches.insert("GO:0016020".to_string(), inner_subject_matches_1);
+        subject_best_matches.insert("GO:0005634".to_string(), inner_subject_matches_2);
+
+        object_best_matches.insert("GO:0031965".to_string(), inner_object_matches_1);
+        object_best_matches.insert("GO:0005773".to_string(), inner_object_matches_2);
+
+        // Call the function with the test data
+        let result = get_best_score(&subject_best_matches, &object_best_matches);
+
+        // Assert that the result is as expected
+        assert_eq!(result, 5.8496657269155685);
     }
 }
