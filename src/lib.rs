@@ -1573,7 +1573,7 @@ mod tests {
     }
 
     #[test]
-    fn test_associations_search() {
+    fn test_associations_search_limit_arg() {
         let db = Some("tests/data/go-nucleus.db");
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
