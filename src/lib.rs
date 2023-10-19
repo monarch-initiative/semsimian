@@ -11,6 +11,8 @@ use std::{
     io::{BufRead, BufReader, BufWriter, Write},
     sync::{Arc, Mutex, RwLock},
 };
+use indicatif::{ProgressBar, ProgressStyle};
+
 
 pub mod db_query;
 pub mod enums;
@@ -601,22 +603,44 @@ impl RustSemsimian {
             hashed_dual_sort(result)
         }
     }
+
     fn calculate_similarity_for_association_search(
         &mut self,
         associations: &HashMap<String, HashSet<String>>,
         profile_entities: &HashSet<String>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let mut result_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
+        let result_vec: Arc<Mutex<Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>> =
+            Arc::new(Mutex::new(Vec::new()));
 
-        // Iterate over each subject and its terms in the expanded_subject_top_percent_subset_map
-        for (subj, set_of_associated_objects) in associations {
-            // Calculate the similarity between the subject's terms and the object's terms
-            let similarity =
-                self.termset_pairwise_similarity(set_of_associated_objects, profile_entities);
+        let total_iterations = associations.len() as u64;
+        let progress_bar = Arc::new(Mutex::new(ProgressBar::new(total_iterations)));
 
-            result_vec.push((similarity.average_score, Some(similarity), subj.clone()));
-        }
-        result_vec
+        // stylize progress bar
+        progress_bar.lock().unwrap().set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+                .progress_chars("##-"),
+        );
+
+        associations
+            .par_iter()
+            .for_each(|(subj, set_of_associated_objects)| {
+                let similarity = self.termset_pairwise_similarity(set_of_associated_objects, profile_entities);
+
+                // Push the result into the shared result vector
+                let mut result_vec = result_vec.lock().unwrap();
+                result_vec.push((similarity.average_score, Some(similarity), subj.clone()));
+
+                let progress_bar = progress_bar.lock().unwrap();
+                progress_bar.inc(1);
+            });
+        progress_bar.lock().unwrap().finish();
+
+        // Extract the results from the shared result vector
+        Arc::try_unwrap(result_vec)
+            .unwrap_or_else(|_| panic!("Failed to unwrap result_vec"))
+            .into_inner()
+            .unwrap_or_else(|_| panic!("Failed to obtain inner result_vec"))
     }
 
     fn get_or_set_prefix_expansion_cache(
@@ -1608,6 +1632,50 @@ mod tests {
         let count = unique_scores.len();
         assert!(count <= limit.unwrap());
         // dbg!(&result);
+    }
+    // skip this test for github actions - this is for optimizing 'full' association_search()
+    #[ignore]
+    #[test]
+    fn test_associations_search_phenio_mondo() {
+        let db = Some("/Users/jtr4v/.data/oaklib/phenio.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
+        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from(["HP:0008132".to_string(),
+                                                               "HP:0000189".to_string(),
+                                                               "HP:0000275".to_string(),
+                                                               "HP:0000276".to_string(),
+                                                               "HP:0000278".to_string(),
+                                                               "HP:0000347".to_string(),
+                                                               "HP:0001371".to_string(),
+                                                               "HP:0000501".to_string(),
+                                                               "HP:0000541".to_string(),
+                                                               "HP:0000098".to_string()]);
+        let search_type: SearchTypeEnum = SearchTypeEnum::Full;
+        let limit: Option<usize> = Some(20);
+
+        // Call the function under test
+        let result = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type,
+            limit,
+        );
+        let unique_scores: HashSet<_> =
+            result.iter().map(|(score, _, _)| score.to_bits()).collect();
+        let count = unique_scores.len();
+        assert!(count <= limit.unwrap());
     }
 
     #[test]
