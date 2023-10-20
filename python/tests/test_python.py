@@ -235,10 +235,74 @@ class testSemsimianWithPython(unittest.TestCase):
         )
         self.assertEqual(len(result), limit)
 
-    @unittest.skip("Too long and local db file.")
+    # @unittest.skip("Too long and local db file.")
     def test_association_search_caching(self):
         subject_prefixes = ["MGI:"]
-        object_terms = {"MP:0003143"}
+        # object_terms = {"MP:0003143"}
+        # Test Ehlers-Danlos syndrome
+        object_terms = {
+                                    'HP:0100699',
+                                    'HP:0001388',
+                                    'HP:0001382',
+                                    'HP:0001065',
+                                    'HP:0001373',
+                                    'HP:0000977',
+                                    'HP:0002758',
+                                    'HP:0000974',
+                                    'HP:0001634',
+                                    'HP:0000023',
+                                    'HP:0000140',
+                                    'HP:0000144',
+                                    'HP:0000164',
+                                    'HP:0000168',
+                                    'HP:0000174',
+                                    'HP:0000212',
+                                    'HP:0000230',
+                                    'HP:0000286',
+                                    'HP:0000508',
+                                    'HP:0000563',
+                                    'HP:0000691',
+                                    'HP:0000716',
+                                    'HP:0000762',
+                                    'HP:0000963',
+                                    'HP:0000987',
+                                    'HP:0001063',
+                                    'HP:0001097',
+                                    'HP:0001376',
+                                    'HP:0001482',
+                                    'HP:0001537',
+                                    'HP:0001760',
+                                    'HP:0001763',
+                                    'HP:0002017',
+                                    'HP:0002019',
+                                    'HP:0002020',
+                                    'HP:0002024',
+                                    'HP:0002076',
+                                    'HP:0002104',
+                                    'HP:0002321',
+                                    'HP:0002360',
+                                    'HP:0002579',
+                                    'HP:0002645',
+                                    'HP:0002650',
+                                    'HP:0002797',
+                                    'HP:0002827',
+                                    'HP:0002829',
+                                    'HP:0003019',
+                                    'HP:0003042',
+                                    'HP:0003326',
+                                    'HP:0003401',
+                                    'HP:0004970',
+                                    'HP:0005293',
+                                    'HP:0005294',
+                                    'HP:0005692',
+                                    'HP:0010318',
+                                    'HP:0011675',
+                                    'HP:0012378',
+                                    'HP:0012732',
+                                    'HP:0100550',
+                                    'HP:0100645',
+                                    'HP:0100823'
+                                }
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
         assoc_predicate = {"biolink:has_phenotype"}
         db_path = os.path.expanduser("~/.data/oaklib/phenio.db")
@@ -288,5 +352,7 @@ class testSemsimianWithPython(unittest.TestCase):
         pass
 
 
+
 if __name__ == "__main__":
     unittest.main()
+
