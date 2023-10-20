@@ -11,7 +11,6 @@ use std::{
     io::{BufRead, BufReader, BufWriter, Write},
     sync::{Arc, Mutex, RwLock},
 };
-use indicatif::{ProgressBar, ProgressStyle};
 
 
 pub mod db_query;
@@ -609,38 +608,16 @@ impl RustSemsimian {
         associations: &HashMap<String, HashSet<String>>,
         profile_entities: &HashSet<String>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let result_vec: Arc<Mutex<Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>> =
-            Arc::new(Mutex::new(Vec::new()));
-
-        let total_iterations = associations.len() as u64;
-        let progress_bar = Arc::new(Mutex::new(ProgressBar::new(total_iterations)));
-
-        // stylize progress bar
-        progress_bar.lock().unwrap().set_style(
-            ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-                .progress_chars("##-"),
-        );
-
-        associations
-            .par_iter()
-            .for_each(|(subj, set_of_associated_objects)| {
-                let similarity = self.termset_pairwise_similarity(set_of_associated_objects, profile_entities);
-
-                // Push the result into the shared result vector
-                let mut result_vec = result_vec.lock().unwrap();
-                result_vec.push((similarity.average_score, Some(similarity), subj.clone()));
-
-                let progress_bar = progress_bar.lock().unwrap();
-                progress_bar.inc(1);
-            });
-        progress_bar.lock().unwrap().finish();
-
-        // Extract the results from the shared result vector
-        Arc::try_unwrap(result_vec)
-            .unwrap_or_else(|_| panic!("Failed to unwrap result_vec"))
-            .into_inner()
-            .unwrap_or_else(|_| panic!("Failed to obtain inner result_vec"))
+        let results_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = associations
+            .par_iter() // Parallel iterator
+            .map(|(key, hashset)| {
+                // Calculate similarity using termset_pairwise_similarity method
+                let similarity = self.termset_pairwise_similarity(hashset, profile_entities);
+                // Return the result tuple
+                (similarity.average_score, Some(similarity), key.clone())
+            })
+            .collect(); // Collect the results into a vector
+        results_vec
     }
 
     fn get_or_set_prefix_expansion_cache(
