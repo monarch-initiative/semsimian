@@ -1,4 +1,6 @@
 use deepsize::DeepSizeOf;
+use rayon::prelude::*;
+
 #[cfg(test)]
 use rstest::rstest;
 
@@ -18,8 +20,6 @@ pub mod enums;
 pub mod similarity;
 pub mod termset_pairwise_similarity;
 pub mod utils;
-
-use rayon::prelude::*;
 
 mod test_constants;
 
