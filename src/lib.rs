@@ -1268,7 +1268,8 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_output() {
-        let output_columns = crate::test_constants::constants_for_tests::OUTPUT_COLUMNS_VECTOR.clone();
+        let output_columns =
+            crate::test_constants::constants_for_tests::OUTPUT_COLUMNS_VECTOR.clone();
         let mut rss = RustSemsimian::new(
             Some(SPO_FRUITS.clone()),
             Some(vec!["related_to".to_string()]),
