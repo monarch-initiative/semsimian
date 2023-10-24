@@ -48,3 +48,7 @@ harness = false
 [[bench]]
 name = "association_hybrid_search_benchmark"
 harness = false
+
+[[bench]]
+name = "association_search_similarity_benchmark"
+harness = false
