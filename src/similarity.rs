@@ -354,7 +354,7 @@ fn calculate_cosine_similarity_for_embeddings(embed_1: &[f64], embed_2: &[f64]) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_constants::test_constants::*;
+    use crate::test_constants::constants_for_tests::*;
     use crate::utils::numericize_sets;
     use std::collections::{HashMap, HashSet};
 

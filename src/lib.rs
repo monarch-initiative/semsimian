@@ -1049,8 +1049,8 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 mod tests {
 
     use super::*;
-    use crate::test_constants::test_constants::BFO_SPO;
-    use crate::{test_constants::test_constants::SPO_FRUITS, RustSemsimian};
+    use crate::test_constants::constants_for_tests::BFO_SPO;
+    use crate::{test_constants::constants_for_tests::SPO_FRUITS, RustSemsimian};
     use std::path::PathBuf;
     use std::{
         collections::HashSet,
@@ -1268,7 +1268,7 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_output() {
-        let output_columns = crate::test_constants::test_constants::OUTPUT_COLUMNS_VECTOR.clone();
+        let output_columns = crate::test_constants::constants_for_tests::OUTPUT_COLUMNS_VECTOR.clone();
         let mut rss = RustSemsimian::new(
             Some(SPO_FRUITS.clone()),
             Some(vec!["related_to".to_string()]),

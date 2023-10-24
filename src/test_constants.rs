@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod test_constants {
+pub mod constants_for_tests {
     use crate::{Predicate, PredicateSetKey, TermID};
     use lazy_static::lazy_static;
     use std::collections::{HashMap, HashSet};
