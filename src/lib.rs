@@ -14,7 +14,6 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-
 pub mod db_query;
 pub mod enums;
 pub mod similarity;
@@ -1623,9 +1622,7 @@ mod tests {
         } else {
             panic!("Failed to get home directory");
         }
-        let db = Some(
-            db_path.to_str().expect("Failed to convert path to string"),
-        );
+        let db = Some(db_path.to_str().expect("Failed to convert path to string"));
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
@@ -1637,16 +1634,18 @@ mod tests {
 
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
-        let object_terms: HashSet<TermID> = HashSet::from(["HP:0008132".to_string(),
-                                                               "HP:0000189".to_string(),
-                                                               "HP:0000275".to_string(),
-                                                               "HP:0000276".to_string(),
-                                                               "HP:0000278".to_string(),
-                                                               "HP:0000347".to_string(),
-                                                               "HP:0001371".to_string(),
-                                                               "HP:0000501".to_string(),
-                                                               "HP:0000541".to_string(),
-                                                               "HP:0000098".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from([
+            "HP:0008132".to_string(),
+            "HP:0000189".to_string(),
+            "HP:0000275".to_string(),
+            "HP:0000276".to_string(),
+            "HP:0000278".to_string(),
+            "HP:0000347".to_string(),
+            "HP:0001371".to_string(),
+            "HP:0000501".to_string(),
+            "HP:0000541".to_string(),
+            "HP:0000098".to_string(),
+        ]);
         let search_type: SearchTypeEnum = SearchTypeEnum::Full;
         let limit: Option<usize> = Some(20);
 

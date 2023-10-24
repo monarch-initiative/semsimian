@@ -1,4 +1,4 @@
-use semsimian::{Predicate, RustSemsimian, TermID, enums::SearchTypeEnum};
+use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
 use std::{collections::HashSet, path::PathBuf};
 
 #[test]
@@ -22,19 +22,22 @@ fn test_calculate_similarity_for_association_search() {
     let mut rss = RustSemsimian::new(None, predicates, None, db);
 
     rss.update_closure_and_ic_map();
-    let object_closure_predicates: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
+    let object_closure_predicates: HashSet<TermID> =
+        HashSet::from(["biolink:has_phenotype".to_string()]);
     let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
 
-    let profile_entities: HashSet<TermID> = HashSet::from(["HP:0008132".to_string(),
-                                                        "HP:0000189".to_string(),
-                                                        "HP:0000275".to_string(),
-                                                        "HP:0000276".to_string(),
-                                                        "HP:0000278".to_string(),
-                                                        "HP:0000347".to_string(),
-                                                        "HP:0001371".to_string(),
-                                                        "HP:0000501".to_string(),
-                                                        "HP:0000541".to_string(),
-                                                        "HP:0000098".to_string()]);
+    let profile_entities: HashSet<TermID> = HashSet::from([
+        "HP:0008132".to_string(),
+        "HP:0000189".to_string(),
+        "HP:0000275".to_string(),
+        "HP:0000276".to_string(),
+        "HP:0000278".to_string(),
+        "HP:0000347".to_string(),
+        "HP:0001371".to_string(),
+        "HP:0000501".to_string(),
+        "HP:0000541".to_string(),
+        "HP:0000098".to_string(),
+    ]);
     let search_type: SearchTypeEnum = SearchTypeEnum::Full;
 
     let associations = rss.get_or_set_prefix_expansion_cache(
