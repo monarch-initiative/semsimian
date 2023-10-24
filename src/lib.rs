@@ -603,7 +603,7 @@ impl RustSemsimian {
         }
     }
 
-    fn calculate_similarity_for_association_search(
+    pub fn calculate_similarity_for_association_search(
         &mut self,
         associations: &HashMap<String, HashSet<String>>,
         profile_entities: &HashSet<String>,
@@ -620,7 +620,7 @@ impl RustSemsimian {
         results_vec
     }
 
-    fn get_or_set_prefix_expansion_cache(
+    pub fn get_or_set_prefix_expansion_cache(
         &mut self,
         object_closure_predicates: &HashSet<TermID>,
         subject_set: &Option<HashSet<TermID>>,
@@ -1052,6 +1052,7 @@ mod tests {
     use super::*;
     use crate::test_constants::test_constants::BFO_SPO;
     use crate::{test_constants::test_constants::SPO_FRUITS, RustSemsimian};
+    use std::path::PathBuf;
     use std::{
         collections::HashSet,
         io::{BufRead, BufReader},
@@ -1610,11 +1611,21 @@ mod tests {
         assert!(count <= limit.unwrap());
         // dbg!(&result);
     }
+
     // skip this test for github actions - this is for optimizing 'full' association_search()
     #[ignore]
     #[test]
     fn test_associations_search_phenio_mondo() {
-        let db = Some("/Users/jtr4v/.data/oaklib/phenio.db");
+        let mut db_path = PathBuf::new();
+        if let Some(home) = std::env::var_os("HOME") {
+            db_path.push(home);
+            db_path.push(".data/oaklib/phenio.db");
+        } else {
+            panic!("Failed to get home directory");
+        }
+        let db = Some(
+            db_path.to_str().expect("Failed to convert path to string"),
+        );
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
