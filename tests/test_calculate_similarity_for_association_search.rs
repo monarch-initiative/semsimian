@@ -47,8 +47,10 @@ fn test_calculate_similarity_for_association_search() {
         &search_type,
     );
 
+    let include_similarity_object = false;
+
     // Call the method with the test data
-    let result = rss.calculate_similarity_for_association_search(&associations, &profile_entities);
+    let result = rss.calculate_similarity_for_association_search(&associations, &profile_entities, include_similarity_object);
     dbg!(&result.len());
     let expected_len = 10187;
 

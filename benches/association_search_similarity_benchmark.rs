@@ -41,6 +41,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         "HP:0000098".to_string(),
     ]));
     let search_type: SearchTypeEnum = SearchTypeEnum::Full;
+    let include_similarity_object = false;
 
     let associations = rss.get_or_set_prefix_expansion_cache(
         &assoc_predicate,
@@ -53,7 +54,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     bench_grp.sample_size(10);
     // .measurement_time(Duration::from_secs(300));
     bench_grp.bench_function("search_similarity", move |b| {
-        b.iter(|| rss.calculate_similarity_for_association_search(&associations, &object_terms))
+        b.iter(|| rss.calculate_similarity_for_association_search(&associations, &object_terms, include_similarity_object))
     });
     bench_grp.finish();
 }

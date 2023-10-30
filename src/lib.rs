@@ -430,16 +430,25 @@ impl RustSemsimian {
         let best_score = get_best_score(&subject_best_matches, &object_best_matches);
 
         TermsetPairwiseSimilarity::new(
-            subject_termset,
-            subject_best_matches,
-            subject_best_matches_similarity_map,
-            object_termset,
-            object_best_matches,
-            object_best_matches_similarity_map,
-            *average_termset_information_content,
-            best_score,
-            metric.to_string(),
-        )
+                    subject_termset,
+                    subject_best_matches,
+                    subject_best_matches_similarity_map,
+                    object_termset,
+                    object_best_matches,
+                    object_best_matches_similarity_map,
+                    *average_termset_information_content,
+                    best_score,
+                    metric.to_string(),
+                )
+    }
+
+    pub fn termset_pairwise_similarity_minimal(
+        &self,
+        subject_terms: &HashSet<TermID>,
+        object_terms: &HashSet<TermID>,
+    ) -> f64 {
+        let similarity = self.termset_pairwise_similarity(subject_terms, object_terms);
+        get_best_score(&similarity.subject_best_matches, &similarity.object_best_matches)
     }
 
     pub fn termset_pairwise_similarity_weighted_negated(
@@ -503,6 +512,7 @@ impl RustSemsimian {
         &self,
         profile_entities: &HashSet<String>,
         all_object_ancestors_for_subjects_map: &HashMap<TermID, HashSet<TermID>>,
+        _include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         // Create a new HashSet to store the expanded objects
         let mut set_of_profile_ancestors: HashSet<String> = HashSet::new();
@@ -547,6 +557,7 @@ impl RustSemsimian {
         all_associated_objects_for_subjects: &HashMap<TermID, HashSet<TermID>>,
         flatten_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
         limit: &Option<usize>,
+        include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if let Some(flatten_result) = flatten_result {
             let mut top_percent = flatten_result.len() as f64; // Top percentage to be considered for the full search
@@ -591,12 +602,13 @@ impl RustSemsimian {
                 .map(|(key, value)| (key.to_string(), (*value).clone()))
                 .collect();
             let result =
-                self.calculate_similarity_for_association_search(&associations, profile_entities);
+                self.calculate_similarity_for_association_search(&associations, profile_entities, include_similarity_object);
             sort_with_jaccard_as_tie_breaker(result, flatten_result)
         } else {
             let result = self.calculate_similarity_for_association_search(
                 all_associated_objects_for_subjects,
                 profile_entities,
+                include_similarity_object
             );
             hashed_dual_sort(result)
         }
@@ -606,17 +618,30 @@ impl RustSemsimian {
         &mut self,
         associations: &HashMap<String, HashSet<String>>,
         profile_entities: &HashSet<String>,
+        include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let results_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = associations
-            .par_iter() // Parallel iterator
-            .map(|(key, hashset)| {
-                // Calculate similarity using termset_pairwise_similarity method
-                let similarity = self.termset_pairwise_similarity(hashset, profile_entities);
-                // Return the result tuple
-                (similarity.average_score, Some(similarity), key.clone())
-            })
-            .collect(); // Collect the results into a vector
-        results_vec
+
+        if include_similarity_object{
+            associations
+                .par_iter() // Parallel iterator
+                .map(|(key, hashset)| {
+                    // Calculate similarity using termset_pairwise_similarity method
+                    let similarity = self.termset_pairwise_similarity(hashset, profile_entities);
+                    // Return the result tuple
+                    (similarity.average_score, Some(similarity), key.clone())
+                })
+                .collect() // Collect the results into a vector
+        }else{
+            associations
+                .par_iter() // Parallel iterator
+                .map(|(key, hashset)| {
+                    // Calculate similarity using termset_pairwise_similarity method
+                    let similarity_score = self.termset_pairwise_similarity_minimal(hashset, profile_entities);
+                    // Return the result tuple
+                    (similarity_score, None, key.clone())
+                })
+                .collect() // Collect the results into a vector
+        }
     }
 
     pub fn get_or_set_prefix_expansion_cache(
@@ -702,7 +727,7 @@ impl RustSemsimian {
         &mut self,
         object_closure_predicates: &HashSet<TermID>,
         object_set: &HashSet<TermID>,
-        _include_similarity_object: bool,
+        include_similarity_object: bool,
         subject_set: &Option<HashSet<TermID>>,
         subject_prefixes: &Option<Vec<TermID>>,
         search_type: &SearchTypeEnum,
@@ -720,6 +745,7 @@ impl RustSemsimian {
                     search_type,
                     None,
                     &limit,
+                    include_similarity_object,
                 );
             }
             SearchTypeEnum::Hybrid => {
@@ -731,6 +757,7 @@ impl RustSemsimian {
                     &SearchTypeEnum::Flat,
                     None,
                     &None,
+                    include_similarity_object,
                 );
                 result = self.perform_search(
                     object_closure_predicates,
@@ -740,6 +767,7 @@ impl RustSemsimian {
                     &SearchTypeEnum::Full,
                     Some(&flat_result),
                     &limit,
+                    include_similarity_object,
                 );
             }
         }
@@ -760,6 +788,7 @@ impl RustSemsimian {
         search_type: &SearchTypeEnum,
         flat_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
         limit: &Option<usize>,
+        include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let all_associations = self.get_or_set_prefix_expansion_cache(
             object_closure_predicates,
@@ -769,8 +798,8 @@ impl RustSemsimian {
         );
 
         match search_type {
-            SearchTypeEnum::Flat => self.flatten_closure_search(object_set, &all_associations),
-            _ => self.full_search(object_set, &all_associations, flat_result, limit),
+            SearchTypeEnum::Flat => self.flatten_closure_search(object_set, &all_associations, include_similarity_object),
+            _ => self.full_search(object_set, &all_associations, flat_result, limit, include_similarity_object),
         }
     }
 }
@@ -1555,14 +1584,17 @@ mod tests {
         term_set.insert("BFO:0000015".to_string());
         expanded_subject_map.insert("GO:0009892".to_string(), term_set);
 
+        let include_similarity_object = true;
+
         // Call flattened search which is a prerequisite for full search
-        let flattened_search = rss.flatten_closure_search(&object_set, &expanded_subject_map);
+        let flattened_search = rss.flatten_closure_search(&object_set, &expanded_subject_map, include_similarity_object);
         // Call full_search
         let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = rss.full_search(
             &object_set,
             &expanded_subject_map,
             Some(&flattened_search),
             &limit,
+            include_similarity_object
         );
         let result_objects: Vec<TermID> = result
             .iter()
