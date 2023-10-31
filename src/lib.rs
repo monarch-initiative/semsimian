@@ -442,15 +442,6 @@ impl RustSemsimian {
                 )
     }
 
-    pub fn termset_pairwise_similarity_minimal(
-        &self,
-        subject_terms: &HashSet<TermID>,
-        object_terms: &HashSet<TermID>,
-    ) -> f64 {
-        let similarity = self.termset_pairwise_similarity(subject_terms, object_terms);
-        get_best_score(&similarity.subject_best_matches, &similarity.object_best_matches)
-    }
-
     pub fn termset_pairwise_similarity_weighted_negated(
         &self,
         subject_dat: &[(TermID, f64, bool)],
@@ -636,7 +627,7 @@ impl RustSemsimian {
                 .par_iter() // Parallel iterator
                 .map(|(key, hashset)| {
                     // Calculate similarity using termset_pairwise_similarity method
-                    let similarity_score = self.termset_pairwise_similarity_minimal(hashset, profile_entities);
+                    let similarity_score = self.termset_comparison(hashset, profile_entities).unwrap();
                     // Return the result tuple
                     (similarity_score, None, key.clone())
                 })
@@ -1388,6 +1379,24 @@ mod tests {
         let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms);
         assert_eq!(tsps.average_score, 5.4154243283740175);
         assert_eq!(tsps.best_score, 5.8496657269155685);
+    }
+
+    #[test]
+    fn test_termset_pairwise_similarity_vs_termset_comparison() {
+        let db = Some("tests/data/go-nucleus.db");
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.update_closure_and_ic_map();
+        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms);
+        assert_eq!(tsps.average_score, 5.4154243283740175);
+        let tc = rss.termset_comparison(&subject_terms, &object_terms).unwrap();
+        assert_eq!(tsps.average_score, tc);
     }
 
     #[rstest(
