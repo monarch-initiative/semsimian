@@ -430,16 +430,16 @@ impl RustSemsimian {
         let best_score = get_best_score(&subject_best_matches, &object_best_matches);
 
         TermsetPairwiseSimilarity::new(
-                    subject_termset,
-                    subject_best_matches,
-                    subject_best_matches_similarity_map,
-                    object_termset,
-                    object_best_matches,
-                    object_best_matches_similarity_map,
-                    *average_termset_information_content,
-                    best_score,
-                    metric.to_string(),
-                )
+            subject_termset,
+            subject_best_matches,
+            subject_best_matches_similarity_map,
+            object_termset,
+            object_best_matches,
+            object_best_matches_similarity_map,
+            *average_termset_information_content,
+            best_score,
+            metric.to_string(),
+        )
     }
 
     pub fn termset_pairwise_similarity_weighted_negated(
@@ -592,14 +592,17 @@ impl RustSemsimian {
                 .iter()
                 .map(|(key, value)| (key.to_string(), (*value).clone()))
                 .collect();
-            let result =
-                self.calculate_similarity_for_association_search(&associations, profile_entities, include_similarity_object);
+            let result = self.calculate_similarity_for_association_search(
+                &associations,
+                profile_entities,
+                include_similarity_object,
+            );
             sort_with_jaccard_as_tie_breaker(result, flatten_result)
         } else {
             let result = self.calculate_similarity_for_association_search(
                 all_associated_objects_for_subjects,
                 profile_entities,
-                include_similarity_object
+                include_similarity_object,
             );
             hashed_dual_sort(result)
         }
@@ -611,8 +614,7 @@ impl RustSemsimian {
         profile_entities: &HashSet<String>,
         include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-
-        if include_similarity_object{
+        if include_similarity_object {
             associations
                 .par_iter() // Parallel iterator
                 .map(|(key, hashset)| {
@@ -622,12 +624,13 @@ impl RustSemsimian {
                     (similarity.average_score, Some(similarity), key.clone())
                 })
                 .collect() // Collect the results into a vector
-        }else{
+        } else {
             associations
                 .par_iter() // Parallel iterator
                 .map(|(key, hashset)| {
                     // Calculate similarity using termset_pairwise_similarity method
-                    let similarity_score = self.termset_comparison(hashset, profile_entities).unwrap();
+                    let similarity_score =
+                        self.termset_comparison(hashset, profile_entities).unwrap();
                     // Return the result tuple
                     (similarity_score, None, key.clone())
                 })
@@ -789,8 +792,18 @@ impl RustSemsimian {
         );
 
         match search_type {
-            SearchTypeEnum::Flat => self.flatten_closure_search(object_set, &all_associations, include_similarity_object),
-            _ => self.full_search(object_set, &all_associations, flat_result, limit, include_similarity_object),
+            SearchTypeEnum::Flat => self.flatten_closure_search(
+                object_set,
+                &all_associations,
+                include_similarity_object,
+            ),
+            _ => self.full_search(
+                object_set,
+                &all_associations,
+                flat_result,
+                limit,
+                include_similarity_object,
+            ),
         }
     }
 }
@@ -1395,7 +1408,9 @@ mod tests {
         rss.update_closure_and_ic_map();
         let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms);
         assert_eq!(tsps.average_score, 5.4154243283740175);
-        let tc = rss.termset_comparison(&subject_terms, &object_terms).unwrap();
+        let tc = rss
+            .termset_comparison(&subject_terms, &object_terms)
+            .unwrap();
         assert_eq!(tsps.average_score, tc);
     }
 
@@ -1596,14 +1611,18 @@ mod tests {
         let include_similarity_object = true;
 
         // Call flattened search which is a prerequisite for full search
-        let flattened_search = rss.flatten_closure_search(&object_set, &expanded_subject_map, include_similarity_object);
+        let flattened_search = rss.flatten_closure_search(
+            &object_set,
+            &expanded_subject_map,
+            include_similarity_object,
+        );
         // Call full_search
         let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = rss.full_search(
             &object_set,
             &expanded_subject_map,
             Some(&flattened_search),
             &limit,
-            include_similarity_object
+            include_similarity_object,
         );
         let result_objects: Vec<TermID> = result
             .iter()
