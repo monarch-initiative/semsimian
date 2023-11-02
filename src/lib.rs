@@ -402,6 +402,8 @@ impl RustSemsimian {
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
+        // TODO: code should not assume db_path exists - sometimes relations come from spo argument
+        //  and not db
         let db_path = RESOURCE_PATH.lock().unwrap();
         let all_terms: HashSet<String> = subject_terms
             .iter()
