@@ -72,6 +72,7 @@ pub struct RustSemsimian {
     embeddings: Embeddings,
     pairwise_similarity_attributes: Option<Vec<String>>,
     prefix_expansion_cache: HashMap<TermID, HashMap<TermID, HashSet<TermID>>>,
+    max_ic_cache: HashMap<String, (HashSet<String>, f64)>,
 }
 
 impl RustSemsimian {
@@ -111,6 +112,7 @@ impl RustSemsimian {
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
             prefix_expansion_cache: HashMap::new(),
+            max_ic_cache: HashMap::new(),
         }
     }
 
@@ -173,13 +175,7 @@ impl RustSemsimian {
     }
 
     pub fn resnik_similarity(&self, term1: &str, term2: &str) -> (HashSet<String>, f64) {
-        calculate_max_information_content(
-            &self.closure_map,
-            &self.ic_map,
-            term1,
-            term2,
-            &self.predicates,
-        )
+        calculate_max_information_content(&self, term1, term2, &self.predicates)
     }
 
     pub fn cosine_similarity(&self, term1: &str, term2: &str, embeddings: &Embeddings) -> f64 {
