@@ -58,7 +58,6 @@ pub fn calculate_term_pairwise_information_content(
     rss: &RustSemsimian,
     entity1: &HashSet<TermID>,
     entity2: &HashSet<TermID>,
-    predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
     // At each iteration, it calculates the IC score using the calculate_max_information_content function,
     // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
@@ -70,7 +69,7 @@ pub fn calculate_term_pairwise_information_content(
     let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, e1_term| {
         let max_ic = entity2.iter().fold(0.0, |max_ic, e2_term| {
             let (_max_ic_ancestors1, ic) =
-                calculate_max_information_content(rss, e1_term, e2_term, predicates);
+                calculate_max_information_content(rss, e1_term, e2_term, &rss.predicates);
             f64::max(max_ic, ic)
         });
 
@@ -212,14 +211,12 @@ pub fn calculate_average_termset_information_content(
         &semsimian,
         subject_terms,
         object_terms,
-        &semsimian.predicates,
     );
 
     let object_to_subject_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
         &semsimian,
         object_terms,
         subject_terms,
-        &semsimian.predicates,
     );
     (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
 }
@@ -562,7 +559,7 @@ mod tests {
         rss.update_closure_and_ic_map();
 
         let resnik_score =
-            calculate_term_pairwise_information_content(&rss, &entity1, &entity2, &predicates);
+            calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
         let expected_value = 0.24271341358512086;
         // dbg!(&rss.ic_map);
 
@@ -580,7 +577,7 @@ mod tests {
             .collect();
 
         let resnik_score =
-            calculate_term_pairwise_information_content(&rss, &entity1, &entity2, &predicates);
+            calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
         let expected_value = 1.9593580155026542;
 
         println!("Case 2 resnik_score: {resnik_score}");
@@ -597,7 +594,7 @@ mod tests {
             .collect();
 
         let resnik_score =
-            calculate_term_pairwise_information_content(&rss, &entity1, &entity2, &predicates);
+            calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
         let expected_value = 1.191355953205954;
 
         println!("Case 3 resnik_score: {resnik_score}");
@@ -615,7 +612,7 @@ mod tests {
             .collect();
 
         let resnik_score =
-            calculate_term_pairwise_information_content(&rss, &entity1, &entity2, &predicates);
+            calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
         let expected_value = 0.5382366147050694;
 
         println!("Case 4 resnik_score: {resnik_score}");
