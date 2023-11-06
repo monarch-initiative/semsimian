@@ -128,7 +128,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     ]));
     let search_type: SearchTypeEnum = SearchTypeEnum::Hybrid;
     let limit: Option<usize> = black_box(Some(10));
-
+    let include_similarity_object = false;
     let mut bench_grp = c.benchmark_group("search_bench_group");
     bench_grp.sample_size(10);
     // .measurement_time(Duration::from_secs(300));
@@ -137,7 +137,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             rss.associations_search(
                 &assoc_predicate,
                 &object_terms,
-                true,
+                include_similarity_object,
                 &None,
                 &subject_prefixes,
                 &search_type,

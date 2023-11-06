@@ -28,7 +28,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         black_box(HashSet::from(["biolink:has_phenotype".to_string()]));
 
     let subject_prefixes: Option<Vec<TermID>> = black_box(Some(vec!["MONDO:".to_string()]));
-
+    let include_similarity_object = false;
     let object_terms: HashSet<TermID> = black_box(HashSet::from([
         //* */ Alzheimer disease 2 profile
         // "HP:0002511".to_string(),
@@ -138,7 +138,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             rss.associations_search(
                 &assoc_predicate,
                 &object_terms,
-                true,
+                include_similarity_object,
                 &None,
                 &subject_prefixes,
                 &search_type,
