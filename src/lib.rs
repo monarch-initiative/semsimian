@@ -1,3 +1,9 @@
+use deepsize::DeepSizeOf;
+use rayon::prelude::*;
+
+#[cfg(test)]
+use rstest::rstest;
+
 use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
 use enums::SearchTypeEnum;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
@@ -14,9 +20,7 @@ pub mod similarity;
 pub mod termset_pairwise_similarity;
 pub mod utils;
 
-use rayon::prelude::*;
-
-mod test_utils;
+mod test_constants;
 
 use std::fmt;
 
@@ -31,6 +35,7 @@ use utils::{
     rearrange_columns_and_rewrite, sort_with_jaccard_as_tie_breaker,
 };
 
+use crate::similarity::calculate_weighted_term_pairwise_information_content;
 use db_query::get_labels;
 use lazy_static::lazy_static;
 use termset_pairwise_similarity::TermsetPairwiseSimilarity;
@@ -56,7 +61,7 @@ lazy_static! {
     static ref RESOURCE_PATH: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 }
 
-#[derive(Clone)]
+#[derive(Clone, DeepSizeOf)]
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
     predicates: Option<Vec<Predicate>>,
@@ -67,6 +72,7 @@ pub struct RustSemsimian {
     embeddings: Embeddings,
     pairwise_similarity_attributes: Option<Vec<String>>,
     prefix_expansion_cache: HashMap<TermID, HashMap<TermID, HashSet<TermID>>>,
+    max_ic_cache: HashMap<String, (HashSet<String>, f64)>,
 }
 
 impl RustSemsimian {
@@ -106,6 +112,7 @@ impl RustSemsimian {
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
             prefix_expansion_cache: HashMap::new(),
+            max_ic_cache: HashMap::new(),
         }
     }
 
@@ -168,13 +175,7 @@ impl RustSemsimian {
     }
 
     pub fn resnik_similarity(&self, term1: &str, term2: &str) -> (HashSet<String>, f64) {
-        calculate_max_information_content(
-            &self.closure_map,
-            &self.ic_map,
-            term1,
-            term2,
-            &self.predicates,
-        )
+        calculate_max_information_content(&self, term1, term2, &self.predicates)
     }
 
     pub fn cosine_similarity(&self, term1: &str, term2: &str, embeddings: &Embeddings) -> f64 {
@@ -397,6 +398,8 @@ impl RustSemsimian {
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
+        // TODO: code should not assume db_path exists - sometimes relations come from spo argument
+        //  and not db
         let db_path = RESOURCE_PATH.lock().unwrap();
         let all_terms: HashSet<String> = subject_terms
             .iter()
@@ -437,6 +440,60 @@ impl RustSemsimian {
         )
     }
 
+    pub fn termset_pairwise_similarity_weighted_negated(
+        &self,
+        subject_dat: &[(TermID, f64, bool)],
+        object_dat: &[(TermID, f64, bool)],
+    ) -> f64 {
+        // Compares a set of subject terms to a set of object terms and returns the average pairwise
+        // Resnik similarity (i.e. IC of most informative common ancestor) between the two sets.
+        //
+        // This function is similar to termset_pairwise_similarity, but it accepts weights for each term,
+        // such that the similarity score is weighted by the term's weight. Also this current function
+        // returns only the average pairwise similarity score, rather than the full
+        // TermsetPairwiseSimilarity object.
+        //
+        // Also, this function accepts a set of negated terms, which are terms that have been excluded
+        // by the clinician.
+        //
+        // This is used for example in N3C work, in which we have a Spark DF of "profiles":
+        // profile_id  term_id  weight  negated
+        // 1           HP:1234  0.5     false
+        // 1           HP:5678  0.2     false
+        // 1           HP:9012  0.3     true
+        // 2           HP:6789  0.3     false
+        // 2           HP:3456  0.7     false
+        // ...
+        //
+        // and a Spark DF of Patient phenotypes:
+        // patient_id  term_id  negated
+        // 1           HP:1234  false
+        // 1           HP:5678  false
+        // 1           HP:9012  false
+        // 2           HP:6789  false
+        // 2           HP:3456  true
+        // ...
+        //
+        // # Arguments
+        //        subject_dat: tuples of terms for termset 1 (term_id, weight, negated)
+        //        object_dat: tuples of terms for termset 2 (term_id, weight, negated)
+
+        // return self.termset_comparison(&subject_terms, &object_terms).unwrap();
+        let subject_to_object_average_resnik_sim: f64 =
+            calculate_weighted_term_pairwise_information_content(self, subject_dat, object_dat);
+
+        let object_to_subject_average_resnik_sim: f64 =
+            calculate_weighted_term_pairwise_information_content(self, object_dat, subject_dat);
+
+        let sim =
+            (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0;
+        if sim < 0.0 {
+            0.0
+        } else {
+            sim
+        }
+    }
+
     // This function takes a set of objects and an expanded subject map as input.
     // It expands each object using closure and calculates the Jaccard similarity score between each subject and object.
     // The result is a vector of tuples containing the score, an optional TermsetPairwiseSimilarity, and the TermID.
@@ -444,6 +501,7 @@ impl RustSemsimian {
         &self,
         profile_entities: &HashSet<String>,
         all_object_ancestors_for_subjects_map: &HashMap<TermID, HashSet<TermID>>,
+        _include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         // Create a new HashSet to store the expanded objects
         let mut set_of_profile_ancestors: HashSet<String> = HashSet::new();
@@ -488,6 +546,7 @@ impl RustSemsimian {
         all_associated_objects_for_subjects: &HashMap<TermID, HashSet<TermID>>,
         flatten_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
         limit: &Option<usize>,
+        include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if let Some(flatten_result) = flatten_result {
             let mut top_percent = flatten_result.len() as f64; // Top percentage to be considered for the full search
@@ -505,7 +564,6 @@ impl RustSemsimian {
             } else {
                 flatten_result.len()
             };
-            
 
             // Declare a variable to hold the cutoff score
             let cutoff_jaccard_score = if top_percent_f64_count < f64_items.len() {
@@ -532,36 +590,53 @@ impl RustSemsimian {
                 .iter()
                 .map(|(key, value)| (key.to_string(), (*value).clone()))
                 .collect();
-            let result =
-                self.calculate_similarity_for_association_search(&associations, profile_entities);
+            let result = self.calculate_similarity_for_association_search(
+                &associations,
+                profile_entities,
+                include_similarity_object,
+            );
             sort_with_jaccard_as_tie_breaker(result, flatten_result)
         } else {
             let result = self.calculate_similarity_for_association_search(
                 all_associated_objects_for_subjects,
                 profile_entities,
+                include_similarity_object,
             );
             hashed_dual_sort(result)
         }
     }
-    fn calculate_similarity_for_association_search(
+
+    pub fn calculate_similarity_for_association_search(
         &mut self,
         associations: &HashMap<String, HashSet<String>>,
         profile_entities: &HashSet<String>,
+        include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let mut result_vec: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> = Vec::new();
-
-        // Iterate over each subject and its terms in the expanded_subject_top_percent_subset_map
-        for (subj, set_of_associated_objects) in associations {
-            // Calculate the similarity between the subject's terms and the object's terms
-            let similarity =
-                self.termset_pairwise_similarity(set_of_associated_objects, profile_entities);
-
-            result_vec.push((similarity.best_score, Some(similarity), subj.clone()));
+        if include_similarity_object {
+            associations
+                .par_iter() // Parallel iterator
+                .map(|(key, hashset)| {
+                    // Calculate similarity using termset_pairwise_similarity method
+                    let similarity = self.termset_pairwise_similarity(hashset, profile_entities);
+                    // Return the result tuple
+                    (similarity.average_score, Some(similarity), key.clone())
+                })
+                .collect() // Collect the results into a vector
+        } else {
+            associations
+                .par_iter() // Parallel iterator
+                .map(|(key, hashset)| {
+                    // Calculate similarity using termset_pairwise_similarity method
+                    let similarity_score =
+                        self.termset_comparison(hashset, profile_entities).unwrap();
+                    // Return the result tuple
+                    (similarity_score, None, key.clone())
+                })
+                .collect() // Collect the results into a vector
         }
-        result_vec
     }
 
-    fn get_or_set_prefix_expansion_cache(
+    pub fn get_or_set_prefix_expansion_cache(
         &mut self,
         object_closure_predicates: &HashSet<TermID>,
         subject_set: &Option<HashSet<TermID>>,
@@ -575,7 +650,7 @@ impl RustSemsimian {
                 get_prefix_association_key(prefixes, object_closure_predicates, search_type)
             })
             .unwrap_or_else(String::new);
-        
+
         if self.prefix_expansion_cache.contains_key(&cache_key) {
             println!("Using cache! {:?}", cache_key);
         }
@@ -644,7 +719,7 @@ impl RustSemsimian {
         &mut self,
         object_closure_predicates: &HashSet<TermID>,
         object_set: &HashSet<TermID>,
-        _include_similarity_object: bool,
+        include_similarity_object: bool,
         subject_set: &Option<HashSet<TermID>>,
         subject_prefixes: &Option<Vec<TermID>>,
         search_type: &SearchTypeEnum,
@@ -662,6 +737,7 @@ impl RustSemsimian {
                     search_type,
                     None,
                     &limit,
+                    include_similarity_object,
                 );
             }
             SearchTypeEnum::Hybrid => {
@@ -673,6 +749,7 @@ impl RustSemsimian {
                     &SearchTypeEnum::Flat,
                     None,
                     &None,
+                    include_similarity_object,
                 );
                 result = self.perform_search(
                     object_closure_predicates,
@@ -682,6 +759,7 @@ impl RustSemsimian {
                     &SearchTypeEnum::Full,
                     Some(&flat_result),
                     &limit,
+                    include_similarity_object,
                 );
             }
         }
@@ -702,6 +780,7 @@ impl RustSemsimian {
         search_type: &SearchTypeEnum,
         flat_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
         limit: &Option<usize>,
+        include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let all_associations = self.get_or_set_prefix_expansion_cache(
             object_closure_predicates,
@@ -711,8 +790,18 @@ impl RustSemsimian {
         );
 
         match search_type {
-            SearchTypeEnum::Flat => self.flatten_closure_search(object_set, &all_associations),
-            _ => self.full_search(object_set, &all_associations, flat_result, limit),
+            SearchTypeEnum::Flat => self.flatten_closure_search(
+                object_set,
+                &all_associations,
+                include_similarity_object,
+            ),
+            _ => self.full_search(
+                object_set,
+                &all_associations,
+                flat_result,
+                limit,
+                include_similarity_object,
+            ),
         }
     }
 }
@@ -864,6 +953,17 @@ impl Semsimian {
         Ok(tsps.into_py(py))
     }
 
+    fn termset_pairwise_similarity_weighted_negated(
+        &mut self,
+        subject_dat: Vec<(TermID, f64, bool)>,
+        object_dat: Vec<(TermID, f64, bool)>,
+    ) -> PyResult<f64> {
+        self.ss.update_closure_and_ic_map();
+        Ok(self
+            .ss
+            .termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat))
+    }
+
     fn get_spo(&self) -> PyResult<Vec<(TermID, Predicate, TermID)>> {
         Ok(self.ss.spo.to_vec())
     }
@@ -980,8 +1080,9 @@ fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
 mod tests {
 
     use super::*;
-    use crate::test_utils::test_constants::BFO_SPO;
-    use crate::{test_utils::test_constants::SPO_FRUITS, RustSemsimian};
+    use crate::test_constants::constants_for_tests::BFO_SPO;
+    use crate::{test_constants::constants_for_tests::SPO_FRUITS, RustSemsimian};
+    use std::path::PathBuf;
     use std::{
         collections::HashSet,
         io::{BufRead, BufReader},
@@ -1198,7 +1299,8 @@ mod tests {
 
     #[test]
     fn test_all_by_all_pairwise_similarity_with_output() {
-        let output_columns = crate::test_utils::test_constants::OUTPUT_COLUMNS_VECTOR.clone();
+        let output_columns =
+            crate::test_constants::constants_for_tests::OUTPUT_COLUMNS_VECTOR.clone();
         let mut rss = RustSemsimian::new(
             Some(SPO_FRUITS.clone()),
             Some(vec!["related_to".to_string()]),
@@ -1291,6 +1393,144 @@ mod tests {
     }
 
     #[test]
+    fn test_termset_pairwise_similarity_vs_termset_comparison() {
+        let db = Some("tests/data/go-nucleus.db");
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.update_closure_and_ic_map();
+        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms);
+        assert_eq!(tsps.average_score, 5.4154243283740175);
+        let tc = rss
+            .termset_comparison(&subject_terms, &object_terms)
+            .unwrap();
+        assert_eq!(tsps.average_score, tc);
+    }
+
+    #[rstest(
+        subject_dat, object_dat, expected_tsps,
+
+        // in go-nucleus.db, these are the Resnik (max IC) scores for the following pairs:
+        // GO:0005634 <-> GO:0031965 = 5.8496657269155685
+        // GO:0005634 <-> GO:0005773 = 5.112700132749362
+        // GO:0016020 <-> GO:0031965 = 4.8496657269155685
+        // GO:0016020 <-> GO:0005773 = 2.264703226194412
+        // GO:0005773 <-> GO:0005773 = 7.4346282276367246
+
+        // the label for GO:0005634 is "nucleus"
+        // the label for GO:0016020 is "membrane"
+        // the label for GO:0031965 is "nuclear membrane"
+        // the label for GO:0005773 is "vacuole"
+
+        //
+        // test even weights, should be the same as unweighted
+        //
+        // termset 1 -> 2 = (5.8496657269155685 + 4.8496657269155685) / 2 = 5.3496657269155685
+        // termset 2 -> 1 = (5.8496657269155685 + 5.112700132749362) / 2 = 5.481182929832465
+        // average of termset 1 -> 2 and termset 2 -> 1 =
+        // (5.3496657269155685 + 5.481182929832465)/ 2 = 5.4154243283740175
+        case(
+            Vec::from([("GO:0005634".to_string(), 1.0, false),
+                       ("GO:0016020".to_string(), 1.0, false)]),
+            Vec::from([("GO:0031965".to_string(), 1.0, false),
+                       ("GO:0005773".to_string(), 1.0, false)]),
+            5.4154243283740175
+        ),
+        case(
+            Vec::from([("GO:0005634".to_string(), 0.5, false),
+                       ("GO:0016020".to_string(), 0.5, false)]),
+            Vec::from([("GO:0031965".to_string(), 0.5, false),
+                       ("GO:0005773".to_string(), 0.5, false)]),
+            5.4154243283740175
+        ),
+
+        //
+        // test uneven weights
+        //
+        // termset 1 -> 2 = (5.8496657269155685 * 0.50 + 4.8496657269155685 * 0.25) / (sum of weights, 0.75) = 5.5163323936
+        // termset 2 -> 1 = (5.8496657269155685 * 0.65 + 5.112700132749362 * 0.15) / (sum of weights, 0.80) = 5.711484678
+        // average of termset 1 -> 2 and termset 2 -> 1 = (5.5163323936 + 5.711484678)/ 2 = 5.6139085358
+        case(
+            Vec::from([("GO:0005634".to_string(), 0.50, false),
+                       ("GO:0016020".to_string(), 0.25, false)]),
+            Vec::from([("GO:0031965".to_string(), 0.65, false),
+                       ("GO:0005773".to_string(), 0.15, false)]),
+            5.6139085358
+        ),
+
+        //
+        // test negated terms
+        //
+
+        // test negated term in termset1 that exactly matches a term in termset2
+        case(
+            Vec::from([("GO:0005634".to_string(), 1.0, false),      // nucleus
+                       ("GO:0016020".to_string(), 1.0, false),      // membrane
+                       ("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0031965".to_string(), 1.0, false),      // nuclear membrane
+                       ("GO:0005773".to_string(), 1.0, false)]),    // vacuole
+            // termset 1 -> 2 = (5.8496657269155685 * 1 +
+            //                   4.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 3 = 1.0882344087
+            // termset 2 -> 1 = (5.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 2 = -0.79248125036
+            // average of termset 1 -> 2 and termset 2 -> 1 = (1.0882344087 + -0.79248125036)/ 2 = 0.14787657917
+            0.14787657917
+        ),
+
+        // test matching two negated terms
+        case(
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),    // vacuole
+            // GO:0005773 <-> GO:0005773 = 7.4346282276367246
+            7.434_628_227_636_725
+        ),
+
+        // test that minimum is 0 (not a negative IC)
+        case(
+            Vec::from([("GO:0005773".to_string(), 1.0, true)]),     // vacuole
+            Vec::from([("GO:0005773".to_string(), 1.0, false)]),    // vacuole
+            // termset 1 -> 2 = (5.8496657269155685 * 1 +
+            //                   4.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 3 = 1.0882344087
+            // termset 2 -> 1 = (5.8496657269155685 * 1 +
+            //                   -7.4346282276367246 * 1) / 2 = -0.79248125036
+            // average of termset 1 -> 2 and termset 2 -> 1 = (1.0882344087 + -0.79248125036)/ 2 = 0.14787657917
+            0.0
+        ),
+    )]
+    fn test_termset_pairwise_similarity_weighted_negated(
+        subject_dat: Vec<(TermID, f64, bool)>,
+        object_dat: Vec<(TermID, f64, bool)>,
+        expected_tsps: f64,
+    ) {
+        let epsilon = 0.0001; // tolerance for floating point comparisons
+        let db = Some("tests/data/go-nucleus.db");
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.update_closure_and_ic_map();
+
+        let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat);
+        // assert approximately equal
+        assert!(
+            (tsps - expected_tsps).abs() <= epsilon,
+            "Expected {} and actual {} tsps are not (approximately) equal- difference is {}",
+            expected_tsps,
+            tsps,
+            (tsps - expected_tsps).abs()
+        );
+    }
+
+    #[test]
     fn test_termset_comparison() {
         let spo = Some(BFO_SPO.clone());
         let predicates: Option<Vec<Predicate>> = Some(vec![
@@ -1366,14 +1606,21 @@ mod tests {
         term_set.insert("BFO:0000015".to_string());
         expanded_subject_map.insert("GO:0009892".to_string(), term_set);
 
+        let include_similarity_object = true;
+
         // Call flattened search which is a prerequisite for full search
-        let flattened_search = rss.flatten_closure_search(&object_set, &expanded_subject_map);
+        let flattened_search = rss.flatten_closure_search(
+            &object_set,
+            &expanded_subject_map,
+            include_similarity_object,
+        );
         // Call full_search
         let result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> = rss.full_search(
             &object_set,
             &expanded_subject_map,
             Some(&flattened_search),
             &limit,
+            include_similarity_object,
         );
         let result_objects: Vec<TermID> = result
             .iter()
@@ -1386,7 +1633,7 @@ mod tests {
     }
 
     #[test]
-    fn test_associations_search() {
+    fn test_associations_search_limit_arg() {
         let db = Some("tests/data/go-nucleus.db");
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
@@ -1421,6 +1668,60 @@ mod tests {
         let count = unique_scores.len();
         assert!(count <= limit.unwrap());
         // dbg!(&result);
+    }
+
+    // skip this test for github actions - this is for optimizing 'full' association_search()
+    #[ignore]
+    #[test]
+    fn test_associations_search_phenio_mondo() {
+        let mut db_path = PathBuf::new();
+        if let Some(home) = std::env::var_os("HOME") {
+            db_path.push(home);
+            db_path.push(".data/oaklib/phenio.db");
+        } else {
+            panic!("Failed to get home directory");
+        }
+        let db = Some(db_path.to_str().expect("Failed to convert path to string"));
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
+        let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
+        let object_terms: HashSet<TermID> = HashSet::from([
+            "HP:0008132".to_string(),
+            "HP:0000189".to_string(),
+            "HP:0000275".to_string(),
+            "HP:0000276".to_string(),
+            "HP:0000278".to_string(),
+            "HP:0000347".to_string(),
+            "HP:0001371".to_string(),
+            "HP:0000501".to_string(),
+            "HP:0000541".to_string(),
+            "HP:0000098".to_string(),
+        ]);
+        let search_type: SearchTypeEnum = SearchTypeEnum::Full;
+        let limit: Option<usize> = Some(20);
+
+        // Call the function under test
+        let result = rss.associations_search(
+            &assoc_predicate,
+            &object_terms,
+            true,
+            &None,
+            &subject_prefixes,
+            &search_type,
+            limit,
+        );
+        let unique_scores: HashSet<_> =
+            result.iter().map(|(score, _, _)| score.to_bits()).collect();
+        let count = unique_scores.len();
+        assert!(count <= limit.unwrap());
     }
 
     #[test]
@@ -1731,5 +2032,64 @@ mod tests_local {
             "Time taken for second termset_pairwise_similarity: {:?}",
             elapsed_time
         );
+    }
+
+    #[test]
+    fn test_get_best_score() {
+        let mut subject_best_matches = BTreeMap::new();
+        let mut inner_subject_matches_1 = BTreeMap::new();
+        let mut inner_subject_matches_2 = BTreeMap::new();
+        let mut object_best_matches = BTreeMap::new();
+        let mut inner_object_matches_1 = BTreeMap::new();
+        let mut inner_object_matches_2 = BTreeMap::new();
+
+        inner_subject_matches_2.insert("match_source".to_string(), "GO:0005634".to_string());
+        inner_subject_matches_2.insert("match_source_label".to_string(), "nucleus".to_string());
+        inner_subject_matches_2.insert("match_target".to_string(), "GO:0031965".to_string());
+        inner_subject_matches_2.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
+        inner_subject_matches_2.insert("score".to_string(), "5.8496657269155685".to_string());
+
+        inner_subject_matches_1.insert("match_source".to_string(), "GO:0016020".to_string());
+        inner_subject_matches_1.insert("match_source_label".to_string(), "membrane".to_string());
+        inner_subject_matches_1.insert("match_target".to_string(), "GO:0031965".to_string());
+        inner_subject_matches_1.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
+        inner_subject_matches_1.insert("score".to_string(), "4.8496657269155685".to_string());
+
+        inner_object_matches_2.insert("match_source".to_string(), "GO:0031965".to_string());
+        inner_object_matches_2.insert(
+            "match_source_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
+        inner_object_matches_2.insert("match_target".to_string(), "GO:0005634".to_string());
+        inner_object_matches_2.insert("match_target_label".to_string(), "nucleus".to_string());
+        inner_object_matches_2.insert("score".to_string(), "5.8496657269155685".to_string());
+
+        inner_object_matches_1.insert("match_source".to_string(), "GO:0005773".to_string());
+        inner_object_matches_1.insert("match_source_label".to_string(), "vacuole".to_string());
+        inner_object_matches_1.insert("match_target".to_string(), "GO:0005634".to_string());
+        inner_object_matches_1.insert(
+            "match_target_label".to_string(),
+            "nuclear membrane".to_string(),
+        );
+        inner_object_matches_1.insert("score".to_string(), "5.112700132749362".to_string());
+        // Insert some values into the BTreeMaps
+
+        subject_best_matches.insert("GO:0016020".to_string(), inner_subject_matches_1);
+        subject_best_matches.insert("GO:0005634".to_string(), inner_subject_matches_2);
+
+        object_best_matches.insert("GO:0031965".to_string(), inner_object_matches_1);
+        object_best_matches.insert("GO:0005773".to_string(), inner_object_matches_2);
+
+        // Call the function with the test data
+        let result = get_best_score(&subject_best_matches, &object_best_matches);
+
+        // Assert that the result is as expected
+        assert_eq!(result, 5.8496657269155685);
     }
 }

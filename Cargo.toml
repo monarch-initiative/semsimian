@@ -20,6 +20,7 @@ cargo-llvm-cov = "0.5.19"
 rayon = "1.7.0"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 serde = "*"
+deepsize = "*"
 
 [features]
 ci = []
@@ -27,11 +28,11 @@ ci = []
 [profile.release]
 codegen-units = 1
 lto = true
-debug = true
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
 flamegraph = "0.6.3"
+rstest = "*"
 
 [[bench]]
 name = "termset_pairwise_similarity_benchmark"
@@ -47,4 +48,8 @@ harness = false
 
 [[bench]]
 name = "association_hybrid_search_benchmark"
+harness = false
+
+[[bench]]
+name = "association_search_similarity_benchmark"
 harness = false

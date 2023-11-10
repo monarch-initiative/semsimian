@@ -53,11 +53,11 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
 }
 
 pub fn calculate_term_pairwise_information_content(
-    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    // closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    // ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    rss: &RustSemsimian,
     entity1: &HashSet<TermID>,
     entity2: &HashSet<TermID>,
-    predicates: &Option<Vec<Predicate>>,
 ) -> f64 {
     // At each iteration, it calculates the IC score using the calculate_max_information_content function,
     // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
@@ -68,13 +68,8 @@ pub fn calculate_term_pairwise_information_content(
 
     let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, e1_term| {
         let max_ic = entity2.iter().fold(0.0, |max_ic, e2_term| {
-            let (_max_ic_ancestors1, ic) = calculate_max_information_content(
-                closure_map,
-                ic_map,
-                e1_term,
-                e2_term,
-                predicates,
-            );
+            let (_max_ic_ancestors1, ic) =
+                calculate_max_information_content(rss, e1_term, e2_term, &rss.predicates);
             f64::max(max_ic, ic)
         });
 
@@ -84,32 +79,152 @@ pub fn calculate_term_pairwise_information_content(
     entity1_to_entity2_sum_resnik_sim / entity1_len
 }
 
+pub fn calculate_weighted_term_pairwise_information_content(
+    rss: &RustSemsimian,
+    entity1: &[(TermID, f64, bool)],
+    entity2: &[(TermID, f64, bool)],
+) -> f64 {
+    let sum_of_weights_entity1: f64 = entity1.iter().map(|(_, weight, _)| weight).sum();
+
+    let entity1_to_entity2_sum_resnik_sim =
+        entity1
+            .iter()
+            .fold(0.0, |sum, (e1_term, e1_weight, e1_negated)| {
+                // algorithm for negated phenotypes
+                // https://docs.google.com/presentation/d/1KjlkejcJf0h6vq1zD7ebNOvkeHWQN4sVUnIA_SumU_E/edit#slide=id.p
+                let max_ic = entity2
+                    .iter()
+                    .fold(0.0, |max_ic, (e2_term, _, e2_negated)| {
+                        let ic: f64 = if *e1_negated {
+                            if *e2_negated {
+                                // case d - both terms are negated
+                                // return (min IC of the two) if the terms are the same or one is a subclass of the other
+                                if e1_term == e2_term
+                                    || get_ancestors_of_term(
+                                        e1_term,
+                                        &rss.closure_map,
+                                        &rss.predicates,
+                                    )
+                                    .contains(e2_term)
+                                    || get_ancestors_of_term(
+                                        e2_term,
+                                        &rss.closure_map,
+                                        &rss.predicates,
+                                    )
+                                    .contains(e1_term)
+                                {
+                                    f64::min(
+                                        get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates),
+                                        get_ic_of_term(e2_term, &rss.ic_map, &rss.predicates),
+                                    )
+                                } else {
+                                    // otherwise, return 0
+                                    0.0
+                                }
+                            } else {
+                                // case c - only term1 is negated
+                                // return -IC of term2 if term2 is a subclass of term1 or term2 is the same as term1
+                                if e2_term == e1_term
+                                    || get_ancestors_of_term(
+                                        e2_term,
+                                        &rss.closure_map,
+                                        &rss.predicates,
+                                    )
+                                    .contains(e1_term)
+                                {
+                                    -get_ic_of_term(e2_term, &rss.ic_map, &rss.predicates)
+                                } else {
+                                    0.0
+                                }
+                            }
+                        } else if *e2_negated {
+                            // case b - only term2 is negated
+                            // return -IC of term1 if term1 is a subclass of term2 or term1 is the same as term2
+                            if e1_term == e2_term
+                                || get_ancestors_of_term(e1_term, &rss.closure_map, &rss.predicates)
+                                    .contains(e2_term)
+                            {
+                                -get_ic_of_term(e1_term, &rss.ic_map, &rss.predicates)
+                            } else {
+                                0.0
+                            }
+                        } else {
+                            // case a - neither term is negated, so standard term similarity
+                            // return IC of the most informative common ancestor
+                            let (_, ic) = calculate_max_information_content(
+                                &rss,
+                                e1_term,
+                                e2_term,
+                                &rss.predicates,
+                            );
+                            ic
+                        };
+
+                        if f64::abs(ic) > f64::abs(max_ic) {
+                            ic
+                        } else {
+                            max_ic
+                        }
+                    });
+                sum + (max_ic * e1_weight)
+            });
+
+    entity1_to_entity2_sum_resnik_sim / sum_of_weights_entity1
+}
+
+pub fn get_ic_of_term(
+    entity: &str,
+    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    predicates: &Option<Vec<Predicate>>,
+) -> f64 {
+    // get IC of a single term
+    let predicate_set_key = predicate_set_to_key(predicates);
+    let ic: f64 = ic_map
+        .get(&predicate_set_key)
+        .and_then(|ic_map| ic_map.get(entity))
+        .copied()
+        .unwrap();
+    ic
+}
+
+pub fn get_ancestors_of_term(
+    entity: &str,
+    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    predicates: &Option<Vec<Predicate>>,
+) -> HashSet<TermID> {
+    // get IC of a single term
+    let predicate_set_key = predicate_set_to_key(predicates);
+    let ancestors: HashSet<TermID> = closure_map
+        .get(&predicate_set_key)
+        .and_then(|closure_map| closure_map.get(entity))
+        .cloned()
+        .unwrap();
+    ancestors
+}
+
 pub fn calculate_average_termset_information_content(
     semsimian: &RustSemsimian,
     subject_terms: &HashSet<TermID>,
     object_terms: &HashSet<TermID>,
 ) -> f64 {
     let subject_to_object_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
-        &semsimian.closure_map,
-        &semsimian.ic_map,
+        &semsimian,
         subject_terms,
         object_terms,
-        &semsimian.predicates,
     );
 
     let object_to_subject_average_resnik_sim: f64 = calculate_term_pairwise_information_content(
-        &semsimian.closure_map,
-        &semsimian.ic_map,
+        &semsimian,
         object_terms,
         subject_terms,
-        &semsimian.predicates,
     );
     (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
 }
 
 pub fn calculate_max_information_content(
-    closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    // closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+    // ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    rss: &RustSemsimian,
     entity1: &str,
     entity2: &str,
     predicates: &Option<Vec<Predicate>>,
@@ -122,24 +237,33 @@ pub fn calculate_max_information_content(
     // This during the execution of this test. Each time it runs, it randomly
     // picks on or the other. This is expected in a real-world scenario
     // and hence we return a set of all ancestors with the max resnik score rather than one.
-    let filtered_common_ancestors = common_ancestors(closure_map, entity1, entity2, predicates);
+    let filtered_common_ancestors =
+        common_ancestors(&rss.closure_map, entity1, entity2, predicates);
     let predicate_set_key = predicate_set_to_key(predicates);
+    let max_ic_key = format!("{entity1}_{entity2}");
+
+    // Check if max_ic_key exists in rss.max_ic_cache
+    if let Some((max_ic_ancestors, max_ic)) = rss.max_ic_cache.get(&max_ic_key) {
+        return (max_ic_ancestors.clone(), *max_ic);
+    }
+
+    // Get ic_map once before the loop
+    let ic_map = match rss.ic_map.get(&predicate_set_key) {
+        Some(ic_map) => ic_map,
+        None => return (HashSet::new(), 0.0), // If there's no ic_map, return early
+    };
 
     let (max_ic_ancestors, max_ic) = filtered_common_ancestors.into_iter().fold(
         (HashSet::new(), 0.0),
         |(mut max_ic_ancestors, max_ic), ancestor| {
-            if let Some(ic_map) = ic_map.get(&predicate_set_key) {
-                if let Some(ic) = ic_map.get(&ancestor) {
-                    if *ic > max_ic {
-                        max_ic_ancestors.clear();
-                        max_ic_ancestors.insert(ancestor);
-                        (max_ic_ancestors, *ic)
-                    } else if *ic == max_ic {
-                        max_ic_ancestors.insert(ancestor);
-                        (max_ic_ancestors, max_ic)
-                    } else {
-                        (max_ic_ancestors, max_ic)
-                    }
+            if let Some(ic) = ic_map.get(&ancestor) {
+                if *ic > max_ic {
+                    max_ic_ancestors.clear();
+                    max_ic_ancestors.insert(ancestor);
+                    (max_ic_ancestors, *ic)
+                } else if *ic == max_ic {
+                    max_ic_ancestors.insert(ancestor);
+                    (max_ic_ancestors, max_ic)
                 } else {
                     (max_ic_ancestors, max_ic)
                 }
@@ -230,7 +354,7 @@ fn calculate_cosine_similarity_for_embeddings(embed_1: &[f64], embed_2: &[f64]) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::test_constants::*;
+    use crate::test_constants::constants_for_tests::*;
     use crate::utils::numericize_sets;
     use std::collections::{HashMap, HashSet};
 
@@ -353,78 +477,18 @@ mod tests {
 
     #[test]
     fn test_calculate_max_information_content() {
-        let _ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = [(
-            String::from("+subClassOf"),
-            [
-                (String::from("CARO:0000000"), 2.585),
-                (String::from("BFO:0000002"), 1.585),
-                (String::from("BFO:0000003"), 1.0),
-            ]
-            .iter()
-            .cloned()
-            .collect(),
-        )]
-        .iter()
-        .cloned()
-        .collect();
-
-        // closure map looks like this:
-        // {'subClassOf': {'CARO:0000000': {'CARO:0000000', 'BFO:0000002', 'BFO:0000003'},
-        //                 'BFO:0000002':  {'BFO:0000002', 'BFO:0000003'},
-        //                 'BFO:0000003':  {'BFO:0000003'}}}
-
-        let mut closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
-            HashMap::new();
-
-        let mut map: HashMap<PredicateSetKey, HashSet<TermID>> = HashMap::new();
-        let mut set: HashSet<TermID> = HashSet::new();
-        set.insert(String::from("CARO:0000000"));
-        set.insert(String::from("BFO:0000002"));
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("CARO:0000000"), set.clone());
-        closure_map.insert(String::from("+subClassOf"), map.clone());
-
-        set.clear();
-        set.insert(String::from("BFO:0000002"));
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("BFO:0000002"), set.clone());
-        closure_map.insert(String::from("+subClassOf"), map.clone());
-
-        set.clear();
-        set.insert(String::from("BFO:0000003"));
-        map.insert(String::from("BFO:0000003"), set.clone());
-        closure_map.insert(String::from("+subClassOf"), map);
-
-        // Term frequencies:
-
-        // "CARO:0000000": 1
-        // "BFO:0000002": 2
-        // "BFO:0000003": 2
-        // "BFO:0000004": 1
-        // The corpus size (sum of term frequencies) would be 6.
-
-        // Using these term frequencies, the IC scores can be calculated as follows:
-
-        // IC("CARO:0000000") = -log2(1/6) ≈ 2.585
-        // IC("BFO:0000002") = -log2(2/6) ≈ 1.585
-        // IC("BFO:0000003") = -log2(2/6) ≈ 1.585
-        // IC("BFO:0000004") = -log2(1/6) ≈ 2.585
-        //
-        // Max IC for "CARO:0000000" and "BFO:0000002":
-        // Common ancestors: "BFO:0000002" and "BFO:0000003"
-        // Max IC: 1.585 (IC of "BFO:0000002")
-
-        let predicates = Some(vec![String::from("subClassOf")]);
+        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
+        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        rss.update_closure_and_ic_map();
         let (_, result) = calculate_max_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &String::from("CARO:0000000"),
-            &String::from("BFO:0000002"),
+            &rss,
+            &String::from("BFO:0000003"),
+            &String::from("BFO:0000035"),
             &predicates,
         );
-
+        dbg!(&rss.ic_map);
         println!("Max IC: {result:?}");
-        let expected_value = 1.585;
+        let expected_value = 1.9593580155026542;
         assert!(
             (result - expected_value).abs() < 1e-3,
             "Expected value: {expected_value}, got: {result:?}"
@@ -479,7 +543,7 @@ mod tests {
 
     #[test]
     fn test_calculate_term_pairwise_information_content() {
-        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("subClassOf")]);
+        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
 
         // Test case 1: Normal case, entities have terms.
         let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
@@ -491,37 +555,30 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect();
+        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        rss.update_closure_and_ic_map();
 
-        let resnik_score = calculate_term_pairwise_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &entity1,
-            &entity2,
-            &predicates,
-        );
-        let expected_value = 1.0;
+        let resnik_score =
+            calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
+        let expected_value = 0.24271341358512086;
+        // dbg!(&rss.ic_map);
 
         println!("Case 1 resnik_score: {resnik_score}");
         assert!((resnik_score - expected_value).abs() < f64::EPSILON);
 
         // Test case 2: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["CARO:0000000"]
+        let entity1: HashSet<TermID> = vec!["BFO:0000003"]
             .into_iter()
             .map(|s| s.to_string())
             .collect();
-        let entity2: HashSet<TermID> = vec!["BFO:0000002"]
+        let entity2: HashSet<TermID> = vec!["BFO:0000035"]
             .into_iter()
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score = calculate_term_pairwise_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &entity1,
-            &entity2,
-            &predicates,
-        );
-        let expected_value = 1.585;
+        let resnik_score =
+            calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
+        let expected_value = 1.9593580155026542;
 
         println!("Case 2 resnik_score: {resnik_score}");
         assert!((resnik_score - expected_value).abs() < f64::EPSILON);
@@ -536,14 +593,9 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score = calculate_term_pairwise_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &entity1,
-            &entity2,
-            &predicates,
-        );
-        let expected_value = 0.6666666666666666;
+        let resnik_score =
+            calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
+        let expected_value = 1.191355953205954;
 
         println!("Case 3 resnik_score: {resnik_score}");
         assert!((resnik_score - expected_value).abs() < f64::EPSILON);
@@ -559,14 +611,9 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score = calculate_term_pairwise_information_content(
-            &CLOSURE_MAP,
-            &IC_MAP,
-            &entity1,
-            &entity2,
-            &predicates,
-        );
-        let expected_value = 1.0566666666666666;
+        let resnik_score =
+            calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
+        let expected_value = 0.5382366147050694;
 
         println!("Case 4 resnik_score: {resnik_score}");
         assert!((resnik_score - expected_value).abs() < f64::EPSILON);
@@ -584,27 +631,35 @@ mod tests {
         rss.update_closure_and_ic_map();
 
         // Test case 1: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = HashSet::from(["GO:0005634".to_string()]);
-
-        let entity2: HashSet<TermID> = HashSet::from(["GO:0031965".to_string()]);
-
-        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
-        let expected_value = 5.8496657269155685;
-
-        println!("Case X pheno_score: {phenio_score}");
-        assert_eq!(phenio_score, expected_value);
-
-        // Test case 2: Normal case, entities have terms.
         let entity1: HashSet<TermID> =
             HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
 
         let entity2: HashSet<TermID> =
             HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
-        let phenio_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
         let expected_value = 5.4154243283740175;
 
-        println!("Case 3 pheno_score: {phenio_score}");
-        assert_eq!(phenio_score, expected_value);
+        println!("Case X pheno_score: {avg_ic_score}");
+        assert_eq!(avg_ic_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
+        dbg!(&tsps);
+
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = HashSet::from([
+            "GO:0005634".to_string(),
+            "GO:0016020".to_string(),
+            "GO:0005773".to_string(),
+        ]);
+
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        let expected_value = 6.34340010221605;
+
+        println!("Case 3 pheno_score: {avg_ic_score}");
+        assert_eq!(avg_ic_score, expected_value);
     }
 }

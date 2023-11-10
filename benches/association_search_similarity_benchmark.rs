@@ -26,15 +26,20 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let assoc_predicate: HashSet<TermID> =
         black_box(HashSet::from(["biolink:has_phenotype".to_string()]));
-    let subject_prefixes: Option<Vec<TermID>> = black_box(Some(vec!["MGI:".to_string()]));
-    let include_similarity_object = false;
+    let subject_prefixes: Option<Vec<TermID>> = black_box(Some(vec!["MONDO:".to_string()]));
+
     let object_terms: HashSet<TermID> = black_box(HashSet::from([
-        //* */ Alzheimer disease 2 profile
-        // "HP:0002511".to_string(),
-        // "HP:0002423".to_string(),
-        // "HP:0002185".to_string(),
-        // "HP:0001300".to_string(),
-        // "HP:0000726".to_string(),
+        //* Alzheimer disease 2 profile
+        // "HP:0008132".to_string(),
+        // "HP:0000189".to_string(),
+        // "HP:0000275".to_string(),
+        // "HP:0000276".to_string(),
+        // "HP:0000278".to_string(),
+        // "HP:0000347".to_string(),
+        // "HP:0001371".to_string(),
+        // "HP:0000501".to_string(),
+        // "HP:0000541".to_string(),
+        // "HP:0000098".to_string(),
         //* Marfan syndrome
         "HP:0100775".to_string(),
         "HP:0003179".to_string(),
@@ -126,22 +131,25 @@ fn criterion_benchmark(c: &mut Criterion) {
         "HP:0012499".to_string(),
         "HP:0002650".to_string(),
     ]));
-    let search_type: SearchTypeEnum = SearchTypeEnum::Flat;
-    let limit: Option<usize> = black_box(Some(10));
+    let search_type: SearchTypeEnum = SearchTypeEnum::Full;
+    let include_similarity_object = false;
+
+    let associations = rss.get_or_set_prefix_expansion_cache(
+        &assoc_predicate,
+        &None,
+        &subject_prefixes,
+        &search_type,
+    );
 
     let mut bench_grp = c.benchmark_group("search_bench_group");
     bench_grp.sample_size(10);
     // .measurement_time(Duration::from_secs(300));
-    bench_grp.bench_function("quick_search", move |b| {
+    bench_grp.bench_function("search_similarity", move |b| {
         b.iter(|| {
-            rss.associations_search(
-                &assoc_predicate,
+            rss.calculate_similarity_for_association_search(
+                &associations,
                 &object_terms,
                 include_similarity_object,
-                &None,
-                &subject_prefixes,
-                &search_type,
-                limit,
             )
         })
     });
