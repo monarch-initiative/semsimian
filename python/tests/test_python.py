@@ -302,7 +302,6 @@ class testSemsimianWithPython(unittest.TestCase):
             # "HP:0100550",
             # "HP:0100645",
             # "HP:0100823",
-
             # Test Marfan syndrome
             "HP:0100775",
             "HP:0003179",
