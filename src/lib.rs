@@ -175,7 +175,7 @@ impl RustSemsimian {
     }
 
     pub fn resnik_similarity(&self, term1: &str, term2: &str) -> (HashSet<String>, f64) {
-        calculate_max_information_content(&self, term1, term2, &self.predicates)
+        calculate_max_information_content(self, term1, term2, &self.predicates)
     }
 
     pub fn cosine_similarity(&self, term1: &str, term2: &str, embeddings: &Embeddings) -> f64 {
