@@ -543,6 +543,7 @@ pub fn sort_with_jaccard_as_tie_breaker(
 
 #[cfg(test)]
 mod tests {
+    use crate::{db_query::get_labels, RustSemsimian};
     use std::{
         fs::File,
         io::{Read, Write},
@@ -896,5 +897,45 @@ mod tests {
         for item in &result {
             assert!(expected_result.contains(item));
         }
+    }
+
+    #[test]
+    fn test_get_best_matches() {
+        let db = Some("tests/data/go-nucleus.db");
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.update_closure_and_ic_map();
+
+        let all_by_all: SimilarityMap =
+            rss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &None, &None);
+
+        let all_terms: HashSet<String> = subject_terms
+            .iter()
+            .chain(object_terms.iter())
+            .cloned()
+            .collect();
+        let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
+        let term_label_map = get_labels(db.unwrap(), &all_terms_vec).unwrap();
+
+        let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+            get_termset_vector(&subject_terms, &term_label_map);
+
+        let metric = "ancestor_information_content";
+
+        let (best_match, best_matches_similarity_map) =
+            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+
+        let best_match_keys: HashSet<_> = best_match.keys().cloned().collect();
+        assert_eq!(best_match_keys, subject_terms);
+
+        let best_matches_similarity_keys: HashSet<_> =
+            best_matches_similarity_map.keys().cloned().collect();
+        assert_eq!(best_matches_similarity_keys, subject_terms);
     }
 }

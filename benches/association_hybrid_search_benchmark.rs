@@ -27,7 +27,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let assoc_predicate: HashSet<TermID> =
         black_box(HashSet::from(["biolink:has_phenotype".to_string()]));
     let subject_prefixes: Option<Vec<TermID>> = black_box(Some(vec!["MONDO:".to_string()]));
-    
+
     let object_terms: HashSet<TermID> = black_box(HashSet::from([
         //* */ Alzheimer disease 2 profile
         // "HP:0002511".to_string(),
