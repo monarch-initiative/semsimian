@@ -738,8 +738,7 @@ fn test_full_vs_hybrid_search() {
     let mut file = File::create("output.tsv").expect("Unable to create file");
 
     // Write the column names first
-    writeln!(file, "Full\tScore\tHybrid\tScore")
-        .expect("Unable to write column names");
+    writeln!(file, "Full\tScore\tHybrid\tScore").expect("Unable to write column names");
 
     for ((result_1_score, result_1), (result_2_score, result_2)) in
         result_1_match_score.iter().zip(result_2_match_score.iter())
