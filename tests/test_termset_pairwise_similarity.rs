@@ -2,6 +2,7 @@ use semsimian::{Predicate, RustSemsimian, TermID};
 use std::{collections::HashSet, path::PathBuf};
 
 #[test]
+#[ignore]
 #[cfg_attr(feature = "ci", ignore)]
 fn test_large_termset_pairwise_similarity() {
     let mut db_path = PathBuf::new();
@@ -128,6 +129,6 @@ fn test_large_termset_pairwise_similarity() {
     //     "HP:0002170".to_string(),
     // ]);
 
-    let result = rss.termset_pairwise_similarity(&entity1, &entity2, &None);
+    let result = rss.termset_pairwise_similarity(&entity1, &entity2);
     dbg!(&result);
 }

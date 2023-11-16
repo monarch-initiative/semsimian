@@ -1,5 +1,8 @@
 use indicatif::{ProgressBar, ProgressStyle};
+use std::cmp::Ordering;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use csv::{ReaderBuilder, WriterBuilder};
@@ -7,7 +10,9 @@ use std::error::Error;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
-use crate::SimilarityMap;
+use crate::db_query::get_subjects;
+use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
+use crate::{SearchTypeEnum, SimilarityMap};
 type Predicate = String;
 type TermID = String;
 type PredicateSetKey = String;
@@ -296,6 +301,8 @@ pub fn get_similarity_map(
 
         if let Some(ancestor_id) = value.4.iter().next() {
             similarity_map.insert("ancestor_id".to_string(), ancestor_id.clone());
+        } else {
+            similarity_map.insert("ancestor_id".to_string(), "NO_ANCESTOR_FOUND".to_string());
         }
     } else {
         println!("The HashMap is empty.");
@@ -371,7 +378,7 @@ pub fn get_similarity_map(
 // }
 
 pub fn get_best_matches(
-    termset: &Vec<BTreeInBTree>,
+    termset: &[BTreeInBTree],
     all_by_all: &SimilarityMap,
     term_label_map: &HashMap<String, String>,
     metric: &str,
@@ -401,7 +408,10 @@ pub fn get_best_matches(
             let match_source = term_id;
             let match_source_label = term_label;
             let match_target = similarity_map.get("object_id").unwrap().clone();
-            let match_target_label = term_label_map.get(&match_target).unwrap().clone();
+            let match_target_label = term_label_map
+                .get(&match_target)
+                .unwrap_or(&"NO_LABEL".to_string())
+                .clone();
 
             similarity_map.insert("ancestor_label".to_string(), ancestor_label);
             let best_matches_key = term_id.to_owned();
@@ -440,8 +450,100 @@ pub fn get_best_score(
     max_score
 }
 
+pub fn get_prefix_association_key(
+    subject_prefixes: &[TermID],
+    object_closure_predicates: &HashSet<TermID>,
+    search_type: &SearchTypeEnum,
+) -> String {
+    // Convert subject_prefixes to a sorted string
+    let subject_prefixes_string = subject_prefixes
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<String>>()
+        .join("+");
+
+    // Convert object_closure_predicates to a sorted string
+    let object_closure_predicates_string = {
+        let mut sorted_predicates = object_closure_predicates
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<String>>();
+        sorted_predicates.sort();
+        sorted_predicates.join("+")
+    };
+
+    // Concatenate subject_prefixes_string , object_closure_predicates_string and quick_search_flag
+    subject_prefixes_string + &object_closure_predicates_string + search_type.as_str()
+}
+
+pub fn get_curies_from_prefixes(
+    prefixes: Option<&Vec<TermID>>,
+    predicates: &Vec<TermID>,
+    resource_path: &str,
+) -> Vec<TermID> {
+    let curies_set = get_subjects(resource_path, Some(predicates), prefixes)
+        .unwrap_or_else(|_| panic!("Failed to get curies from prefixes"));
+
+    let curies_vec: Vec<TermID> = curies_set.into_iter().collect();
+    curies_vec
+}
+
+// Function to create a seeded hash
+pub fn seeded_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
+
+pub fn hashed_dual_sort(
+    mut result: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)>,
+) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> {
+    // Sort the result vector by score in descending order and hash of result CURIE in ascending order
+    result.sort_by(|a, b| {
+        let primary = b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal);
+        let secondary = seeded_hash(&a.2).cmp(&seeded_hash(&b.2));
+        primary.then(secondary)
+    });
+    result
+}
+
+pub fn sort_with_jaccard_as_tie_breaker(
+    mut vec_to_sort: Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>,
+    flatten_result: &[(f64, Option<TermsetPairwiseSimilarity>, TermID)],
+) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
+    let flatten_result_hash: HashMap<_, _> =
+        flatten_result.iter().map(|x| (x.2.clone(), x)).collect();
+
+    vec_to_sort.sort_unstable_by(|a, b| {
+        let score_a = a.0;
+        let score_b = b.0;
+
+        if score_a == score_b {
+            let tie_breaker_a = flatten_result_hash
+                .get(&a.2)
+                .unwrap_or(&&(0.0, None, "".to_string()))
+                .0;
+            let tie_breaker_b = flatten_result_hash
+                .get(&b.2)
+                .unwrap_or(&&(0.0, None, "".to_string()))
+                .0;
+            // If the Jaccard score also results in a tie, then consider `seeded_hash` of the term CURIE
+            if tie_breaker_a == tie_breaker_b {
+                seeded_hash(&b.2).cmp(&seeded_hash(&a.2))
+            } else {
+                tie_breaker_b.partial_cmp(&tie_breaker_a).unwrap()
+            }
+        } else {
+            score_b.partial_cmp(&score_a).unwrap()
+        }
+    });
+
+    vec_to_sort
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::{db_query::get_labels, RustSemsimian};
     use std::{
         fs::File,
         io::{Read, Write},
@@ -795,5 +897,45 @@ mod tests {
         for item in &result {
             assert!(expected_result.contains(item));
         }
+    }
+
+    #[test]
+    fn test_get_best_matches() {
+        let db = Some("tests/data/go-nucleus.db");
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.update_closure_and_ic_map();
+
+        let all_by_all: SimilarityMap =
+            rss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &None, &None);
+
+        let all_terms: HashSet<String> = subject_terms
+            .iter()
+            .chain(object_terms.iter())
+            .cloned()
+            .collect();
+        let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
+        let term_label_map = get_labels(db.unwrap(), &all_terms_vec).unwrap();
+
+        let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+            get_termset_vector(&subject_terms, &term_label_map);
+
+        let metric = "ancestor_information_content";
+
+        let (best_match, best_matches_similarity_map) =
+            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+
+        let best_match_keys: HashSet<_> = best_match.keys().cloned().collect();
+        assert_eq!(best_match_keys, subject_terms);
+
+        let best_matches_similarity_keys: HashSet<_> =
+            best_matches_similarity_map.keys().cloned().collect();
+        assert_eq!(best_matches_similarity_keys, subject_terms);
     }
 }

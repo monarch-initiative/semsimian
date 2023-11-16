@@ -40,7 +40,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         .sample_size(10)
         .measurement_time(Duration::from_secs(5));
     bench_grp.bench_function("tsps", |b| {
-        b.iter(|| rss.termset_pairwise_similarity(&entity1, &entity2, &None))
+        b.iter(|| rss.termset_pairwise_similarity(&entity1, &entity2))
     });
     bench_grp.finish();
 }

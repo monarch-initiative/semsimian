@@ -1,6 +1,6 @@
 [package]
 name = "semsimian"
-version = "0.2.4"
+version = "0.2.8"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,13 +12,14 @@ crate-type = ["cdylib", "lib"]
 csv = "1.1.6"
 dict = "0.1.5"
 generator = "0.7.2"
-ordered-float = "3.6.0"
+ordered-float = "4.1.0"
 pyo3 = { version = "*", features = ["extension-module"] }
 indicatif = "*" # progress bar
 lazy_static = "1.4.0"
 cargo-llvm-cov = "0.5.19"
 rayon = "1.7.0"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
+deepsize = "*"
 
 [features]
 ci = []
@@ -26,12 +27,28 @@ ci = []
 [profile.release]
 codegen-units = 1
 lto = true
-debug = true
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
 flamegraph = "0.6.3"
+rstest = "*"
 
 [[bench]]
 name = "termset_pairwise_similarity_benchmark"
+harness = false
+
+[[bench]]
+name = "association_full_search_benchmark"
+harness = false
+
+[[bench]]
+name = "association_flat_search_benchmark"
+harness = false
+
+[[bench]]
+name = "association_hybrid_search_benchmark"
+harness = false
+
+[[bench]]
+name = "association_search_similarity_benchmark"
 harness = false
