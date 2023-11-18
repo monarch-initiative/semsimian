@@ -881,13 +881,13 @@ impl RustSemsimian {
             Some(value) => value, // If the value was found, use it
             None => {
                 // If the value was not found, set it
-                let value = self.set_prefix_expansion_cache(
+                
+                self.set_prefix_expansion_cache(
                     object_closure_predicates,
                     subject_set,
                     subject_prefixes,
                     search_type,
-                );
-                value
+                )
             }
         };
 

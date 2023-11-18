@@ -143,13 +143,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         Some(value) => value, // If the value was found, use it
         None => {
             // If the value was not found, set it
-            let value = rss.set_prefix_expansion_cache(
+            
+            rss.set_prefix_expansion_cache(
                 &assoc_predicate,
                 &None,
                 &subject_prefixes,
                 &search_type,
-            );
-            value
+            )
         }
     };
 
