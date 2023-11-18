@@ -4,7 +4,9 @@ use rayon::prelude::*;
 #[cfg(test)]
 use rstest::rstest;
 
-use db_query::{get_entailed_edges_for_predicate_list, get_objects_for_subjects};
+use db_query::{
+    get_entailed_edges_for_predicate_list, get_objects_for_subjects, get_unique_subject_prefixes,
+};
 use enums::SearchTypeEnum;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
 use std::{
@@ -133,6 +135,40 @@ impl RustSemsimian {
             if let Some(ic_value) = this_ic_map.get(&predicate_set_key) {
                 self.ic_map
                     .insert(predicate_set_key.clone(), ic_value.clone());
+            }
+        }
+    }
+
+    pub fn pregenerate_cache(
+        &mut self,
+        object_closure_predicates: &HashSet<TermID>,
+        search_type: &SearchTypeEnum,
+    ) {
+        self.update_closure_and_ic_map();
+        let db_path_str = {
+            let db_path = RESOURCE_PATH.lock().unwrap();
+            match db_path.as_ref() {
+                Some(path) => path.as_str(),
+                None => "",
+            }
+            .to_string() // Convert to String to own the data
+        }; // The lock is released here when `db_path` goes out of scope
+
+        // Handle the Result returned by get_unique_subject_prefixes
+        match get_unique_subject_prefixes(&db_path_str) {
+            Ok(subject_prefixes) => {
+                for subject_prefix in subject_prefixes {
+                    self.set_prefix_expansion_cache(
+                        object_closure_predicates,
+                        &None,
+                        &Some(vec![subject_prefix]),
+                        search_type,
+                    );
+                }
+            }
+            Err(e) => {
+                // Handle the error appropriately here
+                println!("Error getting unique subject prefixes: {}", e);
             }
         }
     }
@@ -400,14 +436,21 @@ impl RustSemsimian {
         }
         // TODO: code should not assume db_path exists - sometimes relations come from spo argument
         //  and not db
-        let db_path = RESOURCE_PATH.lock().unwrap();
+        let db_path_str = {
+            let db_path = RESOURCE_PATH.lock().unwrap();
+            match db_path.as_ref() {
+                Some(path) => path.as_str(),
+                None => "",
+            }
+            .to_string() // Convert to String to own the data
+        }; // The lock is released here when `db_path` goes out of scope
         let all_terms: HashSet<String> = subject_terms
             .iter()
             .chain(object_terms.iter())
             .cloned()
             .collect();
         let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-        let term_label_map = get_labels(db_path.clone().unwrap().as_str(), &all_terms_vec).unwrap();
+        let term_label_map = get_labels(&db_path_str, &all_terms_vec).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(subject_terms, &term_label_map);
@@ -636,7 +679,100 @@ impl RustSemsimian {
         }
     }
 
-    pub fn get_or_set_prefix_expansion_cache(
+    // Getter
+    pub fn get_prefix_expansion_cache(
+        &self,
+        object_closure_predicates: &HashSet<TermID>,
+        _subject_set: &Option<HashSet<TermID>>,
+        subject_prefixes: &Option<Vec<TermID>>,
+        search_type: &SearchTypeEnum,
+    ) -> Option<HashMap<String, HashSet<String>>> {
+        // Determine cache key.
+        let cache_key = subject_prefixes
+            .as_ref()
+            .map(|prefixes| {
+                get_prefix_association_key(prefixes, object_closure_predicates, search_type)
+            })
+            .unwrap_or_else(String::new);
+
+        if self.prefix_expansion_cache.contains_key(&cache_key) {
+            println!("Using cache! {:?}", cache_key);
+            Some(self.prefix_expansion_cache.get(&cache_key).unwrap().clone())
+        } else {
+            println!("Cache {:?} not yet generated...", cache_key);
+            None
+        }
+    }
+
+    // Function to generate the value for the cache
+    fn generate_prefix_expansion_cache_value(
+        &self,
+        object_closure_predicates: &HashSet<TermID>,
+        subject_set: &Option<HashSet<TermID>>,
+        subject_prefixes: &Option<Vec<TermID>>,
+        search_type: &SearchTypeEnum,
+    ) -> HashMap<String, HashSet<String>> {
+        let db_path_str = {
+            let db_path = RESOURCE_PATH.lock().unwrap();
+            match db_path.as_ref() {
+                Some(path) => path.as_str(),
+                None => "",
+            }
+            .to_string() // Convert to String to own the data
+        }; // The lock is released here when `db_path` goes out of scope
+
+        let assoc_predicate_terms_vec: Vec<TermID> =
+            object_closure_predicates.iter().cloned().collect();
+
+        let subject_vec = match subject_prefixes {
+            Some(subject_prefixes) => get_curies_from_prefixes(
+                Some(subject_prefixes),
+                &assoc_predicate_terms_vec,
+                &db_path_str,
+            ),
+            None => {
+                let subject_set = subject_set.as_ref().unwrap();
+                subject_set.iter().cloned().collect::<Vec<TermID>>()
+            }
+        };
+
+        let query_result = get_objects_for_subjects(
+            &db_path_str,
+            Some(&subject_vec),
+            Some(&assoc_predicate_terms_vec),
+        )
+        .unwrap();
+
+        match search_type {
+            SearchTypeEnum::Full => {
+                // Code for Full search types
+                query_result
+            }
+            SearchTypeEnum::Flat | SearchTypeEnum::Hybrid => {
+                // Code for Flat and Hybrid search type
+                let mut all_object_ancestors_for_subjects_map = HashMap::new();
+
+                // Iterate over each subject and object set
+                for (subj, set_of_associated_objects) in &query_result {
+                    let mut ancestors_set: HashSet<String> = HashSet::new();
+                    // Expand each term using closure
+                    for term in set_of_associated_objects {
+                        let ancestors =
+                            expand_term_using_closure(term, &self.closure_map, &self.predicates)
+                                .into_iter()
+                                .collect::<HashSet<String>>();
+                        ancestors_set.extend(ancestors);
+                    }
+                    all_object_ancestors_for_subjects_map.insert(subj.to_string(), ancestors_set);
+                }
+                // ! Since this is flattened search, the values for this HashMap are the flattened one.
+                all_object_ancestors_for_subjects_map
+            }
+        }
+    }
+
+    // Function to enter the cache
+    pub fn set_prefix_expansion_cache(
         &mut self,
         object_closure_predicates: &HashSet<TermID>,
         subject_set: &Option<HashSet<TermID>>,
@@ -651,67 +787,21 @@ impl RustSemsimian {
             })
             .unwrap_or_else(String::new);
 
-        if self.prefix_expansion_cache.contains_key(&cache_key) {
-            println!("Using cache! {:?}", cache_key);
-        }
-        // Get or set cache key based on the `quick_search` flag.
+        println!("Generating cache! {:?}", cache_key);
+
+        // Generate the new value for the cache
+        let new_value = self.generate_prefix_expansion_cache_value(
+            object_closure_predicates,
+            subject_set,
+            subject_prefixes,
+            search_type,
+        );
+
+        // Insert the new value into the cache
         self.prefix_expansion_cache
-            .entry(cache_key)
-            .or_insert_with(|| {
-                let assoc_predicate_terms_vec: Vec<TermID> =
-                    object_closure_predicates.iter().cloned().collect();
+            .insert(cache_key, new_value.clone());
 
-                let subject_vec = match subject_prefixes {
-                    Some(subject_prefixes) => get_curies_from_prefixes(
-                        Some(subject_prefixes),
-                        &assoc_predicate_terms_vec,
-                        RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
-                    ),
-                    None => {
-                        let subject_set = subject_set.as_ref().unwrap();
-                        subject_set.iter().cloned().collect::<Vec<TermID>>()
-                    }
-                };
-
-                let query_result = get_objects_for_subjects(
-                    RESOURCE_PATH.lock().unwrap().as_ref().unwrap(),
-                    Some(&subject_vec),
-                    Some(&assoc_predicate_terms_vec),
-                )
-                .unwrap();
-
-                match search_type {
-                    SearchTypeEnum::Full => {
-                        // Code for Full search types
-                        query_result
-                    }
-                    SearchTypeEnum::Flat | SearchTypeEnum::Hybrid => {
-                        // Code for Flat and Hybrid search type
-                        let mut all_object_ancestors_for_subjects_map = HashMap::new();
-
-                        // Iterate over each subject and object set
-                        for (subj, set_of_associated_objects) in &query_result {
-                            let mut ancestors_set: HashSet<String> = HashSet::new();
-                            // Expand each term using closure
-                            for term in set_of_associated_objects {
-                                let ancestors = expand_term_using_closure(
-                                    term,
-                                    &self.closure_map,
-                                    &self.predicates,
-                                )
-                                .into_iter()
-                                .collect::<HashSet<String>>();
-                                ancestors_set.extend(ancestors);
-                            }
-                            all_object_ancestors_for_subjects_map
-                                .insert(subj.to_string(), ancestors_set);
-                        }
-                        // ! Since this is flattened search, the values for this HashMap are the flattened one.
-                        all_object_ancestors_for_subjects_map
-                    }
-                }
-            })
-            .clone()
+        new_value
     }
 
     // This function is used to search associations.
@@ -782,12 +872,24 @@ impl RustSemsimian {
         limit: &Option<usize>,
         include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
-        let all_associations = self.get_or_set_prefix_expansion_cache(
+        let all_associations = match self.get_prefix_expansion_cache(
             object_closure_predicates,
             subject_set,
             subject_prefixes,
             search_type,
-        );
+        ) {
+            Some(value) => value, // If the value was found, use it
+            None => {
+                // If the value was not found, set it
+                let value = self.set_prefix_expansion_cache(
+                    object_closure_predicates,
+                    subject_set,
+                    subject_prefixes,
+                    search_type,
+                );
+                value
+            }
+        };
 
         match search_type {
             SearchTypeEnum::Flat => self.flatten_closure_search(
@@ -868,6 +970,25 @@ impl Semsimian {
             resource_path,
         );
         Ok(Semsimian { ss })
+    }
+
+    fn pregenerate_cache(
+        &mut self,
+        object_closure_predicates: HashSet<TermID>,
+        search_type: String,
+    ) -> PyResult<()> {
+        let search_type_enum = match search_type.as_str() {
+            "flat" => Ok(SearchTypeEnum::Flat),
+            "full" => Ok(SearchTypeEnum::Full),
+            "hybrid" => Ok(SearchTypeEnum::Hybrid),
+            _ => Err(PyValueError::new_err(format!(
+                "Invalid search type: {}",
+                search_type
+            ))),
+        }?;
+        self.ss
+            .pregenerate_cache(&object_closure_predicates, &search_type_enum);
+        Ok(())
     }
 
     fn jaccard_similarity(&mut self, term1: TermID, term2: TermID) -> PyResult<f64> {
@@ -1948,6 +2069,33 @@ mod tests {
         assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
         assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
     }
+
+    #[test]
+    fn test_pregenerate_cache() {
+        let db = Some("tests/data/go-nucleus.db");
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
+        let search_type = SearchTypeEnum::Flat;
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.pregenerate_cache(&assoc_predicate, &search_type);
+
+        assert!(
+            !rss.ic_map.is_empty(),
+            "ic_map should not be empty after pregenerate_cache"
+        );
+        assert!(
+            !rss.closure_map.is_empty(),
+            "closure_map should not be empty after pregenerate_cache"
+        );
+        assert!(
+            !rss.prefix_expansion_cache.is_empty(),
+            "prefix_expansion_cache should not be empty after pregenerate_cache"
+        );
+    }
 }
 
 // ! All local tests that need not be run on github actions.
@@ -2091,5 +2239,41 @@ mod tests_local {
 
         // Assert that the result is as expected
         assert_eq!(result, 5.8496657269155685);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_pregenerate_large_cache() {
+        let mut db_path = PathBuf::new();
+        if let Some(home) = std::env::var_os("HOME") {
+            db_path.push(home);
+            db_path.push(".data/oaklib/phenio.db");
+        } else {
+            panic!("Failed to get home directory");
+        }
+        // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
+        let db = Some(db_path.to_str().expect("Failed to convert path to string"));
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
+        let search_type = SearchTypeEnum::Flat;
+
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        rss.pregenerate_cache(&assoc_predicate, &search_type);
+
+        assert!(
+            !rss.ic_map.is_empty(),
+            "ic_map should not be empty after pregenerate_cache"
+        );
+        assert!(
+            !rss.closure_map.is_empty(),
+            "closure_map should not be empty after pregenerate_cache"
+        );
+        assert!(
+            !rss.prefix_expansion_cache.is_empty(),
+            "prefix_expansion_cache should not be empty after pregenerate_cache"
+        );
     }
 }

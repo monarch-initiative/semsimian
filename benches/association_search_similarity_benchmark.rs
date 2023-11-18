@@ -134,12 +134,24 @@ fn criterion_benchmark(c: &mut Criterion) {
     let search_type: SearchTypeEnum = SearchTypeEnum::Full;
     let include_similarity_object = false;
 
-    let associations = rss.get_or_set_prefix_expansion_cache(
+    let associations = match rss.get_prefix_expansion_cache(
         &assoc_predicate,
         &None,
         &subject_prefixes,
         &search_type,
-    );
+    ) {
+        Some(value) => value, // If the value was found, use it
+        None => {
+            // If the value was not found, set it
+            let value = rss.set_prefix_expansion_cache(
+                &assoc_predicate,
+                &None,
+                &subject_prefixes,
+                &search_type,
+            );
+            value
+        }
+    };
 
     let mut bench_grp = c.benchmark_group("search_bench_group");
     bench_grp.sample_size(10);
