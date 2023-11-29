@@ -119,21 +119,3 @@ jobs:
         with:
           command: upload
           args: --skip-existing *
-
-  publish-crate:
-    name: Publish Crate
-    if: '!github.event.prerelease'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - name: Login to Crates.io
-        run: cargo login ${{ secrets.CRATES_IO_TOKEN }}
-      - name: Publish
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-  
