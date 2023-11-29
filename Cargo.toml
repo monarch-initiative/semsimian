@@ -13,7 +13,6 @@ csv = "1.1.6"
 dict = "0.1.5"
 generator = "0.7.2"
 ordered-float = "4.1.0"
-pyo3 = { version = "*", features = ["extension-module"] }
 lazy_static = "1.4.0"
 cargo-llvm-cov = "0.5.19"
 rayon = "1.7.0"
@@ -21,6 +20,7 @@ rusqlite = { version = "0.30.0", features = ["bundled"] }
 deepsize = "0.2.0"
 serde = "1.0.193"
 indicatif = "0.17.7"  # progress bar
+pyo3 = { version = "0.20.0", features = ["extension-module"] }
 
 [features]
 ci = []
