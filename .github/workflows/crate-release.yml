@@ -1,4 +1,4 @@
-name: Prepare wheels and push release to Pypi
+name: Prepare release to crates.io
 
 on:
   release:
