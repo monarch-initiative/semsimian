@@ -31,7 +31,7 @@ This should yield a value of 1.0.
 
 ## Releases
 
-As of version 0.1.14, the semsimian source is released on GitHub, with a corresponding set of Python wheels released to Pypi.
+As of version 0.2.11, the semsimian source is released on [GitHub](https://github.com/monarch-initiative/semsimian), with a corresponding set of Python wheels released to [PyPi](https://pypi.org/project/semsimian/) and a corresponding release in [crates.io](https://crates.io/crates/semsimian).
 
 To trigger a new set of builds, first update the version number in `Cargo.toml`, then [create a new release](https://github.com/monarch-initiative/semsimian/releases/new).
 
