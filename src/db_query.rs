@@ -322,8 +322,40 @@ pub fn get_subjects(
     Ok(subjects)
 }
 
+pub fn get_unique_subject_prefixes(path: &str) -> Result<HashSet<String>, rusqlite::Error> {
+    // Open a connection to the SQLite database file
+    let conn = Connection::open(path)?;
+
+    // Prepare the SQL query
+    let query = format!("SELECT DISTINCT subject FROM {} ", TERM_ASSOCIATION_TABLE);
+    let mut stmt = conn.prepare(&query)?;
+
+    // Execute the SQL query and retrieve the results
+    let rows = stmt.query_map([], |row| {
+        // Access the columns of each row
+        let subject: String = row.get(0)?;
+
+        // Split the subject by ':' and take the first part as prefix
+        let prefix = format!("{}:", subject.split(':').next().unwrap_or(""));
+
+        Ok(prefix)
+    })?;
+
+    // Create a HashSet to store the unique prefixes
+    let mut prefixes = HashSet::new();
+
+    // Iterate over the rows and populate the HashSet
+    for row_result in rows {
+        let prefix = row_result?;
+        prefixes.insert(prefix);
+    }
+
+    Ok(prefixes)
+}
+
 #[cfg(test)]
 mod tests {
+    // use std::path::PathBuf;
     use super::*;
     use lazy_static::lazy_static;
 
@@ -457,5 +489,34 @@ mod tests {
         let map = result.unwrap();
         dbg!(&map);
         assert_eq!(map, expected_map);
+    }
+
+    #[test]
+    fn test_get_unique_prefixes() {
+        let db = &DB_PATH;
+        // ! code to local db file
+        // let mut db_path = PathBuf::new();
+        // if let Some(home) = std::env::var_os("HOME") {
+        //     db_path.push(home);
+        //     db_path.push(".data/oaklib/phenio.db");
+        // } else {
+        //     panic!("Failed to get home directory");
+        // }
+        // let db = Some(db_path.to_str().expect("Failed to convert path to string"));
+
+        // Call the function with the test parameters
+        let result = get_unique_subject_prefixes(db);
+        dbg!(&result);
+        // Assert that the function executed successfully
+        assert!(result.is_ok());
+
+        // Get the HashSet of unique prefixes
+        let prefixes = result.unwrap();
+
+        // Assert that the HashSet is not empty
+        assert!(!prefixes.is_empty());
+
+        // Print the unique prefixes for debugging purposes
+        println!("Unique prefixes: {:?}", prefixes);
     }
 }

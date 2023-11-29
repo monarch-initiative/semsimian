@@ -442,6 +442,27 @@ class testSemsimianWithPython(unittest.TestCase):
         )
         pass
 
+    def test_semsimian_cache_creation(self):
+        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        assoc_predicate = {"biolink:has_nucleus"}
+
+        # assoc_predicate = {"biolink:has_phenotype"}
+        # db_path = os.path.expanduser("~/.data/oaklib/phenio.db")
+
+        semsimian = Semsimian(
+            spo=None,
+            predicates=predicates,
+            pairwise_similarity_attributes=None,
+            resource_path=self.db,
+        )
+        search_type = "flat"
+        semsimian.pregenerate_cache(assoc_predicate, search_type)
+        # semsimian.get_prefix_association_cache() returns a dictionary
+        cache = semsimian.get_prefix_association_cache()
+
+        # Assert that the dictionary is not empty
+        self.assertTrue(bool(cache), "The prefix association cache is empty")
+
 
 if __name__ == "__main__":
     unittest.main()

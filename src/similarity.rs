@@ -53,8 +53,6 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
 }
 
 pub fn calculate_term_pairwise_information_content(
-    // closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
-    // ic_map: &HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     rss: &RustSemsimian,
     entity1: &HashSet<TermID>,
     entity2: &HashSet<TermID>,
