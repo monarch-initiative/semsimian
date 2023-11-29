@@ -49,7 +49,7 @@ fn test_calculate_similarity_for_association_search() {
         Some(value) => value, // If the value was found, use it
         None => {
             // If the value was not found, set it
-            
+
             rss.set_prefix_expansion_cache(
                 &object_closure_predicates,
                 &None,
