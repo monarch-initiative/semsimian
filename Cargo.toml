@@ -2,7 +2,7 @@
 name = "semsimian"
 version = "0.2.11"
 edition = "2021"
-description = "Sematic similarity calculations implemented in Rust."
+description = "Sematic similarity calculations for ontologies implemented in Rust."
 license = "BSD-3-Clause"
 readme = "crates-README.md"
 
