@@ -1,5 +1,6 @@
 use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
 use std::{collections::HashSet, path::PathBuf};
+use std::time::Instant;
 
 #[test]
 #[ignore]
@@ -129,6 +130,21 @@ fn test_large_associations_search() {
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: Option<usize> = Some(10);
 
+    
+    //  Get the cache populated.
+    rss.associations_search(
+        &assoc_predicate,
+        &object_terms,
+        include_similarity_object,
+        &None,
+        &subject_prefixes,
+        &search_type_full,
+        limit,
+    );
+
+    // Start timing before the function call
+    let start = Instant::now();
+
     // Call the function under test
     let result = rss.associations_search(
         &assoc_predicate,
@@ -139,10 +155,14 @@ fn test_large_associations_search() {
         &search_type_full,
         limit,
     );
+    // Stop timing after the function call
+    let duration = start.elapsed();
 
     assert_eq!({ result.len() }, limit.unwrap());
 
     // dbg!(&result);
+    // If you want to use dbg!() to print the time, you can do so like this:
+    dbg!(duration);
 }
 
 #[test]
