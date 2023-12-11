@@ -394,7 +394,7 @@ class testSemsimianWithPython(unittest.TestCase):
         subject_prefixes = ["MGI:"]
         # object_terms = {"MP:0003143"}
         object_terms = self.marfan_syndrome_profile
-        predicates = ["rdfs:subClassOf", "BFO:0000050"]
+        predicates = ["rdfs:subClassOf", "BFO:0000050", "UPHENO:0000001"]
         assoc_predicate = {"biolink:has_phenotype"}
         db_path = os.path.expanduser("~/.data/oaklib/phenio.db")
         include_similarity_object = False
@@ -419,7 +419,7 @@ class testSemsimianWithPython(unittest.TestCase):
             limit,
         )
         interval_1 = time.time() - load_start
-        print(f"Warmup time: {interval_1} sec")
+        print(f"Round 1 search time: {interval_1} sec")
         second_compare_time = time.time()
 
         search_2 = semsimian.associations_search(
@@ -432,7 +432,7 @@ class testSemsimianWithPython(unittest.TestCase):
             limit,
         )
         interval_2 = time.time() - second_compare_time
-        print(f"Second compare time: {interval_2} sec")
+        print(f"Round 2 search time: time: {interval_2} sec")
         self.assertTrue(interval_1 - interval_2 >= 0)
         self.assertEqual(len(search_1), len(search_2))
 

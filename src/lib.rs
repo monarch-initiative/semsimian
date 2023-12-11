@@ -41,7 +41,7 @@ use crate::similarity::calculate_weighted_term_pairwise_information_content;
 use db_query::get_labels;
 use lazy_static::lazy_static;
 use termset_pairwise_similarity::TermsetPairwiseSimilarity;
-
+use std::time::Instant;
 use crate::utils::get_best_score;
 
 // change to "pub" because it is easier for testing
@@ -881,7 +881,7 @@ impl RustSemsimian {
             Some(value) => value, // If the value was found, use it
             None => {
                 // If the value was not found, set it
-                
+
                 self.set_prefix_expansion_cache(
                     object_closure_predicates,
                     subject_set,
@@ -1145,6 +1145,7 @@ impl Semsimian {
         limit: Option<usize>,
         py: Python,
     ) -> PyResult<Vec<(f64, PyObject, String)>> {
+        let start_time = Instant::now(); // Start timing
         self.ss.update_closure_and_ic_map();
 
         // Derive SearchTypeEnum value from String search_type
@@ -1168,6 +1169,9 @@ impl Semsimian {
                 &search_type_enum,
                 limit,
             );
+        let duration = start_time.elapsed(); // Calculate elapsed time
+        println!("Rust executed in: {:?}", duration); // Print out the time taken
+        let start_time = Instant::now(); // Start timing again
 
         // TODO: Check if this codeblock is inefficient.
         // convert results of association search into Python objects
@@ -1177,6 +1181,8 @@ impl Semsimian {
                 (score, similarity.unwrap_or_default().into_py(py), name)
             })
             .collect();
+        let duration = start_time.elapsed(); // Calculate elapsed time
+        println!("PyO3 object conversion executed in: {:?}", duration); // Print out the time taken
 
         Ok(py_search_results)
     }
