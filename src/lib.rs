@@ -1173,7 +1173,6 @@ impl Semsimian {
         println!("Rust executed in: {:?}", duration); // Print out the time taken
         let start_time = Instant::now(); // Start timing again
 
-        // TODO: Check if this codeblock is inefficient.
         // convert results of association search into Python objects
         let py_search_results: Vec<(f64, PyObject, String)> = search_results
             .into_iter()
