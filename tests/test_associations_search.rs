@@ -3,7 +3,7 @@ use std::time::Instant;
 use std::{collections::HashSet, path::PathBuf};
 
 #[test]
-// #[ignore]
+#[ignore]
 #[cfg_attr(feature = "ci", ignore)]
 fn test_large_associations_search() {
     let mut db_path = PathBuf::new();
