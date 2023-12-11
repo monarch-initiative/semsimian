@@ -1,6 +1,6 @@
 use pyo3::conversion::IntoPy;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict};
+use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -46,38 +46,42 @@ impl<'a> IntoPy<PyObject> for &'a TermsetPairwiseSimilarity {
     fn into_py(self, py: Python) -> PyObject {
         // Convert your struct into a PyObject
         let tsps_dict = PyDict::new(py);
-        // Create nested dictionaries for subject_best_matches and object_best_matches
-        let subject_best_matches_dict = self.subject_best_matches.clone().into_py_dict(py);
-        subject_best_matches_dict
-            .set_item("similarity", &self.subject_best_matches_similarity_map)
-            .unwrap();
 
-        // Set the similarity map as a value for 'similarity' key in subject_best_matches_dict
-        let object_best_matches_dict = self.object_best_matches.clone().into_py_dict(py);
+        // Create nested dictionaries for subject_best_matches and object_best_matches
+        let subject_best_matches_dict = PyDict::new(py);
+        subject_best_matches_dict
+            .set_item("similarity", self.subject_best_matches_similarity_map.to_object(py))
+            .expect("Failed to set item in subject_best_matches_dict");
+
+        let object_best_matches_dict = PyDict::new(py);
         object_best_matches_dict
-            .set_item("similarity", &self.object_best_matches_similarity_map)
-            .unwrap();
+            .set_item("similarity", self.object_best_matches_similarity_map.to_object(py))
+            .expect("Failed to set item in object_best_matches_dict");
 
         // Add your struct fields to the dictionary
         tsps_dict
-            .set_item("subject_termset", &self.subject_termset)
-            .unwrap();
+            .set_item("subject_termset", self.subject_termset.to_object(py))
+            .expect("Failed to set item in tsps_dict");
         tsps_dict
-            .set_item("object_termset", &self.object_termset)
-            .unwrap();
+            .set_item("object_termset", self.object_termset.to_object(py))
+            .expect("Failed to set item in tsps_dict");
         tsps_dict
             .set_item("subject_best_matches", subject_best_matches_dict)
-            .unwrap();
-
+            .expect("Failed to set item in tsps_dict");
         tsps_dict
             .set_item("object_best_matches", object_best_matches_dict)
-            .unwrap();
+            .expect("Failed to set item in tsps_dict");
         tsps_dict
             .set_item("average_score", self.average_score)
-            .unwrap();
-        tsps_dict.set_item("best_score", self.best_score).unwrap();
-        tsps_dict.set_item("metric", &self.metric).unwrap();
+            .expect("Failed to set item in tsps_dict");
+        tsps_dict
+            .set_item("best_score", self.best_score)
+            .expect("Failed to set item in tsps_dict");
+        tsps_dict
+            .set_item("metric", &self.metric)
+            .expect("Failed to set item in tsps_dict");
 
         tsps_dict.into()
     }
 }
+
