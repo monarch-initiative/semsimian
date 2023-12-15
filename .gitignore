@@ -3,8 +3,10 @@
 python/semsimian/semsimian.cpython-39-darwin.so
 .vscode/launch.json
 tests/data/output/*.tsv
-flamegraph.svg
+*.svg
 notebooks/.ipynb_checkpoints/*
 src/pseudocode.rst
 .idea/
 venv/
+prof/*
+
