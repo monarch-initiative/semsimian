@@ -354,7 +354,6 @@ class testSemsimianWithPython(unittest.TestCase):
             assoc_predicate,
             object_terms,
             True,
-            False,
             search_type,
             None,
             subject_prefixes,
@@ -381,7 +380,6 @@ class testSemsimianWithPython(unittest.TestCase):
             assoc_predicate,
             object_terms,
             True,
-            True,
             search_type,
             None,
             subject_prefixes,
@@ -389,7 +387,7 @@ class testSemsimianWithPython(unittest.TestCase):
         )
         self.assertEqual(len(result), limit)
 
-    @unittest.skip("Too long and local db file.")
+    # @unittest.skip("Too long and local db file.")
     def test_association_search_caching(self):
         subject_prefixes = ["MGI:"]
         # object_terms = {"MP:0003143"}
