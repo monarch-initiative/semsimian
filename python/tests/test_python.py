@@ -387,7 +387,7 @@ class testSemsimianWithPython(unittest.TestCase):
         )
         self.assertEqual(len(result), limit)
 
-    # @unittest.skip("Too long and local db file.")
+    @unittest.skip("Too long and local db file.")
     def test_association_search_caching(self):
         subject_prefixes = ["MGI:"]
         # object_terms = {"MP:0003143"}
