@@ -38,11 +38,11 @@ use utils::{
 };
 
 use crate::similarity::calculate_weighted_term_pairwise_information_content;
+use crate::utils::get_best_score;
 use db_query::get_labels;
 use lazy_static::lazy_static;
-use termset_pairwise_similarity::TermsetPairwiseSimilarity;
 use std::time::Instant;
-use crate::utils::get_best_score;
+use termset_pairwise_similarity::TermsetPairwiseSimilarity;
 
 // change to "pub" because it is easier for testing
 pub type Predicate = String;
@@ -460,14 +460,19 @@ impl RustSemsimian {
             .termset_comparison(subject_terms, object_terms)
             .unwrap();
 
-        let (subject_best_matches, subject_best_matches_similarity_map) =
-            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric, &db_path_str);
+        let (subject_best_matches, subject_best_matches_similarity_map) = get_best_matches(
+            &subject_termset,
+            &all_by_all,
+            &mut term_label_map,
+            metric,
+            &db_path_str,
+        );
         let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
             &object_termset,
             &all_by_all_object_perspective,
             &mut term_label_map,
             metric,
-            &db_path_str
+            &db_path_str,
         );
         let best_score = get_best_score(&subject_best_matches, &object_best_matches);
 

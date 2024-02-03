@@ -263,10 +263,7 @@ pub fn get_objects_for_subjects(
     // Iterate over the rows which is of type Rows and populate the HashMap
     for row in rows {
         let (subject, object) = row?;
-        result_map
-            .entry(subject)
-            .or_default()
-            .insert(object);
+        result_map.entry(subject).or_default().insert(object);
     }
 
     Ok(result_map)

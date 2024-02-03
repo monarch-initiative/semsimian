@@ -6,12 +6,12 @@ use std::{collections::HashSet, path::PathBuf};
 #[cfg_attr(feature = "ci", ignore)]
 fn test_large_termset_pairwise_similarity() {
     let mut db_path = PathBuf::new();
-        if let Some(home) = std::env::var_os("HOME") {
-            db_path.push(home);
-            db_path.push(".data/oaklib/phenio.db");
-        } else {
-            panic!("Failed to get home directory");
-        }
+    if let Some(home) = std::env::var_os("HOME") {
+        db_path.push(home);
+        db_path.push(".data/oaklib/phenio.db");
+    } else {
+        panic!("Failed to get home directory");
+    }
     let db = Some(db_path.to_str().expect("Failed to convert path to string"));
     let predicates: Option<Vec<Predicate>> = Some(vec![
         "rdfs:subClassOf".to_string(),
@@ -130,7 +130,6 @@ fn test_large_termset_pairwise_similarity() {
 
     let result = rss.termset_pairwise_similarity(&entity1, &entity2);
     dbg!(&result);
-    
 }
 
 #[test]
@@ -138,12 +137,12 @@ fn test_large_termset_pairwise_similarity() {
 #[cfg_attr(feature = "ci", ignore)]
 fn test_ancestor_label_presence() {
     let mut db_path = PathBuf::new();
-        if let Some(home) = std::env::var_os("HOME") {
-            db_path.push(home);
-            db_path.push(".data/oaklib/phenio.db");
-        } else {
-            panic!("Failed to get home directory");
-        }
+    if let Some(home) = std::env::var_os("HOME") {
+        db_path.push(home);
+        db_path.push(".data/oaklib/phenio.db");
+    } else {
+        panic!("Failed to get home directory");
+    }
     let db = Some(db_path.to_str().expect("Failed to convert path to string"));
     let predicates: Option<Vec<Predicate>> = Some(vec![
         "rdfs:subClassOf".to_string(),
@@ -167,15 +166,27 @@ fn test_ancestor_label_presence() {
         "MP:0006144".to_string(),
     ]);
     let result = rss.termset_pairwise_similarity(&entity1, &entity2);
-    
+
     dbg!(&result);
     for value in result.subject_best_matches_similarity_map.values() {
-        assert!(value.get("ancestor_label").is_some(), "Ancestor label in subject_best_matches_similarity_map should not be None");
-        assert!(!value.get("ancestor_label").as_ref().unwrap().is_empty(), "Ancestor label in subject_best_matches_similarity_map should not be empty");
+        assert!(
+            value.get("ancestor_label").is_some(),
+            "Ancestor label in subject_best_matches_similarity_map should not be None"
+        );
+        assert!(
+            !value.get("ancestor_label").as_ref().unwrap().is_empty(),
+            "Ancestor label in subject_best_matches_similarity_map should not be empty"
+        );
     }
 
     for value in result.object_best_matches_similarity_map.values() {
-        assert!(value.get("ancestor_label").is_some(), "Ancestor label in object_best_matches_similarity_map should not be None");
-        assert!(!value.get("ancestor_label").as_ref().unwrap().is_empty(), "Ancestor label in object_best_matches_similarity_map should not be empty");
+        assert!(
+            value.get("ancestor_label").is_some(),
+            "Ancestor label in object_best_matches_similarity_map should not be None"
+        );
+        assert!(
+            !value.get("ancestor_label").as_ref().unwrap().is_empty(),
+            "Ancestor label in object_best_matches_similarity_map should not be empty"
+        );
     }
 }

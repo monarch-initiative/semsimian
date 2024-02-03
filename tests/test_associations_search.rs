@@ -129,7 +129,7 @@ fn test_large_associations_search() {
     ]);
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: usize = 10;
-    
+
     // Start timing before the function call
     let start = Instant::now();
 
