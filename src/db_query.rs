@@ -265,7 +265,7 @@ pub fn get_objects_for_subjects(
         let (subject, object) = row?;
         result_map
             .entry(subject)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(object);
     }
 

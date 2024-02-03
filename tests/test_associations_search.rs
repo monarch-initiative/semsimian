@@ -128,7 +128,7 @@ fn test_large_associations_search() {
         "HP:0002650".to_string(),
     ]);
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
-    let limit: Option<usize> = Some(10);
+    let limit: usize = 10;
     
     // Start timing before the function call
     let start = Instant::now();
@@ -141,7 +141,7 @@ fn test_large_associations_search() {
         &None,
         &subject_prefixes,
         &search_type_full,
-        limit,
+        Some(limit),
     );
 
     // Stop timing after the function call
@@ -159,12 +159,12 @@ fn test_large_associations_search() {
         &None,
         &subject_prefixes,
         &search_type_full,
-        limit,
+        Some(limit),
     );
     // Stop timing after the function call
     let duration = start.elapsed();
 
-    assert_eq!({ result.len() }, limit.unwrap());
+    assert_eq!({ result.len() }, limit);
 
     // dbg!(&result);
     // print the time:
@@ -299,7 +299,7 @@ fn test_flat_vs_full_search() {
 
     let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
-    let limit: Option<usize> = Some(10);
+    let limit: usize = 10;
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -309,7 +309,7 @@ fn test_flat_vs_full_search() {
         &None,
         &subject_prefixes,
         &search_type_full,
-        limit,
+        Some(limit),
     );
     // Call the function under test
     let result_2 = rss.associations_search(
@@ -319,7 +319,7 @@ fn test_flat_vs_full_search() {
         &None,
         &subject_prefixes,
         &search_type_flat,
-        limit,
+        Some(limit),
     );
 
     dbg!(&result_1.len());
@@ -377,8 +377,8 @@ fn test_flat_vs_full_search() {
     // dbg!(&result_2_unique);
     // dbg!(&result_1_matches);
     // dbg!(&result_2_matches);
-    assert_eq!({ result_1.len() }, limit.unwrap());
-    assert_eq!({ result_2.len() }, limit.unwrap());
+    assert_eq!({ result_1.len() }, limit);
+    assert_eq!({ result_2.len() }, limit);
     assert_eq!(match_percentage, 100.0);
     assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
     assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
@@ -511,7 +511,7 @@ fn test_flat_vs_hybrid_search() {
 
     let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
     let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
-    let limit: Option<usize> = Some(10);
+    let limit: usize = 10;
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -521,7 +521,7 @@ fn test_flat_vs_hybrid_search() {
         &None,
         &subject_prefixes,
         &search_type_flat,
-        limit,
+        Some(limit),
     );
     // Call the function under test
     let result_2 = rss.associations_search(
@@ -531,7 +531,7 @@ fn test_flat_vs_hybrid_search() {
         &None,
         &subject_prefixes,
         &search_type_hybrid,
-        limit,
+        Some(limit),
     );
 
     dbg!(&result_1.len());
@@ -589,8 +589,8 @@ fn test_flat_vs_hybrid_search() {
     // dbg!(&result_2_unique);
     // dbg!(&result_1_matches);
     // dbg!(&result_2_matches);
-    assert_eq!({ result_1.len() }, limit.unwrap());
-    assert_eq!({ result_2.len() }, limit.unwrap());
+    assert_eq!({ result_1.len() }, limit);
+    assert_eq!({ result_2.len() }, limit);
     assert_eq!(match_percentage, 100.0);
     assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
     assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
@@ -723,7 +723,7 @@ fn test_full_vs_hybrid_search() {
 
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
-    let limit: Option<usize> = Some(100);
+    let limit: usize = 100;
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -733,7 +733,7 @@ fn test_full_vs_hybrid_search() {
         &None,
         &subject_prefixes,
         &search_type_full,
-        limit,
+        Some(limit),
     );
     // Call the function under test
     let result_2 = rss.associations_search(
@@ -743,7 +743,7 @@ fn test_full_vs_hybrid_search() {
         &None,
         &subject_prefixes,
         &search_type_hybrid,
-        limit,
+        Some(limit),
     );
 
     dbg!(&result_1.len());
@@ -804,8 +804,8 @@ fn test_full_vs_hybrid_search() {
     dbg!(&result_2_unique);
     dbg!(&result_1_matches);
     dbg!(&result_2_matches);
-    assert_eq!({ result_1.len() }, limit.unwrap());
-    assert_eq!({ result_2.len() }, limit.unwrap());
+    assert_eq!({ result_1.len() }, limit);
+    assert_eq!({ result_2.len() }, limit);
     assert_eq!(match_percentage, 100.0);
     assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
     assert!(result_2_unique.is_empty(), "result_2_unique is not empty");

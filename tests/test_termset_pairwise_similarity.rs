@@ -169,12 +169,12 @@ fn test_ancestor_label_presence() {
     let result = rss.termset_pairwise_similarity(&entity1, &entity2);
     
     dbg!(&result);
-    for (_, value) in &result.subject_best_matches_similarity_map {
+    for value in result.subject_best_matches_similarity_map.values() {
         assert!(value.get("ancestor_label").is_some(), "Ancestor label in subject_best_matches_similarity_map should not be None");
         assert!(!value.get("ancestor_label").as_ref().unwrap().is_empty(), "Ancestor label in subject_best_matches_similarity_map should not be empty");
     }
 
-    for (_, value) in &result.object_best_matches_similarity_map {
+    for value in result.object_best_matches_similarity_map.values() {
         assert!(value.get("ancestor_label").is_some(), "Ancestor label in object_best_matches_similarity_map should not be None");
         assert!(!value.get("ancestor_label").as_ref().unwrap().is_empty(), "Ancestor label in object_best_matches_similarity_map should not be empty");
     }
