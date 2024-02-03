@@ -10,7 +10,7 @@ use std::error::Error;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
-use crate::db_query::get_subjects;
+use crate::db_query::{get_labels, get_subjects};
 use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
 use crate::{SearchTypeEnum, SimilarityMap};
 type Predicate = String;
@@ -380,8 +380,9 @@ pub fn get_similarity_map(
 pub fn get_best_matches(
     termset: &[BTreeInBTree],
     all_by_all: &SimilarityMap,
-    term_label_map: &HashMap<String, String>,
+    term_label_map: &mut HashMap<String, String>,
     metric: &str,
+    db_path_str: &str,
 ) -> (BTreeInBTree, BTreeInBTree) {
     let mut best_matches = BTreeMap::new();
     let mut best_matches_similarity_map = BTreeMap::new();
@@ -396,13 +397,35 @@ pub fn get_best_matches(
                 .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(v2).unwrap())
                 .unwrap();
 
-            let mut similarity_map = get_similarity_map(term_id, best_match);
+            let mut similarity_map: BTreeMap<String, String> = get_similarity_map(term_id, best_match);
 
             let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
-            let ancestor_label = term_label_map
-                .get(&ancestor_id)
-                .cloned()
-                .unwrap_or_default();
+            // let ancestor_label = term_label_map
+            //     .get(&ancestor_id)
+            //     .cloned()
+            //     .unwrap_or_default();
+            
+            const DEFAULT_LABEL: &str = "LABEL NOT IN RESOURCE";
+            
+            // Your optimized code snippet
+            let ancestor_label = term_label_map.entry(ancestor_id.clone()).or_insert_with(|| {
+                match get_labels(db_path_str, &[ancestor_id.clone()]) {
+                    Ok(labels) => {
+                        // Extract a String for ancestor_id from labels HashMap
+                        labels.get(&ancestor_id.to_string()).cloned().unwrap_or_else(|| {
+                            // Handle the case where ancestor_id is not found in the labels HashMap
+                            DEFAULT_LABEL.to_string()
+                        })
+                    },
+                    Err(e) => {
+                        // Handle the error, e.g., by logging it and returning a default label
+                        println!("Error fetching labels: {:?}", e);
+                        DEFAULT_LABEL.to_string()
+                    }
+                }
+            }).clone();
+            
+            
             let score = similarity_map.get(metric).unwrap().clone();
 
             let match_source = term_id;
@@ -413,7 +436,7 @@ pub fn get_best_matches(
                 .unwrap_or(&"NO_LABEL".to_string())
                 .clone();
 
-            similarity_map.insert("ancestor_label".to_string(), ancestor_label);
+            similarity_map.insert("ancestor_label".to_string(), ancestor_label.to_owned());
             let best_matches_key = term_id.to_owned();
             let mut best_matches_value: BTreeMap<String, String> = BTreeMap::new();
             // best_matches_value.insert("similarity".to_string(), Box::new(similarity_map.clone()));
@@ -921,7 +944,7 @@ mod tests {
             .cloned()
             .collect();
         let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-        let term_label_map = get_labels(db.unwrap(), &all_terms_vec).unwrap();
+        let mut term_label_map = get_labels(db.unwrap(), &all_terms_vec).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(&subject_terms, &term_label_map);
@@ -929,7 +952,7 @@ mod tests {
         let metric = "ancestor_information_content";
 
         let (best_match, best_matches_similarity_map) =
-            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric, &db.unwrap());
 
         let best_match_keys: HashSet<_> = best_match.keys().cloned().collect();
         assert_eq!(best_match_keys, subject_terms);

@@ -450,7 +450,7 @@ impl RustSemsimian {
             .cloned()
             .collect();
         let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-        let term_label_map = get_labels(&db_path_str, &all_terms_vec).unwrap();
+        let mut term_label_map = get_labels(&db_path_str, &all_terms_vec).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(subject_terms, &term_label_map);
@@ -461,12 +461,13 @@ impl RustSemsimian {
             .unwrap();
 
         let (subject_best_matches, subject_best_matches_similarity_map) =
-            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric, &db_path_str);
         let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
             &object_termset,
             &all_by_all_object_perspective,
-            &term_label_map,
+            &mut term_label_map,
             metric,
+            &db_path_str
         );
         let best_score = get_best_score(&subject_best_matches, &object_best_matches);
 
