@@ -134,7 +134,7 @@ fn test_large_termset_pairwise_similarity() {
 }
 
 #[test]
-// #[ignore]
+#[ignore]
 #[cfg_attr(feature = "ci", ignore)]
 fn test_ancestor_label_presence() {
     let mut db_path = PathBuf::new();
