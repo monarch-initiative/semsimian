@@ -454,7 +454,7 @@ impl RustSemsimian {
 
         // Expand each term using closure
         for term in &all_terms {
-            let ancestors = expand_term_using_closure(&term, &self.closure_map, &self.predicates)
+            let ancestors = expand_term_using_closure(term, &self.closure_map, &self.predicates)
                 .into_iter()
                 .collect::<HashSet<String>>();
             ancestors_set.extend(ancestors);
