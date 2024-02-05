@@ -449,8 +449,24 @@ impl RustSemsimian {
             .chain(object_terms.iter())
             .cloned()
             .collect();
-        let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-        let mut term_label_map = get_labels(&db_path_str, &all_terms_vec).unwrap();
+
+        let mut ancestors_set: HashSet<String> = HashSet::new();
+
+        // Expand each term using closure
+        for term in &all_terms {
+            let ancestors = expand_term_using_closure(&term, &self.closure_map, &self.predicates)
+                .into_iter()
+                .collect::<HashSet<String>>();
+            ancestors_set.extend(ancestors);
+        }
+
+        // Combine all_terms_vec with ancestors_set by first adding all terms to the HashSet
+        ancestors_set.extend(all_terms);
+
+        // Convert the HashSet back to a Vec to get a list of unique elements
+        let combined_unique_vec: Vec<String> = ancestors_set.into_iter().collect();
+
+        let mut term_label_map = get_labels(&db_path_str, &combined_unique_vec).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(subject_terms, &term_label_map);
@@ -460,19 +476,13 @@ impl RustSemsimian {
             .termset_comparison(subject_terms, object_terms)
             .unwrap();
 
-        let (subject_best_matches, subject_best_matches_similarity_map) = get_best_matches(
-            &subject_termset,
-            &all_by_all,
-            &mut term_label_map,
-            metric,
-            &db_path_str,
-        );
+        let (subject_best_matches, subject_best_matches_similarity_map) =
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric);
         let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
             &object_termset,
             &all_by_all_object_perspective,
             &mut term_label_map,
             metric,
-            &db_path_str,
         );
         let best_score = get_best_score(&subject_best_matches, &object_best_matches);
 

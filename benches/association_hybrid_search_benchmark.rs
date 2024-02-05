@@ -128,7 +128,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     ]));
     let search_type: SearchTypeEnum = SearchTypeEnum::Hybrid;
     let limit: Option<usize> = black_box(Some(10));
-    let include_similarity_object = false;
+    let include_similarity_object = true;
     let mut bench_grp = c.benchmark_group("search_bench_group");
     bench_grp.sample_size(10);
     // .measurement_time(Duration::from_secs(300));

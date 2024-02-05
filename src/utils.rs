@@ -10,7 +10,7 @@ use std::error::Error;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
-use crate::db_query::{get_labels, get_subjects};
+use crate::db_query::get_subjects;
 use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
 use crate::{SearchTypeEnum, SimilarityMap};
 type Predicate = String;
@@ -379,7 +379,6 @@ pub fn get_best_matches(
     all_by_all: &SimilarityMap,
     term_label_map: &mut HashMap<String, String>,
     metric: &str,
-    db_path_str: &str,
 ) -> (BTreeInBTree, BTreeInBTree) {
     let mut best_matches = BTreeMap::new();
     let mut best_matches_similarity_map = BTreeMap::new();
@@ -398,36 +397,10 @@ pub fn get_best_matches(
                 get_similarity_map(term_id, best_match);
 
             let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
-            // let ancestor_label = term_label_map
-            //     .get(&ancestor_id)
-            //     .cloned()
-            //     .unwrap_or_default();
-
-            const DEFAULT_LABEL: &str = "LABEL NOT IN RESOURCE";
-
-            // Your optimized code snippet
             let ancestor_label = term_label_map
-                .entry(ancestor_id.clone())
-                .or_insert_with(|| {
-                    match get_labels(db_path_str, &[ancestor_id.clone()]) {
-                        Ok(labels) => {
-                            // Extract a String for ancestor_id from labels HashMap
-                            labels
-                                .get(&ancestor_id.to_string())
-                                .cloned()
-                                .unwrap_or_else(|| {
-                                    // Handle the case where ancestor_id is not found in the labels HashMap
-                                    DEFAULT_LABEL.to_string()
-                                })
-                        }
-                        Err(e) => {
-                            // Handle the error, e.g., by logging it and returning a default label
-                            println!("Error fetching labels: {:?}", e);
-                            DEFAULT_LABEL.to_string()
-                        }
-                    }
-                })
-                .clone();
+                .get(&ancestor_id)
+                .cloned()
+                .unwrap_or_default();
 
             let score = similarity_map.get(metric).unwrap().clone();
 
@@ -954,13 +927,8 @@ mod tests {
 
         let metric = "ancestor_information_content";
 
-        let (best_match, best_matches_similarity_map) = get_best_matches(
-            &subject_termset,
-            &all_by_all,
-            &mut term_label_map,
-            metric,
-            db,
-        );
+        let (best_match, best_matches_similarity_map) =
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric);
 
         let best_match_keys: HashSet<_> = best_match.keys().cloned().collect();
         assert_eq!(best_match_keys, subject_terms);
