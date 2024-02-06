@@ -50,12 +50,18 @@ impl<'a> IntoPy<PyObject> for &'a TermsetPairwiseSimilarity {
         // Create nested dictionaries for subject_best_matches and object_best_matches
         let subject_best_matches_dict = PyDict::new(py);
         subject_best_matches_dict
-            .set_item("similarity", self.subject_best_matches_similarity_map.to_object(py))
+            .set_item(
+                "similarity",
+                self.subject_best_matches_similarity_map.to_object(py),
+            )
             .expect("Failed to set item in subject_best_matches_dict");
 
         let object_best_matches_dict = PyDict::new(py);
         object_best_matches_dict
-            .set_item("similarity", self.object_best_matches_similarity_map.to_object(py))
+            .set_item(
+                "similarity",
+                self.object_best_matches_similarity_map.to_object(py),
+            )
             .expect("Failed to set item in object_best_matches_dict");
 
         // Add your struct fields to the dictionary
@@ -84,4 +90,3 @@ impl<'a> IntoPy<PyObject> for &'a TermsetPairwiseSimilarity {
         tsps_dict.into()
     }
 }
-

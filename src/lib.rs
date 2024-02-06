@@ -38,11 +38,11 @@ use utils::{
 };
 
 use crate::similarity::calculate_weighted_term_pairwise_information_content;
+use crate::utils::get_best_score;
 use db_query::get_labels;
 use lazy_static::lazy_static;
-use termset_pairwise_similarity::TermsetPairwiseSimilarity;
 use std::time::Instant;
-use crate::utils::get_best_score;
+use termset_pairwise_similarity::TermsetPairwiseSimilarity;
 
 // change to "pub" because it is easier for testing
 pub type Predicate = String;
@@ -430,7 +430,7 @@ impl RustSemsimian {
             for (key2, value2) in value1.iter() {
                 all_by_all_object_perspective
                     .entry(key2.to_owned())
-                    .or_insert_with(HashMap::new)
+                    .or_default()
                     .insert(key1.to_owned(), value2.to_owned());
             }
         }
@@ -449,8 +449,24 @@ impl RustSemsimian {
             .chain(object_terms.iter())
             .cloned()
             .collect();
-        let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-        let term_label_map = get_labels(&db_path_str, &all_terms_vec).unwrap();
+
+        let mut ancestors_set: HashSet<String> = HashSet::new();
+
+        // Expand each term using closure
+        for term in &all_terms {
+            let ancestors = expand_term_using_closure(term, &self.closure_map, &self.predicates)
+                .into_iter()
+                .collect::<HashSet<String>>();
+            ancestors_set.extend(ancestors);
+        }
+
+        // Combine all_terms_vec with ancestors_set by first adding all terms to the HashSet
+        ancestors_set.extend(all_terms);
+
+        // Convert the HashSet back to a Vec to get a list of unique elements
+        let combined_unique_vec: Vec<String> = ancestors_set.into_iter().collect();
+
+        let mut term_label_map = get_labels(&db_path_str, &combined_unique_vec).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(subject_terms, &term_label_map);
@@ -461,11 +477,11 @@ impl RustSemsimian {
             .unwrap();
 
         let (subject_best_matches, subject_best_matches_similarity_map) =
-            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric);
         let (object_best_matches, object_best_matches_similarity_map) = get_best_matches(
             &object_termset,
             &all_by_all_object_perspective,
-            &term_label_map,
+            &mut term_label_map,
             metric,
         );
         let best_score = get_best_score(&subject_best_matches, &object_best_matches);
@@ -693,7 +709,7 @@ impl RustSemsimian {
             .map(|prefixes| {
                 get_prefix_association_key(prefixes, object_closure_predicates, search_type)
             })
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
 
         if self.prefix_expansion_cache.contains_key(&cache_key) {
             println!("Using cache! {:?}", cache_key);
@@ -785,7 +801,7 @@ impl RustSemsimian {
             .map(|prefixes| {
                 get_prefix_association_key(prefixes, object_closure_predicates, search_type)
             })
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
 
         println!("Generating cache! {:?}", cache_key);
 
@@ -1437,8 +1453,8 @@ mod tests {
         let banana = "banana".to_string();
         let apple = "apple".to_string();
         let pear = "pear".to_string();
-        let outfile = Some("tests/data/output/pairwise_similarity_test_output.tsv");
-        let embeddings_file = Some("tests/data/test_embeddings.tsv");
+        let outfile = "tests/data/output/pairwise_similarity_test_output.tsv";
+        let embeddings_file = "tests/data/test_embeddings.tsv";
 
         let mut subject_terms: HashSet<String> = HashSet::new();
         subject_terms.insert(banana);
@@ -1449,17 +1465,17 @@ mod tests {
         object_terms.insert(pear);
 
         rss.update_closure_and_ic_map();
-        rss.load_embeddings(embeddings_file.unwrap());
+        rss.load_embeddings(embeddings_file);
         rss.all_by_all_pairwise_similarity_with_output(
             &subject_terms,
             &object_terms,
             &Some(0.0),
             &Some(0.0),
-            &outfile,
+            &Some(outfile),
         );
 
         // Read the outfile and count the number of lines
-        let file = File::open(outfile.unwrap()).unwrap();
+        let file = File::open(outfile).unwrap();
         let reader = BufReader::new(file);
 
         let line_count = reader.lines().count();
@@ -1467,7 +1483,7 @@ mod tests {
         assert_eq!(line_count, 3);
 
         // Clean up the temporary file
-        std::fs::remove_file(outfile.unwrap()).expect("Failed to remove file");
+        std::fs::remove_file(outfile).expect("Failed to remove file");
     }
 
     #[test]
@@ -1492,9 +1508,9 @@ mod tests {
     fn test_cosine_using_bfo() {
         let spo = Some(BFO_SPO.clone());
         let mut rss = RustSemsimian::new(spo, None, None, None);
-        let embeddings_file = Some("tests/data/bfo_embeddings.tsv");
+        let embeddings_file = "tests/data/bfo_embeddings.tsv";
 
-        rss.load_embeddings(embeddings_file.unwrap());
+        rss.load_embeddings(embeddings_file);
 
         let cosine_similarity =
             rss.cosine_similarity("BFO:0000040", "BFO:0000002", &rss.embeddings);
@@ -1775,7 +1791,7 @@ mod tests {
         let subject_prefixes: Option<Vec<TermID>> = Some(vec!["GO:".to_string()]);
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
         let search_type: SearchTypeEnum = SearchTypeEnum::Flat;
-        let limit: Option<usize> = Some(20);
+        let limit: usize = 20;
 
         // Call the function under test
         let result = rss.associations_search(
@@ -1785,7 +1801,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type,
-            limit,
+            Some(limit),
         );
         // assert_eq!({ result.len() }, limit.unwrap());
         //result is a Vec<(f64, obj, String)> I want the count of tuples in the vector that has the f64 value as the first one
@@ -1793,7 +1809,7 @@ mod tests {
         let unique_scores: HashSet<_> =
             result.iter().map(|(score, _, _)| score.to_bits()).collect();
         let count = unique_scores.len();
-        assert!(count <= limit.unwrap());
+        assert!(count <= limit);
         // dbg!(&result);
     }
 
@@ -1833,7 +1849,7 @@ mod tests {
             "HP:0000098".to_string(),
         ]);
         let search_type: SearchTypeEnum = SearchTypeEnum::Full;
-        let limit: Option<usize> = Some(20);
+        let limit: usize = 20;
 
         // Call the function under test
         let result = rss.associations_search(
@@ -1843,12 +1859,12 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type,
-            limit,
+            Some(limit),
         );
         let unique_scores: HashSet<_> =
             result.iter().map(|(score, _, _)| score.to_bits()).collect();
         let count = unique_scores.len();
-        assert!(count <= limit.unwrap());
+        assert!(count <= limit);
     }
 
     #[test]

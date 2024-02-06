@@ -114,7 +114,7 @@ class testSemsimianWithPython(unittest.TestCase):
             "HP:0002650",
         }
         self.ehlers_danlos_profile = {
-             "HP:0100699",
+            "HP:0100699",
             "HP:0001388",
             "HP:0001382",
             "HP:0001065",
@@ -174,7 +174,7 @@ class testSemsimianWithPython(unittest.TestCase):
             "HP:0012732",
             "HP:0100550",
             "HP:0100645",
-            "HP:0100823"
+            "HP:0100823",
         }
 
     def test_jaccard_similarity(self):

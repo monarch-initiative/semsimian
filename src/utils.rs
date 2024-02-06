@@ -133,9 +133,9 @@ pub fn convert_list_of_tuples_to_hashmap(
 
         closure_map
             .entry(predicate_set_key.clone())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .entry(String::from(s))
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(String::from(o));
 
         progress_bar.inc(1);
@@ -145,14 +145,11 @@ pub fn convert_list_of_tuples_to_hashmap(
 
     let number_of_nodes = freq_map.len() as f64;
 
-    ic_map
-        .entry(predicate_set_key.clone())
-        .or_insert_with(HashMap::new)
-        .extend(
-            freq_map
-                .iter()
-                .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
-        );
+    ic_map.entry(predicate_set_key.clone()).or_default().extend(
+        freq_map
+            .iter()
+            .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
+    );
 
     (closure_map, ic_map)
 }
@@ -380,7 +377,7 @@ pub fn get_similarity_map(
 pub fn get_best_matches(
     termset: &[BTreeInBTree],
     all_by_all: &SimilarityMap,
-    term_label_map: &HashMap<String, String>,
+    term_label_map: &mut HashMap<String, String>,
     metric: &str,
 ) -> (BTreeInBTree, BTreeInBTree) {
     let mut best_matches = BTreeMap::new();
@@ -396,13 +393,15 @@ pub fn get_best_matches(
                 .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(v2).unwrap())
                 .unwrap();
 
-            let mut similarity_map = get_similarity_map(term_id, best_match);
+            let mut similarity_map: BTreeMap<String, String> =
+                get_similarity_map(term_id, best_match);
 
             let ancestor_id = similarity_map.get("ancestor_id").unwrap().clone();
             let ancestor_label = term_label_map
                 .get(&ancestor_id)
                 .cloned()
                 .unwrap_or_default();
+
             let score = similarity_map.get(metric).unwrap().clone();
 
             let match_source = term_id;
@@ -413,7 +412,7 @@ pub fn get_best_matches(
                 .unwrap_or(&"NO_LABEL".to_string())
                 .clone();
 
-            similarity_map.insert("ancestor_label".to_string(), ancestor_label);
+            similarity_map.insert("ancestor_label".to_string(), ancestor_label.to_owned());
             let best_matches_key = term_id.to_owned();
             let mut best_matches_value: BTreeMap<String, String> = BTreeMap::new();
             // best_matches_value.insert("similarity".to_string(), Box::new(similarity_map.clone()));
@@ -901,7 +900,7 @@ mod tests {
 
     #[test]
     fn test_get_best_matches() {
-        let db = Some("tests/data/go-nucleus.db");
+        let db = "tests/data/go-nucleus.db";
         // Call the function with the test parameters
         let predicates: Option<Vec<Predicate>> = Some(vec![
             "rdfs:subClassOf".to_string(),
@@ -909,7 +908,7 @@ mod tests {
         ]);
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, Some(db));
         rss.update_closure_and_ic_map();
 
         let all_by_all: SimilarityMap =
@@ -921,7 +920,7 @@ mod tests {
             .cloned()
             .collect();
         let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
-        let term_label_map = get_labels(db.unwrap(), &all_terms_vec).unwrap();
+        let mut term_label_map = get_labels(db, &all_terms_vec).unwrap();
 
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(&subject_terms, &term_label_map);
@@ -929,7 +928,7 @@ mod tests {
         let metric = "ancestor_information_content";
 
         let (best_match, best_matches_similarity_map) =
-            get_best_matches(&subject_termset, &all_by_all, &term_label_map, metric);
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric);
 
         let best_match_keys: HashSet<_> = best_match.keys().cloned().collect();
         assert_eq!(best_match_keys, subject_terms);
