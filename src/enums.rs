@@ -1,4 +1,5 @@
 use pyo3::{exceptions::PyValueError, PyResult};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub enum SearchTypeEnum {
@@ -26,8 +27,9 @@ impl SearchTypeEnum {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 pub enum MetricEnum {
+    #[default]
     AncestorInformationContent,
     Jaccard,
     Phenodigm,
@@ -51,7 +53,7 @@ impl MetricEnum {
             "jaccard" => Ok(MetricEnum::Jaccard),
             "phenodigm" => Ok(MetricEnum::Phenodigm),
             "cosine" => Ok(MetricEnum::Cosine),
-            _ => Err(PyValueError::new_err("Invalid search type")),
+            _ => Err(PyValueError::new_err("Invalid metric type")),
         }
     }
 }

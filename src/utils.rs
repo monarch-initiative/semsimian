@@ -11,6 +11,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
 use crate::db_query::get_subjects;
+use crate::enums::MetricEnum;
 use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
 use crate::{SearchTypeEnum, SimilarityMap};
 type Predicate = String;
@@ -378,7 +379,7 @@ pub fn get_best_matches(
     termset: &[BTreeInBTree],
     all_by_all: &SimilarityMap,
     term_label_map: &mut HashMap<String, String>,
-    metric: &str,
+    metric: &MetricEnum,
 ) -> (BTreeInBTree, BTreeInBTree) {
     let mut best_matches = BTreeMap::new();
     let mut best_matches_similarity_map = BTreeMap::new();
@@ -402,7 +403,7 @@ pub fn get_best_matches(
                 .cloned()
                 .unwrap_or_default();
 
-            let score = similarity_map.get(metric).unwrap().clone();
+            let score = similarity_map.get(metric.as_str()).unwrap().clone();
 
             let match_source = term_id;
             let match_source_label = term_label;
@@ -925,10 +926,10 @@ mod tests {
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(&subject_terms, &term_label_map);
 
-        let metric = "ancestor_information_content";
+        let metric = MetricEnum::AncestorInformationContent;
 
         let (best_match, best_matches_similarity_map) =
-            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric);
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, &metric);
 
         let best_match_keys: HashSet<_> = best_match.keys().cloned().collect();
         assert_eq!(best_match_keys, subject_terms);

@@ -16,7 +16,7 @@ pub struct TermsetPairwiseSimilarity {
     pub object_best_matches_similarity_map: BTreeMap<String, BTreeMap<String, String>>,
     pub average_score: f64,
     pub best_score: f64,
-    pub metric: String,
+    pub metric: MetricEnum,
 }
 impl TermsetPairwiseSimilarity {
     pub fn new(
@@ -28,12 +28,8 @@ impl TermsetPairwiseSimilarity {
         object_best_matches_similarity_map: BTreeMap<String, BTreeMap<String, String>>,
         average_score: f64,
         best_score: f64,
-        score_metric: String,
+        metric: MetricEnum,
     ) -> TermsetPairwiseSimilarity {
-        let metric = MetricEnum::from_string(score_metric.as_str())
-            .unwrap()
-            .as_str()
-            .to_string();
         TermsetPairwiseSimilarity {
             subject_termset,
             subject_best_matches,

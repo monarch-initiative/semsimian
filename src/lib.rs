@@ -421,7 +421,6 @@ impl RustSemsimian {
         object_terms: &HashSet<TermID>,
         metric: &MetricEnum,
     ) -> TermsetPairwiseSimilarity {
-        let metric = metric.as_str();
         let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
 
@@ -496,7 +495,7 @@ impl RustSemsimian {
             object_best_matches_similarity_map,
             *average_termset_information_content,
             best_score,
-            metric.to_string(),
+            metric.to_owned(),
         )
     }
 
@@ -1219,7 +1218,7 @@ impl Semsimian {
                 search_type
             ))),
         }?;
-        let score_metric = MetricEnum::from_string(&score_metric)
+        let metric = MetricEnum::from_string(&score_metric)
             .unwrap_or(MetricEnum::AncestorInformationContent);
 
         let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> =
@@ -1230,7 +1229,7 @@ impl Semsimian {
                 &subject_terms,
                 &subject_prefixes,
                 &search_type_enum,
-                &score_metric,
+                &metric,
                 limit,
             );
         let duration = start_time.elapsed(); // Calculate elapsed time
