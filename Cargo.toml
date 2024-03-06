@@ -1,6 +1,6 @@
 [package]
 name = "semsimian"
-version = "0.2.12"
+version = "0.2.14"
 edition = "2021"
 description = "Sematic similarity calculations for ontologies implemented in Rust."
 license = "BSD-3-Clause"
@@ -14,12 +14,12 @@ crate-type = ["cdylib", "lib"]
 [dependencies]
 csv = "1.1.6"
 dict = "0.1.5"
-generator = "0.8.1"
+generator = "0.7.2"
 ordered-float = "4.1.0"
 lazy_static = "1.4.0"
-cargo-llvm-cov = "0.6.6"
+cargo-llvm-cov = "0.5.19"
 rayon = "1.7.0"
-rusqlite = { version = "0.31.0", features = ["bundled"] }
+rusqlite = { version = "0.30.0", features = ["bundled"] }
 deepsize = "0.2.0"
 serde = { version = "1.0.193", features = ["derive"] }
 indicatif = "0.17.7"  # progress bar
