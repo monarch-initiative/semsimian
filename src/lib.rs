@@ -972,7 +972,7 @@ pub struct Metric {
 impl Metric {
     #[new]
     fn new(value: Option<&str>) -> PyResult<Self> {
-        let value = value.unwrap_or("flat");
+        let value = value.unwrap_or("ancestor_information_content");
         Ok(Metric {
             value: MetricEnum::from_string(value)?,
         })
