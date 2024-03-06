@@ -31,18 +31,18 @@ impl SearchTypeEnum {
 pub enum MetricEnum {
     #[default]
     AncestorInformationContent,
-    Jaccard,
-    Phenodigm,
-    Cosine,
+    JaccardSimilarity,
+    PhenodigmScore,
+    CosineSimilarity,
 }
 
 impl MetricEnum {
     pub fn as_str(&self) -> &str {
         match *self {
             MetricEnum::AncestorInformationContent => "ancestor_information_content",
-            MetricEnum::Jaccard => "jaccard",
-            MetricEnum::Phenodigm => "phenodigm",
-            MetricEnum::Cosine => "cosine",
+            MetricEnum::JaccardSimilarity => "jaccard_similarity",
+            MetricEnum::PhenodigmScore => "phenodigm_score",
+            MetricEnum::CosineSimilarity => "cosine_similarity",
         }
     }
 
@@ -50,9 +50,9 @@ impl MetricEnum {
     pub fn from_string(metric: &str) -> PyResult<Self> {
         match metric {
             "ancestor_information_content" => Ok(MetricEnum::AncestorInformationContent),
-            "jaccard" => Ok(MetricEnum::Jaccard),
-            "phenodigm" => Ok(MetricEnum::Phenodigm),
-            "cosine" => Ok(MetricEnum::Cosine),
+            "jaccard_similarity" => Ok(MetricEnum::JaccardSimilarity),
+            "phenodigm_score" => Ok(MetricEnum::PhenodigmScore),
+            "cosine_similarity" => Ok(MetricEnum::CosineSimilarity),
             _ => Err(PyValueError::new_err("Invalid metric type")),
         }
     }
