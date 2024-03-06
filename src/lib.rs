@@ -7,7 +7,7 @@ use rstest::rstest;
 use db_query::{
     get_entailed_edges_for_predicate_list, get_objects_for_subjects, get_unique_subject_prefixes,
 };
-use enums::SearchTypeEnum;
+use enums::{MetricEnum, SearchTypeEnum};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -419,8 +419,9 @@ impl RustSemsimian {
         &self,
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
+        metric: &MetricEnum,
     ) -> TermsetPairwiseSimilarity {
-        let metric = "ancestor_information_content";
+        let metric = metric.as_str();
         let all_by_all: SimilarityMap =
             self.all_by_all_pairwise_similarity(subject_terms, object_terms, &None, &None);
 
@@ -606,6 +607,7 @@ impl RustSemsimian {
         flatten_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
         limit: &Option<usize>,
         include_similarity_object: bool,
+        score_metric: &MetricEnum,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if let Some(flatten_result) = flatten_result {
             let mut top_percent = flatten_result.len() as f64; // Top percentage to be considered for the full search
@@ -653,6 +655,7 @@ impl RustSemsimian {
                 &associations,
                 profile_entities,
                 include_similarity_object,
+                score_metric,
             );
             sort_with_jaccard_as_tie_breaker(result, flatten_result)
         } else {
@@ -660,6 +663,7 @@ impl RustSemsimian {
                 all_associated_objects_for_subjects,
                 profile_entities,
                 include_similarity_object,
+                score_metric,
             );
             hashed_dual_sort(result)
         }
@@ -670,13 +674,15 @@ impl RustSemsimian {
         associations: &HashMap<String, HashSet<String>>,
         profile_entities: &HashSet<String>,
         include_similarity_object: bool,
+        score_metric: &MetricEnum,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if include_similarity_object {
             associations
                 .par_iter() // Parallel iterator
                 .map(|(key, hashset)| {
                     // Calculate similarity using termset_pairwise_similarity method
-                    let similarity = self.termset_pairwise_similarity(hashset, profile_entities);
+                    let similarity =
+                        self.termset_pairwise_similarity(hashset, profile_entities, score_metric);
                     // Return the result tuple
                     (similarity.average_score, Some(similarity), key.clone())
                 })
@@ -829,6 +835,7 @@ impl RustSemsimian {
         subject_set: &Option<HashSet<TermID>>,
         subject_prefixes: &Option<Vec<TermID>>,
         search_type: &SearchTypeEnum,
+        score_metric: &MetricEnum,
         limit: Option<usize>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let mut result;
@@ -842,6 +849,7 @@ impl RustSemsimian {
                     subject_prefixes,
                     search_type,
                     None,
+                    score_metric,
                     &limit,
                     include_similarity_object,
                 );
@@ -854,6 +862,7 @@ impl RustSemsimian {
                     subject_prefixes,
                     &SearchTypeEnum::Flat,
                     None,
+                    score_metric,
                     &None,
                     include_similarity_object,
                 );
@@ -864,6 +873,7 @@ impl RustSemsimian {
                     subject_prefixes,
                     &SearchTypeEnum::Full,
                     Some(&flat_result),
+                    score_metric,
                     &limit,
                     include_similarity_object,
                 );
@@ -885,6 +895,7 @@ impl RustSemsimian {
         subject_prefixes: &Option<Vec<TermID>>,
         search_type: &SearchTypeEnum,
         flat_result: Option<&Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)>>,
+        score_metric: &MetricEnum,
         limit: &Option<usize>,
         include_similarity_object: bool,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
@@ -919,6 +930,7 @@ impl RustSemsimian {
                 flat_result,
                 limit,
                 include_similarity_object,
+                score_metric,
             ),
         }
     }
@@ -947,6 +959,33 @@ impl SearchType {
     #[setter]
     fn set_value(&mut self, value: &str) -> PyResult<()> {
         self.value = SearchTypeEnum::from_string(value)?;
+        Ok(())
+    }
+}
+
+#[pyclass]
+pub struct Metric {
+    value: MetricEnum,
+}
+
+#[pymethods]
+impl Metric {
+    #[new]
+    fn new(value: Option<&str>) -> PyResult<Self> {
+        let value = value.unwrap_or("flat");
+        Ok(Metric {
+            value: MetricEnum::from_string(value)?,
+        })
+    }
+
+    #[getter]
+    fn get_value(&self, py: Python) -> Py<PyString> {
+        PyString::new(py, self.value.as_str()).into()
+    }
+
+    #[setter]
+    fn set_value(&mut self, value: &str) -> PyResult<()> {
+        self.value = MetricEnum::from_string(value)?;
         Ok(())
     }
 }
@@ -1080,13 +1119,18 @@ impl Semsimian {
         &mut self,
         subject_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
+        score_metric: Option<String>,
         py: Python,
     ) -> PyResult<PyObject> {
         self.ss.update_closure_and_ic_map();
+        // Map score_metric string to a enum value, defaulting to AncestorInformationContent if None
+        let metric = score_metric
+            .map(|m| MetricEnum::from_string(&m).unwrap_or(MetricEnum::AncestorInformationContent))
+            .unwrap_or(MetricEnum::AncestorInformationContent);
 
         let tsps = self
             .ss
-            .termset_pairwise_similarity(&subject_terms, &object_terms);
+            .termset_pairwise_similarity(&subject_terms, &object_terms, &metric);
         Ok(tsps.into_py(py))
     }
 
@@ -1150,6 +1194,7 @@ impl Semsimian {
         object_terms: HashSet<TermID>,
         include_similarity_object: bool,
         search_type: String,
+        score_metric: String,
         // sort_by_similarity: bool,
         // property_filter: Option<HashMap<String, String>>,
         // subject_closure_predicates: Option<Vec<TermID>>,
@@ -1174,6 +1219,8 @@ impl Semsimian {
                 search_type
             ))),
         }?;
+        let score_metric = MetricEnum::from_string(&score_metric)
+            .unwrap_or(MetricEnum::AncestorInformationContent);
 
         let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> =
             self.ss.associations_search(
@@ -1183,6 +1230,7 @@ impl Semsimian {
                 &subject_terms,
                 &subject_prefixes,
                 &search_type_enum,
+                &score_metric,
                 limit,
             );
         let duration = start_time.elapsed(); // Calculate elapsed time
@@ -1529,8 +1577,9 @@ mod tests {
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
         let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let score_metric = MetricEnum::AncestorInformationContent;
         rss.update_closure_and_ic_map();
-        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms);
+        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
         assert_eq!(tsps.average_score, 5.4154243283740175);
         assert_eq!(tsps.best_score, 5.8496657269155685);
     }
@@ -1546,8 +1595,9 @@ mod tests {
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
         let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let score_metric = MetricEnum::AncestorInformationContent;
         rss.update_closure_and_ic_map();
-        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms);
+        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
         assert_eq!(tsps.average_score, 5.4154243283740175);
         let tc = rss
             .termset_comparison(&subject_terms, &object_terms)
@@ -1748,6 +1798,7 @@ mod tests {
         term_set.insert("GO:0008150".to_string());
         term_set.insert("BFO:0000015".to_string());
         expanded_subject_map.insert("GO:0009892".to_string(), term_set);
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         let include_similarity_object = true;
 
@@ -1764,6 +1815,7 @@ mod tests {
             Some(&flattened_search),
             &limit,
             include_similarity_object,
+            &score_metric,
         );
         let result_objects: Vec<TermID> = result
             .iter()
@@ -1792,6 +1844,7 @@ mod tests {
         let object_terms: HashSet<TermID> = HashSet::from(["GO:0019222".to_string()]);
         let search_type: SearchTypeEnum = SearchTypeEnum::Flat;
         let limit: usize = 20;
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         // Call the function under test
         let result = rss.associations_search(
@@ -1801,6 +1854,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type,
+            &score_metric,
             Some(limit),
         );
         // assert_eq!({ result.len() }, limit.unwrap());
@@ -1850,6 +1904,7 @@ mod tests {
         ]);
         let search_type: SearchTypeEnum = SearchTypeEnum::Full;
         let limit: usize = 20;
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         // Call the function under test
         let result = rss.associations_search(
@@ -1859,6 +1914,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type,
+            &score_metric,
             Some(limit),
         );
         let unique_scores: HashSet<_> =
@@ -1876,6 +1932,7 @@ mod tests {
         ]);
 
         let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         rss.update_closure_and_ic_map();
 
@@ -1894,6 +1951,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type_flat,
+            &score_metric,
             limit,
         );
 
@@ -1904,6 +1962,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type_full,
+            &score_metric,
             limit,
         );
 
@@ -1951,6 +2010,7 @@ mod tests {
         ]);
 
         let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         rss.update_closure_and_ic_map();
 
@@ -1969,6 +2029,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type_hybrid,
+            &score_metric,
             limit,
         );
 
@@ -1979,6 +2040,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type_full,
+            &score_metric,
             limit,
         );
 
@@ -2035,6 +2097,7 @@ mod tests {
         let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
         let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
         let limit: Option<usize> = Some(78);
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         // Call the function under test
         let result_1 = rss.associations_search(
@@ -2044,6 +2107,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type_hybrid,
+            &score_metric,
             limit,
         );
 
@@ -2054,6 +2118,7 @@ mod tests {
             &None,
             &subject_prefixes,
             &search_type_flat,
+            &score_metric,
             limit,
         );
 
@@ -2177,9 +2242,10 @@ mod tests_local {
             "HP:0000093".to_string(),
             "MP:0006144".to_string(),
         ]);
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         start_time = Instant::now();
-        let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
+        let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
         elapsed_time = start_time.elapsed();
         println!(
             "Time taken for termset_pairwise_similarity: {:?}",
@@ -2196,7 +2262,7 @@ mod tests_local {
         );
 
         start_time = Instant::now();
-        _tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
+        _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
         elapsed_time = start_time.elapsed();
         println!(
             "Time taken for second termset_pairwise_similarity: {:?}",

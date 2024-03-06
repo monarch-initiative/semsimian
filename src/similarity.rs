@@ -346,8 +346,8 @@ fn calculate_cosine_similarity_for_embeddings(embed_1: &[f64], embed_2: &[f64]) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_constants::constants_for_tests::*;
     use crate::utils::numericize_sets;
+    use crate::{enums::MetricEnum, test_constants::constants_for_tests::*};
     use std::collections::{HashMap, HashSet};
 
     #[test]
@@ -627,11 +627,12 @@ mod tests {
 
         let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
         let expected_value = 5.4154243283740175;
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         println!("Case X pheno_score: {avg_ic_score}");
         assert_eq!(avg_ic_score, expected_value);
 
-        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2);
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
         dbg!(&tsps);
 
         // Test case 2: Normal case, entities have terms.

@@ -1,6 +1,7 @@
 extern crate semsimian;
 use std::collections::HashSet;
 
+use semsimian::enums::MetricEnum;
 use semsimian::enums::SearchTypeEnum;
 use semsimian::similarity::calculate_average_termset_information_content;
 use semsimian::similarity::calculate_semantic_jaccard_similarity;
@@ -136,6 +137,7 @@ fn integration_test_search_and_avg_score() {
         HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
     let search_type: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: Option<usize> = Some(5);
+    let score_metric = MetricEnum::AncestorInformationContent;
 
     let result = rss.associations_search(
         &assoc_predicate,
@@ -144,6 +146,7 @@ fn integration_test_search_and_avg_score() {
         &None,
         &subject_prefixes,
         &search_type,
+        &score_metric,
         limit,
     );
     // dbg!(&result);

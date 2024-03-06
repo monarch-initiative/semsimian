@@ -1,7 +1,10 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
+use semsimian::{
+    enums::{MetricEnum, SearchTypeEnum},
+    Predicate, RustSemsimian, TermID,
+};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut db_path = PathBuf::new();
@@ -129,6 +132,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     ]));
     let search_type: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: Option<usize> = black_box(Some(10));
+    let score_metric = MetricEnum::AncestorInformationContent;
 
     let mut bench_grp = c.benchmark_group("search_bench_group");
     bench_grp.sample_size(10);
@@ -142,6 +146,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 &None,
                 &subject_prefixes,
                 &search_type,
+                &score_metric,
                 limit,
             )
         })

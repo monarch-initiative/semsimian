@@ -25,3 +25,33 @@ impl SearchTypeEnum {
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub enum MetricEnum {
+    AncestorInformationContent,
+    Jaccard,
+    Phenodigm,
+    Cosine,
+}
+
+impl MetricEnum {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            MetricEnum::AncestorInformationContent => "ancestor_information_content",
+            MetricEnum::Jaccard => "jaccard",
+            MetricEnum::Phenodigm => "phenodigm",
+            MetricEnum::Cosine => "cosine",
+        }
+    }
+
+    // Convert a &str to the corresponding Metric enum variant
+    pub fn from_string(metric: &str) -> PyResult<Self> {
+        match metric {
+            "ancestor_information_content" => Ok(MetricEnum::AncestorInformationContent),
+            "jaccard" => Ok(MetricEnum::Jaccard),
+            "phenodigm" => Ok(MetricEnum::Phenodigm),
+            "cosine" => Ok(MetricEnum::Cosine),
+            _ => Err(PyValueError::new_err("Invalid search type")),
+        }
+    }
+}

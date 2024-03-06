@@ -1,3 +1,4 @@
+use semsimian::enums::MetricEnum;
 use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
 use std::time::Instant;
 use std::{collections::HashSet, path::PathBuf};
@@ -132,6 +133,7 @@ fn test_large_associations_search() {
 
     // Start timing before the function call
     let start = Instant::now();
+    let score_metric = MetricEnum::AncestorInformationContent;
 
     //  Get the cache populated.
     rss.associations_search(
@@ -141,6 +143,7 @@ fn test_large_associations_search() {
         &None,
         &subject_prefixes,
         &search_type_full,
+        &score_metric,
         Some(limit),
     );
 
@@ -159,6 +162,7 @@ fn test_large_associations_search() {
         &None,
         &subject_prefixes,
         &search_type_full,
+        &score_metric,
         Some(limit),
     );
     // Stop timing after the function call
@@ -300,6 +304,7 @@ fn test_flat_vs_full_search() {
     let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: usize = 10;
+    let score_metric = MetricEnum::AncestorInformationContent;
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -309,6 +314,7 @@ fn test_flat_vs_full_search() {
         &None,
         &subject_prefixes,
         &search_type_full,
+        &score_metric,
         Some(limit),
     );
     // Call the function under test
@@ -319,6 +325,7 @@ fn test_flat_vs_full_search() {
         &None,
         &subject_prefixes,
         &search_type_flat,
+        &score_metric,
         Some(limit),
     );
 
@@ -512,6 +519,7 @@ fn test_flat_vs_hybrid_search() {
     let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
     let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
     let limit: usize = 10;
+    let score_metric = MetricEnum::AncestorInformationContent;
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -521,6 +529,7 @@ fn test_flat_vs_hybrid_search() {
         &None,
         &subject_prefixes,
         &search_type_flat,
+        &score_metric,
         Some(limit),
     );
     // Call the function under test
@@ -531,6 +540,7 @@ fn test_flat_vs_hybrid_search() {
         &None,
         &subject_prefixes,
         &search_type_hybrid,
+        &score_metric,
         Some(limit),
     );
 
@@ -724,6 +734,7 @@ fn test_full_vs_hybrid_search() {
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
     let limit: usize = 100;
+    let score_metric = MetricEnum::AncestorInformationContent;
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -733,6 +744,7 @@ fn test_full_vs_hybrid_search() {
         &None,
         &subject_prefixes,
         &search_type_full,
+        &score_metric,
         Some(limit),
     );
     // Call the function under test
@@ -743,6 +755,7 @@ fn test_full_vs_hybrid_search() {
         &None,
         &subject_prefixes,
         &search_type_hybrid,
+        &score_metric,
         Some(limit),
     );
 

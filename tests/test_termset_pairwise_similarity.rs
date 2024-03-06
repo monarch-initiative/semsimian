@@ -1,4 +1,4 @@
-use semsimian::{Predicate, RustSemsimian, TermID};
+use semsimian::{enums::MetricEnum, Predicate, RustSemsimian, TermID};
 use std::{collections::HashSet, path::PathBuf};
 
 #[test]
@@ -34,6 +34,8 @@ fn test_large_termset_pairwise_similarity() {
         "HP:0000093".to_string(),
         "MP:0006144".to_string(),
     ]);
+    let score_metric = MetricEnum::AncestorInformationContent;
+
     // let entity1: HashSet<TermID> = HashSet::from([
     //     "HP:0003394".to_string(),
     //     "HP:0003771".to_string(),
@@ -128,7 +130,7 @@ fn test_large_termset_pairwise_similarity() {
     //     "HP:0002170".to_string(),
     // ]);
 
-    let result = rss.termset_pairwise_similarity(&entity1, &entity2);
+    let result = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
     dbg!(&result);
 }
 
@@ -165,7 +167,9 @@ fn test_ancestor_label_presence() {
         "HP:0000093".to_string(),
         "MP:0006144".to_string(),
     ]);
-    let result = rss.termset_pairwise_similarity(&entity1, &entity2);
+    let score_metric = MetricEnum::AncestorInformationContent;
+
+    let result = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
 
     dbg!(&result);
     for value in result.subject_best_matches_similarity_map.values() {

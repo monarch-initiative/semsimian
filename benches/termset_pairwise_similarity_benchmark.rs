@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::PathBuf, time::Duration};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use semsimian::{Predicate, RustSemsimian, TermID};
+use semsimian::{enums::MetricEnum, Predicate, RustSemsimian, TermID};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut db_path = PathBuf::new();
@@ -36,11 +36,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         "MP:0006144".to_string(),
     ]));
     let mut bench_grp = c.benchmark_group("tsps_bench_group");
+    let score_metric = MetricEnum::AncestorInformationContent;
+
     bench_grp
         .sample_size(10)
         .measurement_time(Duration::from_secs(5));
     bench_grp.bench_function("tsps", |b| {
-        b.iter(|| rss.termset_pairwise_similarity(&entity1, &entity2))
+        b.iter(|| rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric))
     });
     bench_grp.finish();
 }
