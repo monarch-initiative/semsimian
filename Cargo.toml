@@ -1,6 +1,6 @@
 [package]
 name = "semsimian"
-version = "0.2.12"
+version = "0.2.13"
 edition = "2021"
 description = "Sematic similarity calculations for ontologies implemented in Rust."
 license = "BSD-3-Clause"
