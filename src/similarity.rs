@@ -52,7 +52,7 @@ pub fn get_most_recent_common_ancestor_with_score(map: HashMap<String, f64>) -> 
     (curie, max_ic)
 }
 
-pub fn calculate_term_pairwise_information_content(
+pub fn calculate_average_of_max_information_content(
     rss: &RustSemsimian,
     entity1: &HashSet<TermID>,
     entity2: &HashSet<TermID>,
@@ -200,17 +200,55 @@ pub fn get_ancestors_of_term(
     ancestors
 }
 
+pub fn calculate_average_of_max_phenodigm_score(
+    rss: &RustSemsimian,
+    entity1: &HashSet<TermID>,
+    entity2: &HashSet<TermID>,
+) -> f64 {
+    // At each iteration, it calculates the phenodigm score using the phenodigm_score function,
+    // and if the calculated phenodigm score is greater than the current maximum phenodigm score (max_pheno_e1_e2),
+    // it updates the maximum phenodigm value. Thus, at the end of the iterations,
+    // max_pheno_e1_e2 will contain the highest phenodigm score among all the comparisons,
+    // representing the best match between entity1 and entity2.
+    let entity1_len = entity1.len() as f64;
+
+    let entity1_to_entity2_sum_phenodigm_score = entity1.iter().fold(0.0, |sum, e1_term| {
+        let max_phenodigm_score = entity2.iter().fold(0.0, |max_pheno, e2_term| {
+            let score= rss.phenodigm_score(e1_term, e2_term);
+            f64::max(max_pheno, score)
+        });
+
+        sum + max_phenodigm_score
+    });
+
+    entity1_to_entity2_sum_phenodigm_score / entity1_len
+}
+
+pub fn calculate_average_termset_phenodigm_score(
+    semsimian: &RustSemsimian,
+    subject_terms: &HashSet<TermID>,
+    object_terms: &HashSet<TermID>,
+) -> f64 {
+    let subject_to_object_average_of_max_phenodigm_score: f64 =
+        calculate_average_of_max_phenodigm_score(semsimian, subject_terms, object_terms);
+    dbg!(&subject_to_object_average_of_max_phenodigm_score);
+    let object_to_subject_average_of_max_phenodigm_score: f64 =
+        calculate_average_of_max_phenodigm_score(semsimian, object_terms, subject_terms);
+    dbg!(&object_to_subject_average_of_max_phenodigm_score);
+    (subject_to_object_average_of_max_phenodigm_score + object_to_subject_average_of_max_phenodigm_score) / 2.0
+}
+
 pub fn calculate_average_termset_information_content(
     semsimian: &RustSemsimian,
     subject_terms: &HashSet<TermID>,
     object_terms: &HashSet<TermID>,
 ) -> f64 {
-    let subject_to_object_average_resnik_sim: f64 =
-        calculate_term_pairwise_information_content(semsimian, subject_terms, object_terms);
+    let subject_to_object_average_of_max_resnik_sim: f64 =
+        calculate_average_of_max_information_content(semsimian, subject_terms, object_terms);
 
-    let object_to_subject_average_resnik_sim: f64 =
-        calculate_term_pairwise_information_content(semsimian, object_terms, subject_terms);
-    (subject_to_object_average_resnik_sim + object_to_subject_average_resnik_sim) / 2.0
+    let object_to_subject_average_of_max_resnik_sim: f64 =
+        calculate_average_of_max_information_content(semsimian, object_terms, subject_terms);
+    (subject_to_object_average_of_max_resnik_sim + object_to_subject_average_of_max_resnik_sim) / 2.0
 }
 
 pub fn calculate_max_information_content(
@@ -227,7 +265,7 @@ pub fn calculate_max_information_content(
     // test_all_by_all_pairwise_similarity_with_nonempty_inputs
     // "apple" has 2 ancestors with the same resnik score (food & item)
     // This during the execution of this test. Each time it runs, it randomly
-    // picks on or the other. This is expected in a real-world scenario
+    // picks one or the other. This is expected in a real-world scenario
     // and hence we return a set of all ancestors with the max resnik score rather than one.
     let filtered_common_ancestors =
         common_ancestors(&rss.closure_map, entity1, entity2, predicates);
@@ -534,7 +572,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_term_pairwise_information_content() {
+    fn test_calculate_avg_of_max_information_content() {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
 
         // Test case 1: Normal case, entities have terms.
@@ -550,7 +588,7 @@ mod tests {
         let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
         rss.update_closure_and_ic_map();
 
-        let resnik_score = calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
+        let resnik_score = calculate_average_of_max_information_content(&rss, &entity1, &entity2);
         let expected_value = 0.24271341358512086;
         // dbg!(&rss.ic_map);
 
@@ -567,7 +605,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score = calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
+        let resnik_score = calculate_average_of_max_information_content(&rss, &entity1, &entity2);
         let expected_value = 1.9593580155026542;
 
         println!("Case 2 resnik_score: {resnik_score}");
@@ -583,7 +621,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score = calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
+        let resnik_score = calculate_average_of_max_information_content(&rss, &entity1, &entity2);
         let expected_value = 1.191355953205954;
 
         println!("Case 3 resnik_score: {resnik_score}");
@@ -600,12 +638,86 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let resnik_score = calculate_term_pairwise_information_content(&rss, &entity1, &entity2);
+        let resnik_score = calculate_average_of_max_information_content(&rss, &entity1, &entity2);
         let expected_value = 0.5382366147050694;
 
         println!("Case 4 resnik_score: {resnik_score}");
         assert!((resnik_score - expected_value).abs() < f64::EPSILON);
     }
+
+    #[test]
+    fn test_calculate_avg_of_max_phenodigm_score() {
+        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
+
+        // Test case 1: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        rss.update_closure_and_ic_map();
+
+        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
+        let expected_value = 0.28443711290026885;
+
+        println!("Case 1 phenodigm_score: {phenodigm_score}");
+        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000035"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
+        let expected_value = 1.142907991485653;
+
+        println!("Case 2 phenodigm_score: {phenodigm_score}");
+        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 3: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
+        let expected_value = 1.0104407380486145;
+
+        println!("Case 3 phenodigm_score: {phenodigm_score}");
+        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
+
+        // Test case 4: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
+        let expected_value = 0.5864676926056199;
+
+        println!("Case 4 phenodigm_score: {phenodigm_score}");
+        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
+    }
+
 
     #[test]
     fn test_calculate_average_termset_information_content() {
@@ -648,7 +760,52 @@ mod tests {
         let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
         let expected_value = 6.34340010221605;
 
-        println!("Case 3 pheno_score: {avg_ic_score}");
+        println!("Case 3 ic_score: {avg_ic_score}");
         assert_eq!(avg_ic_score, expected_value);
+    }
+
+    #[test]
+    fn test_calculate_average_termset_phenodigm_score() {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        // Test case 1
+        let entity1: HashSet<TermID> =
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let avg_phenodigm_score = calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
+        let expected_value = 1.8610697515464185;
+        let score_metric = MetricEnum::PhenodigmScore;
+
+        println!("Case 1 pheno_score: {avg_phenodigm_score}");
+        assert_eq!(avg_phenodigm_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+
+        // Test case 2
+        let entity1: HashSet<TermID> = HashSet::from([
+            "GO:0005634".to_string(),
+            "GO:0016020".to_string(),
+            "GO:0005773".to_string(),
+        ]);
+
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let avg_phenodigm_score = calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
+        let expected_value = 2.2009031581929213;
+
+        println!("Case 2 pheno_score: {avg_phenodigm_score}");
+        assert_eq!(avg_phenodigm_score, expected_value);
     }
 }

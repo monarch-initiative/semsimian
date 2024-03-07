@@ -27,8 +27,11 @@ mod test_constants;
 use std::fmt;
 
 use similarity::{
-    calculate_average_termset_information_content, calculate_cosine_similarity_for_nodes,
-    calculate_jaccard_similarity_str, calculate_max_information_content,
+    calculate_average_termset_information_content,
+    calculate_average_termset_phenodigm_score,
+    calculate_cosine_similarity_for_nodes,
+    calculate_jaccard_similarity_str,
+    calculate_max_information_content
 };
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
@@ -221,6 +224,11 @@ impl RustSemsimian {
         calculate_cosine_similarity_for_nodes(embeddings, term1, term2).unwrap()
     }
 
+    pub fn phenodigm_score(&self, term1: &str, term2: &str) -> f64 {
+        let (_ancestor_ids, ancestor_information_content) = self.resnik_similarity(term1, term2);
+        (ancestor_information_content * self.jaccard_similarity(term1, term2)).sqrt()
+    }
+
     pub fn all_by_all_pairwise_similarity(
         &self,
         subject_terms: &HashSet<TermID>,
@@ -410,12 +418,32 @@ impl RustSemsimian {
         &self,
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
+        metric: &MetricEnum,
     ) -> Result<f64, String> {
-        Ok(calculate_average_termset_information_content(
-            self,
-            subject_terms,
-            object_terms,
-        ))
+        match metric {
+            MetricEnum::AncestorInformationContent => Ok(
+                calculate_average_termset_information_content(self, subject_terms, object_terms),
+            ),
+            // MetricEnum::JaccardSimilarity => Ok(calculate_average_termset_jaccard_similarity(
+            //     subject_terms,
+            //     object_terms,
+            // )),
+            MetricEnum::PhenodigmScore => Ok(calculate_average_termset_phenodigm_score(
+                self,
+                subject_terms,
+                object_terms,
+            )),
+            // MetricEnum::CosineSimilarity => {
+            //     Ok(0.0) // TODO: Implement cosine similarity for termset comparison
+            // },
+            _ => Err("Metric not implemented for termset comparison".to_string()),
+        }
+        // OLD CODE
+        // Ok(calculate_average_termset_information_content(
+        //     self,
+        //     subject_terms,
+        //     object_terms,
+        // ))
     }
 
     pub fn termset_pairwise_similarity(
@@ -475,8 +503,8 @@ impl RustSemsimian {
             get_termset_vector(subject_terms, &term_label_map);
         let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(object_terms, &term_label_map);
-        let average_termset_information_content = &self
-            .termset_comparison(subject_terms, object_terms)
+        let average_score = &self
+            .termset_comparison(subject_terms, object_terms, metric)
             .unwrap();
 
         let (subject_best_matches, subject_best_matches_similarity_map) =
@@ -496,7 +524,7 @@ impl RustSemsimian {
             object_termset,
             object_best_matches,
             object_best_matches_similarity_map,
-            *average_termset_information_content,
+            *average_score,
             best_score,
             metric.to_owned(),
         )
@@ -695,7 +723,7 @@ impl RustSemsimian {
                 .map(|(key, hashset)| {
                     // Calculate similarity using termset_pairwise_similarity method
                     let similarity_score =
-                        self.termset_comparison(hashset, profile_entities).unwrap();
+                        self.termset_comparison(hashset, profile_entities, score_metric).unwrap();
                     // Return the result tuple
                     (similarity_score, None, key.clone())
                 })
@@ -1074,6 +1102,15 @@ impl Semsimian {
         Ok(self.ss.resnik_similarity(&term1, &term2))
     }
 
+    fn phenodigm_score(
+        &mut self,
+        term1: TermID,
+        term2: TermID,
+    ) -> PyResult<f64> {
+        self.ss.update_closure_and_ic_map();
+        Ok(self.ss.phenodigm_score(&term1, &term2))
+    }
+
     fn all_by_all_pairwise_similarity(
         &mut self,
         subject_terms: HashSet<TermID>,
@@ -1183,10 +1220,14 @@ impl Semsimian {
         &mut self,
         subject_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
+        score_metric: String,
     ) -> PyResult<f64> {
         self.ss.update_closure_and_ic_map();
 
-        match self.ss.termset_comparison(&subject_terms, &object_terms) {
+        let metric = MetricEnum::from_string(&Some(&score_metric))
+            .unwrap_or(MetricEnum::AncestorInformationContent);
+
+        match self.ss.termset_comparison(&subject_terms, &object_terms, &metric) {
             Ok(score) => Ok(score),
             Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),
         }
@@ -1602,9 +1643,11 @@ mod tests {
         let score_metric = MetricEnum::AncestorInformationContent;
         rss.update_closure_and_ic_map();
         let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
+        let score_metric = MetricEnum::AncestorInformationContent;
+
         assert_eq!(tsps.average_score, 5.4154243283740175);
         let tc = rss
-            .termset_comparison(&subject_terms, &object_terms)
+            .termset_comparison(&subject_terms, &object_terms, &score_metric)
             .unwrap();
         assert_eq!(tsps.average_score, tc);
     }
@@ -1742,8 +1785,9 @@ mod tests {
             HashSet::from(["BFO:0000020".to_string(), "BFO:0000002".to_string()]);
         let entity2: HashSet<TermID> =
             HashSet::from(["BFO:0000030".to_string(), "BFO:0000005".to_string()]);
+        let score_metric = MetricEnum::AncestorInformationContent;
 
-        let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
+        let result = rss.termset_comparison(&entity1, &entity2, &score_metric); //Result<f64, String>
         let expected_result = 0.36407012037768127;
 
         assert_eq!(result.unwrap(), expected_result);
@@ -1757,6 +1801,7 @@ mod tests {
             "BFO:0000050".to_string(),
         ]);
         let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let score_metric = MetricEnum::AncestorInformationContent;
 
         rss.update_closure_and_ic_map();
 
@@ -1765,7 +1810,7 @@ mod tests {
         let entity2: HashSet<TermID> =
             HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
-        let result = rss.termset_comparison(&entity1, &entity2); //Result<f64, String>
+        let result = rss.termset_comparison(&entity1, &entity2, &score_metric);
         let expected_result = 5.4154243283740175;
         assert_eq!(result.unwrap(), expected_result);
     }
@@ -2274,7 +2319,6 @@ mod tests_local {
             elapsed_time
         );
         dbg!(&_tsps);
-
     }
 
     #[test]
