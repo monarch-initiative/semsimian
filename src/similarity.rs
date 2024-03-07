@@ -18,13 +18,13 @@ pub fn calculate_semantic_jaccard_similarity(
 
     let entity1_closure = expand_term_using_closure(entity1, closure_table, predicates);
     let entity2_closure = expand_term_using_closure(entity2, closure_table, predicates);
-    let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
+    
 
     // println!("SIM: entity1_closure: {entity1_closure:?}");
     // println!("SIM: entity2_closure: {entity2_closure:?}");
     // println!("SIM: Jaccard: {jaccard}");
 
-    jaccard
+    calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure)
 }
 
 pub fn calculate_jaccard_similarity_str(set1: &HashSet<String>, set2: &HashSet<String>) -> f64 {
@@ -259,9 +259,9 @@ pub fn calculate_average_termset_jaccard_similarity(
     object_terms: &HashSet<TermID>,
 ) -> f64 {
     let subject_to_object_jaccard_similarity: f64 =
-        calculate_average_of_max_jaccard_similarity(rss, &subject_terms, &object_terms);
+        calculate_average_of_max_jaccard_similarity(rss, subject_terms, object_terms);
     let object_to_subject_jaccard_similarity: f64 =
-        calculate_average_of_max_jaccard_similarity(rss, &object_terms, &subject_terms);
+        calculate_average_of_max_jaccard_similarity(rss, object_terms, subject_terms);
     (subject_to_object_jaccard_similarity + object_to_subject_jaccard_similarity) / 2.0
 }
 
