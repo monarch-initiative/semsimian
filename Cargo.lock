@@ -1894,7 +1894,6 @@ dependencies = [
 [[package]]
 name = "semsimian"
 version = "0.2.14"
-
 dependencies = [
  "cargo-llvm-cov",
  "criterion",

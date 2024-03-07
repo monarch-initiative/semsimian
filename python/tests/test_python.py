@@ -283,6 +283,7 @@ class testSemsimianWithPython(unittest.TestCase):
             search_type,
             None,
             subject_prefixes,
+            None,
             limit,
         )
         self.assertEqual(len(result), limit)
@@ -307,6 +308,7 @@ class testSemsimianWithPython(unittest.TestCase):
             search_type,
             None,
             subject_prefixes,
+            "ancestor_information_content",
             limit,
         )
         self.assertEqual(len(result), limit)
@@ -331,6 +333,7 @@ class testSemsimianWithPython(unittest.TestCase):
             search_type,
             None,
             subject_prefixes,
+            "ancestor_information_content",
             limit,
         )
         self.assertEqual(len(result), limit)

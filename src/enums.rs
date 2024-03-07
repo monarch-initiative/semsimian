@@ -46,14 +46,13 @@ impl MetricEnum {
         }
     }
 
-    // Convert a &str to the corresponding Metric enum variant
-    pub fn from_string(metric: &str) -> PyResult<Self> {
-        match metric {
-            "ancestor_information_content" => Ok(MetricEnum::AncestorInformationContent),
-            "jaccard_similarity" => Ok(MetricEnum::JaccardSimilarity),
-            "phenodigm_score" => Ok(MetricEnum::PhenodigmScore),
-            "cosine_similarity" => Ok(MetricEnum::CosineSimilarity),
-            _ => Err(PyValueError::new_err("Invalid metric type")),
+    // Convert an Option<&str> to the corresponding Metric enum variant
+    pub fn from_string(metric: &Option<&str>) -> PyResult<Self> {
+        match metric.as_deref() {
+            Some("jaccard_similarity") => Ok(MetricEnum::JaccardSimilarity),
+            Some("phenodigm_score") => Ok(MetricEnum::PhenodigmScore),
+            Some("cosine_similarity") => Ok(MetricEnum::CosineSimilarity),
+            Some(_) | None => Ok(MetricEnum::AncestorInformationContent), // Default case includes None and any other string
         }
     }
 }

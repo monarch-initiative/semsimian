@@ -973,7 +973,7 @@ impl Metric {
     fn new(value: Option<&str>) -> PyResult<Self> {
         let value = value.unwrap_or("ancestor_information_content");
         Ok(Metric {
-            value: MetricEnum::from_string(value)?,
+            value: MetricEnum::from_string(&Some(value))?,
         })
     }
 
@@ -984,7 +984,7 @@ impl Metric {
 
     #[setter]
     fn set_value(&mut self, value: &str) -> PyResult<()> {
-        self.value = MetricEnum::from_string(value)?;
+        self.value = MetricEnum::from_string(&Some(value))?;
         Ok(())
     }
 }
@@ -1124,7 +1124,9 @@ impl Semsimian {
         self.ss.update_closure_and_ic_map();
         // Map score_metric string to a enum value, defaulting to AncestorInformationContent if None
         let metric = score_metric
-            .map(|m| MetricEnum::from_string(&m).unwrap_or(MetricEnum::AncestorInformationContent))
+            .map(|m| {
+                MetricEnum::from_string(&Some(&m)).unwrap_or(MetricEnum::AncestorInformationContent)
+            })
             .unwrap_or(MetricEnum::AncestorInformationContent);
 
         let tsps = self
@@ -1193,7 +1195,6 @@ impl Semsimian {
         object_terms: HashSet<TermID>,
         include_similarity_object: bool,
         search_type: String,
-        score_metric: String,
         // sort_by_similarity: bool,
         // property_filter: Option<HashMap<String, String>>,
         // subject_closure_predicates: Option<Vec<TermID>>,
@@ -1202,6 +1203,7 @@ impl Semsimian {
         subject_terms: Option<HashSet<TermID>>,
         subject_prefixes: Option<Vec<TermID>>,
         // method: Option<String>,
+        score_metric: Option<String>,
         limit: Option<usize>,
         py: Python,
     ) -> PyResult<Vec<(f64, PyObject, String)>> {
@@ -1218,7 +1220,7 @@ impl Semsimian {
                 search_type
             ))),
         }?;
-        let metric = MetricEnum::from_string(&score_metric)
+        let metric = MetricEnum::from_string(&score_metric.as_ref().map(|s| s.as_str()))
             .unwrap_or(MetricEnum::AncestorInformationContent);
 
         let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> =
