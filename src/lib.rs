@@ -12,7 +12,7 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Write},
+    io::{self, BufRead, BufReader, BufWriter, Write},
     sync::{Arc, Mutex, RwLock},
 };
 
@@ -173,28 +173,31 @@ impl RustSemsimian {
         }
     }
 
-    pub fn load_embeddings(&mut self, embeddings_file: &str) {
-        if let Ok(file) = File::open(embeddings_file) {
-            let reader = BufReader::new(file);
+    pub fn load_embeddings(&mut self, embeddings_file: &str) -> io::Result<()> {
+        let file = File::open(embeddings_file)?;
+        let reader = BufReader::new(file);
 
-            let mut embeddings: Vec<(String, Vec<f64>)> = Vec::new();
-            let mut lines = reader.lines();
+        let mut embeddings: Vec<(String, Vec<f64>)> = Vec::new();
+        let mut lines = reader.lines();
 
-            // Skip the header row
-            lines.next();
+        // Skip the header row
+        lines.next();
 
-            for line in lines.flatten() {
-                let values: Vec<&str> = line.split('\t').collect();
-                let curie = values[0].to_string();
-                let embedding: Vec<f64> = values[1..]
-                    .iter()
-                    .filter_map(|value| value.parse().ok())
-                    .collect();
-                embeddings.push((curie, embedding));
+        for line in lines.map_while(Result::ok) {
+            let values: Vec<&str> = line.split('\t').collect();
+            if values.len() < 2 {
+                continue; // Skip lines with less than two columns
             }
-
-            self.embeddings = embeddings;
+            let curie = values[0].to_string();
+            let embedding: Vec<f64> = values[1..]
+                .iter()
+                .filter_map(|value| value.parse().ok())
+                .collect();
+            embeddings.push((curie, embedding));
         }
+
+        self.embeddings = embeddings;
+        Ok(())
     }
 
     pub fn jaccard_similarity(&self, term1: &str, term2: &str) -> f64 {
@@ -1056,7 +1059,7 @@ impl Semsimian {
         term2: TermID,
         embeddings_file: &str,
     ) -> PyResult<f64> {
-        self.ss.load_embeddings(embeddings_file);
+        let _ = self.ss.load_embeddings(embeddings_file);
         Ok(self
             .ss
             .cosine_similarity(&term1, &term2, &self.ss.embeddings))
@@ -1101,7 +1104,7 @@ impl Semsimian {
         // first make sure we have the closure and ic map for the given predicates
         self.ss.update_closure_and_ic_map();
         if let Some(file) = embeddings_file {
-            self.ss.load_embeddings(file);
+            let _ = self.ss.load_embeddings(file);
         }
 
         self.ss.all_by_all_pairwise_similarity_with_output(
@@ -1514,7 +1517,7 @@ mod tests {
         object_terms.insert(pear);
 
         rss.update_closure_and_ic_map();
-        rss.load_embeddings(embeddings_file);
+        let _ = rss.load_embeddings(embeddings_file);
         rss.all_by_all_pairwise_similarity_with_output(
             &subject_terms,
             &object_terms,
@@ -1559,7 +1562,7 @@ mod tests {
         let mut rss = RustSemsimian::new(spo, None, None, None);
         let embeddings_file = "tests/data/bfo_embeddings.tsv";
 
-        rss.load_embeddings(embeddings_file);
+        let _ = rss.load_embeddings(embeddings_file);
 
         let cosine_similarity =
             rss.cosine_similarity("BFO:0000040", "BFO:0000002", &rss.embeddings);
