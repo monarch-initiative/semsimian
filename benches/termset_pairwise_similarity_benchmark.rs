@@ -36,7 +36,9 @@ fn criterion_benchmark(c: &mut Criterion) {
         "MP:0006144".to_string(),
     ]));
     let mut bench_grp = c.benchmark_group("tsps_bench_group");
+    // let score_metric = MetricEnum::PhenodigmScore;
     let score_metric = MetricEnum::AncestorInformationContent;
+    // let score_metric = MetricEnum::JaccardSimilarity;
 
     bench_grp
         .sample_size(10)

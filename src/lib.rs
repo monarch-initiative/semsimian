@@ -27,11 +27,9 @@ mod test_constants;
 use std::fmt;
 
 use similarity::{
-    calculate_average_termset_information_content,
-    calculate_average_termset_phenodigm_score,
-    calculate_cosine_similarity_for_nodes,
-    calculate_jaccard_similarity_str,
-    calculate_max_information_content
+    calculate_average_termset_information_content, calculate_average_termset_jaccard_similarity,
+    calculate_average_termset_phenodigm_score, calculate_cosine_similarity_for_nodes,
+    calculate_jaccard_similarity_str, calculate_max_information_content,
 };
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
@@ -424,10 +422,11 @@ impl RustSemsimian {
             MetricEnum::AncestorInformationContent => Ok(
                 calculate_average_termset_information_content(self, subject_terms, object_terms),
             ),
-            // MetricEnum::JaccardSimilarity => Ok(calculate_average_termset_jaccard_similarity(
-            //     subject_terms,
-            //     object_terms,
-            // )),
+            MetricEnum::JaccardSimilarity => Ok(calculate_average_termset_jaccard_similarity(
+                self,
+                subject_terms,
+                object_terms,
+            )),
             MetricEnum::PhenodigmScore => Ok(calculate_average_termset_phenodigm_score(
                 self,
                 subject_terms,
@@ -722,8 +721,9 @@ impl RustSemsimian {
                 .par_iter() // Parallel iterator
                 .map(|(key, hashset)| {
                     // Calculate similarity using termset_pairwise_similarity method
-                    let similarity_score =
-                        self.termset_comparison(hashset, profile_entities, score_metric).unwrap();
+                    let similarity_score = self
+                        .termset_comparison(hashset, profile_entities, score_metric)
+                        .unwrap();
                     // Return the result tuple
                     (similarity_score, None, key.clone())
                 })
@@ -1102,11 +1102,7 @@ impl Semsimian {
         Ok(self.ss.resnik_similarity(&term1, &term2))
     }
 
-    fn phenodigm_score(
-        &mut self,
-        term1: TermID,
-        term2: TermID,
-    ) -> PyResult<f64> {
+    fn phenodigm_score(&mut self, term1: TermID, term2: TermID) -> PyResult<f64> {
         self.ss.update_closure_and_ic_map();
         Ok(self.ss.phenodigm_score(&term1, &term2))
     }
@@ -1227,7 +1223,10 @@ impl Semsimian {
         let metric = MetricEnum::from_string(&Some(&score_metric))
             .unwrap_or(MetricEnum::AncestorInformationContent);
 
-        match self.ss.termset_comparison(&subject_terms, &object_terms, &metric) {
+        match self
+            .ss
+            .termset_comparison(&subject_terms, &object_terms, &metric)
+        {
             Ok(score) => Ok(score),
             Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),
         }

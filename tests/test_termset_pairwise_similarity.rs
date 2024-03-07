@@ -35,6 +35,8 @@ fn test_large_termset_pairwise_similarity() {
         "MP:0006144".to_string(),
     ]);
     let score_metric = MetricEnum::AncestorInformationContent;
+    // let score_metric = MetricEnum::PhenodigmScore;
+    // let score_metric = MetricEnum::JaccardSimilarity;
 
     // let entity1: HashSet<TermID> = HashSet::from([
     //     "HP:0003394".to_string(),

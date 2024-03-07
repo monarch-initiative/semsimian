@@ -20,9 +20,9 @@ pub fn calculate_semantic_jaccard_similarity(
     let entity2_closure = expand_term_using_closure(entity2, closure_table, predicates);
     let jaccard = calculate_jaccard_similarity_str(&entity1_closure, &entity2_closure);
 
-    println!("SIM: entity1_closure: {entity1_closure:?}");
-    println!("SIM: entity2_closure: {entity2_closure:?}");
-    println!("SIM: Jaccard: {jaccard}");
+    // println!("SIM: entity1_closure: {entity1_closure:?}");
+    // println!("SIM: entity2_closure: {entity2_closure:?}");
+    // println!("SIM: Jaccard: {jaccard}");
 
     jaccard
 }
@@ -200,6 +200,35 @@ pub fn get_ancestors_of_term(
     ancestors
 }
 
+pub fn calculate_average_of_max_jaccard_similarity(
+    rss: &RustSemsimian,
+    entity1: &HashSet<TermID>,
+    entity2: &HashSet<TermID>,
+) -> f64 {
+    // At each iteration, it calculates the Jaccard similarity using the calculate_jaccard_similarity function,
+    // and if the calculated Jaccard similarity is greater than the current maximum Jaccard similarity (max_jaccard_sim_e1_e2),
+    // it updates the maximum Jaccard value. Thus, at the end of the iterations,
+    // max_jaccard_sim_e1_e2 will contain the highest Jaccard similarity among all the comparisons,
+    // representing the best match between entity1 and entity2.
+    let entity1_len = entity1.len() as f64;
+
+    let entity1_to_entity2_sum_jaccard_similarity = entity1.iter().fold(0.0, |sum, e1_term| {
+        let max_jaccard_similarity = entity2.iter().fold(0.0, |max_jaccard, e2_term| {
+            let score = calculate_semantic_jaccard_similarity(
+                &rss.closure_map,
+                e1_term,
+                e2_term,
+                &rss.predicates,
+            );
+            f64::max(max_jaccard, score)
+        });
+
+        sum + max_jaccard_similarity
+    });
+
+    entity1_to_entity2_sum_jaccard_similarity / entity1_len
+}
+
 pub fn calculate_average_of_max_phenodigm_score(
     rss: &RustSemsimian,
     entity1: &HashSet<TermID>,
@@ -214,7 +243,7 @@ pub fn calculate_average_of_max_phenodigm_score(
 
     let entity1_to_entity2_sum_phenodigm_score = entity1.iter().fold(0.0, |sum, e1_term| {
         let max_phenodigm_score = entity2.iter().fold(0.0, |max_pheno, e2_term| {
-            let score= rss.phenodigm_score(e1_term, e2_term);
+            let score = rss.phenodigm_score(e1_term, e2_term);
             f64::max(max_pheno, score)
         });
 
@@ -224,6 +253,18 @@ pub fn calculate_average_of_max_phenodigm_score(
     entity1_to_entity2_sum_phenodigm_score / entity1_len
 }
 
+pub fn calculate_average_termset_jaccard_similarity(
+    rss: &RustSemsimian,
+    subject_terms: &HashSet<TermID>,
+    object_terms: &HashSet<TermID>,
+) -> f64 {
+    let subject_to_object_jaccard_similarity: f64 =
+        calculate_average_of_max_jaccard_similarity(rss, &subject_terms, &object_terms);
+    let object_to_subject_jaccard_similarity: f64 =
+        calculate_average_of_max_jaccard_similarity(rss, &object_terms, &subject_terms);
+    (subject_to_object_jaccard_similarity + object_to_subject_jaccard_similarity) / 2.0
+}
+
 pub fn calculate_average_termset_phenodigm_score(
     semsimian: &RustSemsimian,
     subject_terms: &HashSet<TermID>,
@@ -231,11 +272,13 @@ pub fn calculate_average_termset_phenodigm_score(
 ) -> f64 {
     let subject_to_object_average_of_max_phenodigm_score: f64 =
         calculate_average_of_max_phenodigm_score(semsimian, subject_terms, object_terms);
-    dbg!(&subject_to_object_average_of_max_phenodigm_score);
+
     let object_to_subject_average_of_max_phenodigm_score: f64 =
         calculate_average_of_max_phenodigm_score(semsimian, object_terms, subject_terms);
-    dbg!(&object_to_subject_average_of_max_phenodigm_score);
-    (subject_to_object_average_of_max_phenodigm_score + object_to_subject_average_of_max_phenodigm_score) / 2.0
+
+    (subject_to_object_average_of_max_phenodigm_score
+        + object_to_subject_average_of_max_phenodigm_score)
+        / 2.0
 }
 
 pub fn calculate_average_termset_information_content(
@@ -248,7 +291,8 @@ pub fn calculate_average_termset_information_content(
 
     let object_to_subject_average_of_max_resnik_sim: f64 =
         calculate_average_of_max_information_content(semsimian, object_terms, subject_terms);
-    (subject_to_object_average_of_max_resnik_sim + object_to_subject_average_of_max_resnik_sim) / 2.0
+    (subject_to_object_average_of_max_resnik_sim + object_to_subject_average_of_max_resnik_sim)
+        / 2.0
 }
 
 pub fn calculate_max_information_content(
@@ -718,6 +762,82 @@ mod tests {
         assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
     }
 
+    #[test]
+    fn test_calculate_avg_of_max_jaccard_similarity() {
+        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
+
+        // Test case 1: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        rss.update_closure_and_ic_map();
+
+        let jaccard_similarity =
+            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
+        let expected_value = 0.3333333333333333;
+
+        println!("Case 1 jaccard_similarity: {jaccard_similarity}");
+        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
+
+        // Test case 2: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000035"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let jaccard_similarity =
+            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
+        let expected_value = 0.6666666666666666;
+
+        println!("Case 2 jaccard_similarity: {jaccard_similarity}");
+        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
+
+        // Test case 3: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let jaccard_similarity =
+            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
+        let expected_value = 0.8888888888888888;
+
+        println!("Case 3 phenodigm_score: {jaccard_similarity}");
+        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
+
+        // Test case 4: Normal case, entities have terms.
+        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let jaccard_similarity =
+            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
+        let expected_value = 0.6666666666666666;
+
+        println!("Case 4 phenodigm_score: {jaccard_similarity}");
+        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
+    }
 
     #[test]
     fn test_calculate_average_termset_information_content() {
@@ -782,7 +902,8 @@ mod tests {
         let entity2: HashSet<TermID> =
             HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
-        let avg_phenodigm_score = calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
+        let avg_phenodigm_score =
+            calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
         let expected_value = 1.8610697515464185;
         let score_metric = MetricEnum::PhenodigmScore;
 
@@ -802,10 +923,58 @@ mod tests {
         let entity2: HashSet<TermID> =
             HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
-        let avg_phenodigm_score = calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
+        let avg_phenodigm_score =
+            calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
         let expected_value = 2.2009031581929213;
 
         println!("Case 2 pheno_score: {avg_phenodigm_score}");
         assert_eq!(avg_phenodigm_score, expected_value);
+    }
+
+    #[test]
+    fn test_calculate_average_termset_jaccard_similarity() {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        // Test case 1
+        let entity1: HashSet<TermID> =
+            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let avg_jaccard_similarity =
+            calculate_average_termset_jaccard_similarity(&rss, &entity1, &entity2);
+        let expected_value = 0.6878019323671498;
+        let score_metric = MetricEnum::JaccardSimilarity;
+
+        println!("Case 1 jaccard_similarity: {avg_jaccard_similarity}");
+        assert_eq!(avg_jaccard_similarity, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+
+        // Test case 2
+        let entity1: HashSet<TermID> = HashSet::from([
+            "GO:0005634".to_string(),
+            "GO:0016020".to_string(),
+            "GO:0005773".to_string(),
+        ]);
+
+        let entity2: HashSet<TermID> =
+            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+
+        let avg_jaccard_similarity =
+            calculate_average_termset_jaccard_similarity(&rss, &entity1, &entity2);
+        let expected_value = 0.7942834138486312;
+
+        println!("Case 2 pheno_score: {avg_jaccard_similarity}");
+        assert_eq!(avg_jaccard_similarity, expected_value);
     }
 }
