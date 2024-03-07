@@ -192,6 +192,12 @@ class testSemsimianWithPython(unittest.TestCase):
         result = self.semsimian.resnik_similarity(term1, term2)
         self.assertEqual(result, ({"banana"}, 1.3219280948873622))
 
+    def test_phenodigm_score(self):
+        term1 = "apple"
+        term2 = "banana"
+        result = self.semsimian.phenodigm_score(term1, term2)
+        self.assertEqual(result, 0.6638092333613531)
+
     def test_all_by_all_pairwise_similarity(self):
         subject_terms = {"apple", "banana", "orange"}
         object_terms = {"orange", "pear", "kiwi"}
