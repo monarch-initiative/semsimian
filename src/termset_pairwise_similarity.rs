@@ -86,7 +86,7 @@ impl<'a> IntoPy<PyObject> for &'a TermsetPairwiseSimilarity {
             .set_item("best_score", self.best_score)
             .expect("Failed to set item in tsps_dict");
         tsps_dict
-            .set_item("metric", &self.metric.as_str())
+            .set_item("metric", self.metric.as_str())
             .expect("Failed to set item in tsps_dict");
 
         tsps_dict.into()

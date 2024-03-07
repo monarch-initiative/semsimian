@@ -105,7 +105,7 @@ pub fn _stringify_sets_using_map(
 }
 
 pub fn convert_list_of_tuples_to_hashmap(
-    list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
+    list_of_tuples: &[(TermID, PredicateSetKey, TermID)],
     predicates: &Option<Vec<String>>,
 ) -> (ClosureMap, ICMap) {
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> =

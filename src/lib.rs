@@ -1220,7 +1220,7 @@ impl Semsimian {
                 search_type
             ))),
         }?;
-        let metric = MetricEnum::from_string(&score_metric.as_ref().map(|s| s.as_str()))
+        let metric = MetricEnum::from_string(&score_metric.as_deref())
             .unwrap_or(MetricEnum::AncestorInformationContent);
 
         let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> =
