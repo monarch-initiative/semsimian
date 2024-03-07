@@ -206,7 +206,7 @@ class testSemsimianWithPython(unittest.TestCase):
         )
         self.assertEqual(result2["orange"]["orange"][4], orange_mica)
 
-    def test_termset_comparison_aic(self):
+    def test_termset_comparison(self):
         subject_terms = {"apple", "banana", "orange"}
         object_terms = {"orange", "pear", "kiwi"}
         expected_aic_score = 0.8812853965915748
@@ -225,7 +225,7 @@ class testSemsimianWithPython(unittest.TestCase):
         self.assertEqual(expected_pheno_score, score_pheno)
         self.assertEqual(expected_jaccard_score, score_jaccard)
 
-    def test_termset_comparison_aic_with_test_file(self):
+    def test_termset_comparison_with_test_file(self):
         subject_terms = {"GO:0005634", "GO:0016020"}
         object_terms = {"GO:0031965", "GO:0005773"}
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
