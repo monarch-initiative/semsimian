@@ -2246,7 +2246,7 @@ mod tests_local {
             "HP:0000093".to_string(),
             "MP:0006144".to_string(),
         ]);
-        let score_metric = MetricEnum::AncestorInformationContent;
+        let score_metric = MetricEnum::PhenodigmScore;
 
         start_time = Instant::now();
         let mut _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
@@ -2264,6 +2264,7 @@ mod tests_local {
             "Time taken for second closure and ic_map generation: {:?}",
             elapsed_time
         );
+        dbg!(&_tsps);
 
         start_time = Instant::now();
         _tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
@@ -2272,6 +2273,8 @@ mod tests_local {
             "Time taken for second termset_pairwise_similarity: {:?}",
             elapsed_time
         );
+        dbg!(&_tsps);
+
     }
 
     #[test]
