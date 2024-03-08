@@ -730,7 +730,7 @@ mod tests {
     //   Max phenodigm for BFO:0000004: 1.0626772873
     // For BFO:0000003 to Entity2:
     //   To BFO:0000003: sqrt(?? * ??) ≈ ??
-    //   To BFO:0000004: sqrt(?? * ??) ≈ ??
+    //   To BFO:0000004: sqrt(0 * 0.25) ≈ 0
     //   Max phenodigm for BFO:0000003: ??
     // Average max phenodigm from Entity1 to Entity2: (0.568872988 + 1.129283017 + ??) / 3 ≈ ??
 
