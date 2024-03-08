@@ -717,7 +717,7 @@ mod tests {
         assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
     }
 
-    
+
     #[rstest]
     #[case(vec!["CARO:0000000", "BFO:0000002"], vec!["BFO:0000003", "BFO:0000004"], 0.3333333333333333)]
     #[case(vec!["BFO:0000003"], vec!["BFO:0000035"], 0.6666666666666666)]
@@ -731,17 +731,17 @@ mod tests {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
         let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
-    
+
         let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
         rss.update_closure_and_ic_map();
-    
+
         let jaccard_similarity =
             calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
-    
+
         println!("Jaccard similarity: {jaccard_similarity}");
         assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
     }
-    
+
 
     #[rstest]
     #[case(
@@ -857,84 +857,3 @@ mod tests {
         dbg!(&tsps);
     }
 }
-
-// test_calculate_avg_of_max_phenodigm_score
-    // Case 1
-        // These are the values that are being used in the manual calculations below
-        // Ontology Term Pair	    Max IC	            Jaccard Similarity
-        // BFO:0000002_BFO:0000003	0	                0.3333333333333333
-        // CARO:0000000_BFO:0000004	0	                0
-        // BFO:0000002_BFO:0000004	0.48542682717024171	0.6666666666666666
-        // CARO:0000000_BFO:0000003	0	                0
-        // BFO:0000003_BFO:0000035	1.9593580155026542	0.6666666666666666
-        // BFO:0000004_BFO:0000004	1.1292830169449666	1
-        // CARO:0000000_BFO:0000002	0	                0
-        // BFO:0000002_BFO:0000002	0.48542682717024171	1
-        // BFO:0000004_BFO:0000002	0.48542682717024171	0.6666666666666666
-        // CARO:0000000_BFO:0000001	0	                0
-        // BFO:0000002_BFO:0000001	0	                0.5
-        // BFO:0000004_BFO:0000001	0	                0.3333333333333333
-
-        // Entity1 to Entity2
-        // Entity1: ["CARO:0000000", "BFO:0000002"]
-        // Entity2: ["BFO:0000003", "BFO:0000004"]
-        // Calculations for Entity1 to Entity2
-        // For CARO:0000000:
-        //
-        // To BFO:0000003: phenodigm = sqrt(0 * 0) = 0
-        // To BFO:0000004: phenodigm = sqrt(0 * 0) = 0
-        // Max phenodigm for CARO:0000000: 0
-        // For BFO:0000002:
-        //
-        // To BFO:0000003: phenodigm = sqrt(0 * 0.3333333333333333) = 0
-        // To BFO:0000004: phenodigm = sqrt(0.48542682717024171 * 0.6666666666666666) ≈ sqrt(0.32361788478016114) ≈ 0.568872988
-        // Max phenodigm for BFO:0000002: 0.568872988
-        // Average max phenodigm from Entity1 to Entity2: (0 + 0.568872988) / 2 ≈ 0.284436494
-
-    // Case 2
-        // Entity1 to Entity2
-        // Entity1: ["BFO:0000003"]
-        // Entity2: ["BFO:0000035"]
-
-        // Max IC for "BFO:0000003_BFO:0000035": 1.9593580155026542
-        // Jaccard similarity for "BFO:0000003_BFO:0000035": 0.6666666666666666
-        // Phenodigm Score Calculation
-        // Phenodigm = sqrt(1.9593580155026542 * 0.6666666666666666) ≈ 1.142907991485653
-
-
-        // For CARO:0000000:
-        // Comparing to BFO:0000001: Max IC = 0, Jaccard = 0
-        // Comparing to BFO:0000004: Max IC = 0, Jaccard = 0
-        // Max phenodigm for CARO:0000000: 0 (since both comparisons yield 0)
-
-        // For BFO:0000002:
-        // Comparing to BFO:0000001: Max IC = 0, Jaccard = 0.5, phenodigm is (sqrt(0 * 0.5) = 0
-        // Comparing to BFO:0000004: Max IC = 0.48542682717024171, Jaccard = 0.6666666666666666
-        // phenodigm score is (sqrt(0.48542682717024171 * 0.6666666666666666) ≈ 0.5688742258
-        // Max phenodigm for BFO:0000002: 0.5688742258
-
-        // For BFO:0000004:
-        // Comparing to BFO:0000002: Max IC = 0.48542682717024171, Jaccard = 0.6666666666666666
-        // Comparing to itself: Max IC = 1.1292830169449666, Jaccard = 1
-        // Max phenodigm for BFO:0000004: sqrt(1.1292830169449666 * 1) ≈ 1.062689
-
-        // Average max phenodigm from Entity1 to Entity2: (0 + 0.5688742258 + 1.062689) / 3 ≈ 0.5438544086
-        /////////
-
-        // Entity2 to Entity1
-        // For BFO:0000001:
-        // Comparing to CARO:0000000 Max IC = 0, Jaccard = 0
-        // Comparing to BFO:0000002 Max IC = 0, Jaccard = 0.5, phenodigm is (sqrt(0 * 0.5) = 0
-        // Comparing to BFO:0000004 Max IC = 0, Jaccard = 0.3333333333333333, phenodigm is (sqrt(0 * 0.3333333333333333) = 0
-        // Max phenodigm for BFO:0000001: 0 (since all comparisons yield 0)
-
-        // For BFO:0000004
-        // Comparing to CARO:0000000 Max IC = 0, Jaccard = 0
-        // Comparing to BFO:0000002 Max IC = 0.48542682717024171, Jaccard = 0.6666666666666666, phenodigm is
-        //       (sqrt(0.48542682717024171 * 0.6666666666666666) ≈ 0.5688742258
-        // Comparing to itself Max IC = 1.1292830169449666, Jaccard = 1, phenodigm is (sqrt(1.1292830169449666 * 1) ≈ 1.062689
-        // Max phenodigm for BFO:0000004: 1.062689
-        // Average max phenodigm from Entity2 to Entity1: (0 + 1.062689) / 2 ≈ 0.5313445
-
-        // Final Average Maximum Phenodigm Score
-        // average = (0.5438544086 + 0.5313445)/2 = 0.5375994543
