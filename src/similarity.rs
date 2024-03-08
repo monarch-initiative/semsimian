@@ -855,6 +855,76 @@ mod tests {
         dbg!(&tsps);
     }
 
+    // These comments are the manual calculations for the test cases below, for future reference
+
+    // These are the values that are being used in the manual calculations below:
+
+    // GO Term Pair	            Max IC	            Jaccard Similarity
+    // GO:0005773_GO:0031965	5.112700132749362	0.6
+    // GO:0016020_GO:0031965	4.8496657269155685	0.34782608695652173
+    // GO:0016020_GO:0005773	2.264703226194412	0.3888888888888889
+    // GO:0005773_GO:0005773	7.4346282276367246	1
+    // GO:0005634_GO:0005773	5.112700132749362	0.8333333333333334
+    // GO:0005634_GO:0031965	5.8496657269155685	0.6956521739130435
+
+    // Case 1:
+    // Entity1: ["GO:0005634", "GO:0016020"]
+    // Entity2: ["GO:0031965", "GO:0005773"]
+
+    // For GO:0005634 to Entity2:
+    //   To GO:0031965: phenodigm = sqrt(5.8496657269155685 * 0.6956521739130435) = 2.0172587042
+    //   To GO:0005773: phenodigm = sqrt(5.112700132749362 * 0.8333333333333334) = 2.064118079
+    //   Max phenodigm for GO:0005634: 2.064118079
+    // For GO:0016020 to Entity2:
+    //   To GO:0031965: phenodigm = sqrt(4.8496657269155685 * 0.34782608695652173) = 1.2987841441
+    //   To GO:0005773: phenodigm = sqrt(2.264703226194412 * 0.3888888888888889) = 0.9384657273
+    //   Max phenodigm for GO:0016020: 1.2987841441
+    // Average max phenodigm from Entity1 to Entity2: (2.064118079 + 1.2987841441) / 2 ≈ 1.6814511116
+
+    // For GO:0031965 to Entity1:
+    //   To GO:0005634: phenodigm = sqrt(5.8496657269155685 * 0.6956521739130435) = 2.0172587042
+    //   To GO:0016020: phenodigm = sqrt(4.8496657269155685 * 0.34782608695652173) = 1.2987841441
+    //   Max phenodigm for GO:0031965: 2.0172587042
+    // For GO:0005773 to Entity1:
+    //   To GO:0005634: phenodigm = sqrt(5.112700132749362 * 0.8333333333333334) = 2.064118079
+    //   To GO:0016020: phenodigm = sqrt(2.264703226194412 * 0.3888888888888889) = 0.9384657273
+    //   Max phenodigm for GO:0005773: 2.064118079
+    // Average max phenodigm from Entity2 to Entity1: (2.0172587042 + 2.064118079) / 2 ≈ 2.0406883916
+
+    // Average of the two averages: (1.6814511116 + 2.0406883916) / 2 ≈ 1.8610697516
+
+    // Case 2:
+    // Entity1: ["GO:0005634", "GO:0016020", "GO:0005773"]
+    // Entity2: ["GO:0031965", "GO:0005773"]
+
+    // For GO:0005634 to Entity2:
+    //   To GO:0031965: phenodigm = sqrt(5.8496657269155685 * 0.6956521739130435) = 2.0172587042
+    //   To GO:0005773: phenodigm = sqrt(5.112700132749362 * 0.8333333333333334) = 2.064118079
+    //   Max phenodigm for GO:0005634: 2.064118079
+    // For GO:0016020 to Entity2:
+    //   To GO:0031965: phenodigm = sqrt(4.8496657269155685 * 0.34782608695652173) = 1.2987841441
+    //   To GO:0005773: phenodigm = sqrt(2.264703226194412 * 0.3888888888888889) = 0.9384657273
+    //   Max phenodigm for GO:0016020: 1.2987841441
+    // For GO:0005773 to Entity2:
+    //   To GO:0031965: phenodigm = sqrt(5.112700132749362 * 0.6) = 1.751462269
+    //   To GO:0005773: phenodigm = sqrt(7.4346282276367246 * 1) = 2.7266514679
+    //   Max phenodigm for GO:0005773: 2.7266514679
+    // Average max phenodigm from Entity1 to Entity2: (2.064118079 + 1.2987841441 + 2.7266514679) / 3 ≈ 2.0298512303
+
+    // For GO:0031965 to Entity1:
+    //   To GO:0005634: phenodigm = sqrt(5.8496657269155685	* 0.6956521739130435) = 2.0172587042
+    //   To GO:0016020: phenodigm = sqrt(4.8496657269155685	* 0.34782608695652173) = 1.2987841441
+    //   To GO:0005773: phenodigm = sqrt(5.112700132749362	* 0.6) = 1.751462269
+    //   Max phenodigm for GO:0031965: 2.0172587042
+    // For GO:0005773 to Entity1:
+    //   To GO:0005634: phenodigm = sqrt(5.112700132749362 * 0.8333333333333334) = 2.064118079
+    //   To GO:0016020: phenodigm = sqrt(2.264703226194412 * 0.3888888888888889) = 0.9384657273
+    //   To GO:0005773: phenodigm = sqrt(7.4346282276367246	* 1) = 2.7266514679
+    //   Max phenodigm for GO:0005773: 2.7266514679
+    // Average max phenodigm from Entity2 to Entity1: (2.0172587042 + 2.7266514679) / 2 = 2.3719550861
+
+    // Average of the two averages: (2.0298512303 + 2.3719550861) / 2 ≈ 2.2009031582
+
     #[rstest]
     #[case(
         vec!["GO:0005634", "GO:0016020"],
