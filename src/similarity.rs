@@ -816,6 +816,75 @@ mod tests {
         assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
     }
 
+    // These comments are the manual calculations for the test cases below, for future reference
+
+    // These are the values that are being used in the manual calculations below:
+
+    // GO Term Pair	            Max IC
+    // GO:0005773_GO:0031965	5.112700132749362
+    // GO:0016020_GO:0031965	4.8496657269155685
+    // GO:0016020_GO:0005773	2.264703226194412
+    // GO:0005773_GO:0005773	7.4346282276367246
+    // GO:0005634_GO:0005773	5.112700132749362
+    // GO:0005634_GO:0031965	5.8496657269155685
+
+    // Case 1:
+    // Entity1: ["GO:0005634", "GO:0016020"]
+    // Entity2: ["GO:0031965", "GO:0005773"]
+
+    // For GO:0005634 to Entity2:
+    //   To GO:0031965: phenodigm = 5.8496657269155685
+    //   To GO:0005773: phenodigm = 5.112700132749362
+    //   Max phenodigm for GO:0005634: 5.8496657269155685
+    // For GO:0016020 to Entity2:
+    //   To GO:0031965: phenodigm = 4.8496657269155685
+    //   To GO:0005773: phenodigm = 2.264703226194412
+    //   Max phenodigm for GO:0016020: 4.8496657269155685
+    // Average max phenodigm from Entity1 to Entity2: (5.8496657269155685 + 4.8496657269155685) / 2 ≈ 5.3496657269155685
+
+    // For GO:0031965 to Entity1:
+    //   To GO:0005634: phenodigm = 5.8496657269155685
+    //   To GO:0016020: phenodigm = 4.8496657269155685
+    //   Max phenodigm for GO:0031965: 5.8496657269155685
+    // For GO:0005773 to Entity1:
+    //   To GO:0005634: phenodigm = 5.112700132749362
+    //   To GO:0016020: phenodigm = 2.264703226194412
+    //   Max phenodigm for GO:0005773: 5.112700132749362
+    // Average max phenodigm from Entity2 to Entity1: (5.8496657269155685 + 5.112700132749362) / 2 = 5.481182929832465
+
+    // Average of the two averages: (5.3496657269155685 + 5.481182929832465) / 2 ≈ 5.4154243284
+
+    // Case 2:
+    // Entity1: ["GO:0005634", "GO:0016020", "GO:0005773"]
+    // Entity2: ["GO:0031965", "GO:0005773"]
+
+    // For GO:0005634 to Entity2:
+    //   To GO:0031965: phenodigm = 5.8496657269155685
+    //   To GO:0005773: phenodigm = 5.112700132749362
+    //   Max phenodigm for GO:0005634: 5.8496657269155685
+    // For GO:0016020 to Entity2:
+    //   To GO:0031965: phenodigm = 4.8496657269155685
+    //   To GO:0005773: phenodigm = 2.264703226194412
+    //   Max phenodigm for GO:0016020: 4.8496657269155685
+    // For GO:0005773 to Entity2:
+    //   To GO:0031965: phenodigm = 5.112700132749362
+    //   To GO:0005773: phenodigm = 7.4346282276367246
+    //   Max phenodigm for GO:0005773: 7.4346282276367246
+    // Average max phenodigm from Entity1 to Entity2: (5.8496657269155685 + 4.8496657269155685 + 7.4346282276367246) / 3 = 6.0446532272
+
+    // For GO:0031965 to Entity1:
+    //   To GO:0005634: phenodigm = 5.8496657269155685
+    //   To GO:0016020: phenodigm = 4.8496657269155685
+    //   To GO:0005773: phenodigm = 5.112700132749362
+    //   Max phenodigm for GO:0031965: 5.8496657269155685
+    // For GO:0005773 to Entity1:
+    //   To GO:0005634: phenodigm = 5.112700132749362
+    //   To GO:0016020: phenodigm = 2.264703226194412
+    //   To GO:0005773: phenodigm = 7.4346282276367246
+    //   Max phenodigm for GO:0005773: 7.4346282276367246
+    // Average max phenodigm from Entity2 to Entity1: (5.8496657269155685 + 7.4346282276367246) / 2 = 6.6421469773
+
+    // Average of the two averages: (6.0446532272 + 6.6421469773) / 2 ≈ 6.3434001023
 
     #[rstest]
     #[case(
@@ -963,6 +1032,76 @@ mod tests {
         dbg!(&tsps);
     }
 
+
+    // These comments are the manual calculations for the test cases below, for future reference
+
+    // These are the values that are being used in the manual calculations below:
+
+    // GO Term Pair	            Jaccard Similarity
+    // GO:0005773_GO:0031965    0.6
+    // GO:0016020_GO:0031965	0.34782608695652173
+    // GO:0016020_GO:0005773    0.3888888888888889
+    // GO:0005773_GO:0005773	1
+    // GO:0005634_GO:0005773    0.8333333333333334
+    // GO:0005634_GO:0031965	0.6956521739130435
+
+    // Case 1:
+    // Entity1: ["GO:0005634", "GO:0016020"]
+    // Entity2: ["GO:0031965", "GO:0005773"]
+
+    // For GO:0005634 to Entity2:
+    //   To GO:0031965: phenodigm = 0.6956521739130435
+    //   To GO:0005773: phenodigm = 0.8333333333333334
+    //   Max phenodigm for GO:0005634: 0.8333333333333334
+    // For GO:0016020 to Entity2:
+    //   To GO:0031965: phenodigm = 0.34782608695652173
+    //   To GO:0005773: phenodigm = 0.3888888888888889
+    //   Max phenodigm for GO:0016020: 0.3888888888888889
+    // Average max phenodigm from Entity1 to Entity2: (0.8333333333333334 + 0.3888888888888889) / 2 ≈ 0.6111111111
+
+    // For GO:0031965 to Entity1:
+    //   To GO:0005634: phenodigm = 0.6956521739130435
+    //   To GO:0016020: phenodigm = 0.34782608695652173
+    //   Max phenodigm for GO:0031965: 0.6956521739130435
+    // For GO:0005773 to Entity1:
+    //   To GO:0005634: phenodigm = 0.8333333333333334
+    //   To GO:0016020: phenodigm = 0.3888888888888889
+    //   Max phenodigm for GO:0005773: 0.8333333333333334
+    // Average max phenodigm from Entity2 to Entity1: (0.6956521739130435 + 0.8333333333333334) / 2 = 0.7644927536
+
+    // Average of the two averages: (0.6111111111 + 0.7644927536) / 2 ≈ 0.6878019324
+
+    // Case 2:
+    // Entity1: ["GO:0005634", "GO:0016020", "GO:0005773"]
+    // Entity2: ["GO:0031965", "GO:0005773"]
+
+    // For GO:0005634 to Entity2:
+    //   To GO:0031965: phenodigm = 0.6956521739130435
+    //   To GO:0005773: phenodigm = 0.8333333333333334
+    //   Max phenodigm for GO:0005634: 0.8333333333333334
+    // For GO:0016020 to Entity2:
+    //   To GO:0031965: phenodigm = 0.34782608695652173
+    //   To GO:0005773: phenodigm = 0.3888888888888889
+    //   Max phenodigm for GO:0016020: 0.3888888888888889
+    // For GO:0005773 to Entity2:
+    //   To GO:0031965: phenodigm = 0.6
+    //   To GO:0005773: phenodigm = 1
+    //   Max phenodigm for GO:0005773: 1
+    // Average max phenodigm from Entity1 to Entity2: (0.8333333333333334 + 0.3888888888888889 + 1) / 3 ≈ 0.7407407407
+
+    // For GO:0031965 to Entity1:
+    //   To GO:0005634: phenodigm = 0.6956521739130435
+    //   To GO:0016020: phenodigm = 0.34782608695652173
+    //   To GO:0005773: phenodigm = 0.6
+    //   Max phenodigm for GO:0031965: 0.6956521739130435
+    // For GO:0005773 to Entity1:
+    //   To GO:0005634: phenodigm = 0.8333333333333334
+    //   To GO:0016020: phenodigm = 0.3888888888888889
+    //   To GO:0005773: phenodigm = 1
+    //   Max phenodigm for GO:0005773: 1
+    // Average max phenodigm from Entity2 to Entity1: (0.6956521739130435 + 1) / 2 = 0.847826087
+
+    // Average of the two averages: (0.7407407407 + 0.847826087) / 2 ≈ 0.7942834139
     #[rstest]
     #[case(
         vec!["GO:0005634", "GO:0016020"],
