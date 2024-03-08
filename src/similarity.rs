@@ -430,77 +430,90 @@ mod tests {
     use crate::utils::numericize_sets;
     use crate::{enums::MetricEnum, test_constants::constants_for_tests::*};
     use std::collections::{HashMap, HashSet};
+    use rstest::rstest;
 
-    #[test]
-    fn test_semantic_jaccard_similarity_new() {
-        let sco_predicate: Vec<Predicate> = vec![(String::from("subClassOf"))];
+    #[rstest]
+    #[case(
+        &CLOSURE_MAP,
+        "CARO:0000000",
+        "BFO:0000002",
+        vec!["subClassOf"],
+        2.0 / 3.0
+    )]
+    #[case(
+        &CLOSURE_MAP,
+        "BFO:0000002",
+        "BFO:0000003",
+        vec!["subClassOf"],
+        1.0 / 3.0
+    )]
+    #[case(
+        &CLOSURE_MAP2,
+        "BFO:0000002",
+        "BFO:0000003",
+        vec!["subClassOf", "partOf"],
+        1.0 / 3.0
+    )]
+    fn test_semantic_jaccard_similarity_new(
+        #[case] closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+        #[case] term1: &str,
+        #[case] term2: &str,
+        #[case] predicates: Vec<&str>,
+        #[case] expected_result: f64,
+    ) {
+        let predicate_vec: Vec<Predicate> = predicates.into_iter().map(Predicate::from).collect();
 
         let result = calculate_semantic_jaccard_similarity(
-            &CLOSURE_MAP,
-            "CARO:0000000",
-            "BFO:0000002",
-            &Some(sco_predicate.clone()),
+            closure_map,
+            term1,
+            term2,
+            &Some(predicate_vec),
         );
 
         println!("{result:?}");
-        assert_eq!(result, 2.0 / 3.0);
-
-        let result2 = calculate_semantic_jaccard_similarity(
-            &CLOSURE_MAP,
-            "BFO:0000002",
-            "BFO:0000003",
-            &Some(sco_predicate.clone()),
-        );
-        println!("{result2:?}");
-        assert_eq!(result2, 1.0 / 3.0);
-
-        let sco_po_predicate: Vec<String> =
-            vec![String::from("subClassOf"), String::from("partOf")];
-
-        let result3 = calculate_semantic_jaccard_similarity(
-            &CLOSURE_MAP2,
-            "BFO:0000002",
-            "BFO:0000003",
-            &Some(sco_po_predicate.clone()),
-        );
-        println!("{result3:?}");
-        assert_eq!(result3, 1.0 / 3.0);
+        assert_eq!(result, expected_result);
     }
 
-    #[test]
-    fn test_semantic_jaccard_similarity_fruits() {
-        let _closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>> =
-            HashMap::new();
-        let related_to_predicate: Vec<Predicate> = vec![String::from("related_to")];
-        // the closure set for "apple" includes both "apple" and "banana", and the closure set for "banana" includes "banana" and "orange". The intersection of these two sets is {"banana"}, and the union is {"apple", "banana", "orange"}, so the Jaccard similarity would be 1 / 3 ≈ 0.33
+    #[rstest]
+    #[case(
+        &FRUIT_CLOSURE_MAP,
+        "apple",
+        "banana",
+        Some(vec!["related_to"]),
+        1.0 / 3.0
+    )]
+    #[case(
+        &FRUIT_CLOSURE_MAP,
+        "banana",
+        "orange",
+        Some(vec!["related_to"]),
+        1.0 / 3.0
+    )]
+    #[case(
+        &ALL_NO_PRED_MAP,
+        "banana",
+        "orange",
+        None,
+        1.0 / 3.0
+    )]
+    fn test_semantic_jaccard_similarity_fruits(
+        #[case] closure_map: &HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
+        #[case] term1: &str,
+        #[case] term2: &str,
+        #[case] predicates_option: Option<Vec<&str>>,
+        #[case] expected_result: f64,
+    ) {
+        let predicate_vec_option = predicates_option.map(|preds| preds.into_iter().map(Predicate::from).collect());
+
         let result = calculate_semantic_jaccard_similarity(
-            &FRUIT_CLOSURE_MAP,
-            "apple",
-            "banana",
-            &Some(related_to_predicate.clone()),
+            closure_map,
+            term1,
+            term2,
+            &predicate_vec_option,
         );
+
         println!("{result}");
-        assert_eq!(result, 1.0 / 3.0);
-
-        let result2 = calculate_semantic_jaccard_similarity(
-            &FRUIT_CLOSURE_MAP,
-            "banana",
-            "orange",
-            &Some(related_to_predicate.clone()),
-        );
-        println!("{result2}");
-        assert_eq!(result2, 1.0 / 3.0);
-
-        // NO predicates (should be the same as above)
-        let no_predicate: Option<Vec<Predicate>> = None;
-        let result2 = calculate_semantic_jaccard_similarity(
-            &ALL_NO_PRED_MAP,
-            "banana",
-            "orange",
-            &no_predicate,
-        );
-        println!("{result2}");
-        assert_eq!(result2, 1.0 / 3.0);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -568,145 +581,286 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_calculate_cosine_similarity_for_nodes() {
-        // Test case 1: Non-empty embeddings, terms exist
-        let embeddings = vec![
+    #[rstest]
+    #[case(
+        vec![
             ("term1".to_string(), vec![1.0, -2.0, 3.0]),
             ("term2".to_string(), vec![-4.0, 5.0, -6.0]),
-        ];
-        let term1 = "term1";
-        let term2 = "term2";
-        let expected_result = -0.9746318461970762;
-        assert_eq!(
-            calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).unwrap(),
-            expected_result
-        );
-
-        // Test case 2: Non-empty embeddings, one term doesn't exist
-        let embeddings = vec![
+        ],
+        "term1",
+        "term2",
+        Some(-0.9746318461970762)
+    )]
+    #[case(
+        vec![
             ("term1".to_string(), vec![1.0, -2.0, 3.0]),
             ("term2".to_string(), vec![-4.0, 5.0, -6.0]),
-        ];
-        let term1 = "term1";
-        let term2 = "term3"; // Term3 doesn't exist in embeddings
-        assert!(calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).is_none());
-
-        // Test case 3: Empty embeddings
-        let embeddings: Vec<(String, Vec<f64>)> = vec![];
-        let term1 = "term1";
-        let term2 = "term2";
-        assert!(calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).is_none());
+        ],
+        "term1",
+        "term3", // Term3 doesn't exist in embeddings
+        None
+    )]
+    #[case(
+        vec![],
+        "term1",
+        "term2",
+        None
+    )]
+    fn test_calculate_cosine_similarity_for_nodes(
+        #[case] embeddings: Vec<(String, Vec<f64>)>,
+        #[case] term1: &str,
+        #[case] term2: &str,
+        #[case] expected_result: Option<f64>
+    ) {
+        match expected_result {
+            Some(expected_value) => {
+                assert_eq!(
+                    calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).unwrap(),
+                    expected_value
+                );
+            },
+            None => {
+                assert!(calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).is_none());
+            }
+        }
     }
 
-    #[test]
-    fn test_calculate_cosine_similarity_for_embeddings() {
-        // Test case 1: Non-zero similarity
-        let embed_1 = vec![1.0, -2.0, 3.0];
-        let embed_2 = vec![-4.0, 5.0, -6.0];
+    #[rstest]
+    #[case(vec![1.0, -2.0, 3.0], vec![-4.0, 5.0, -6.0], -0.9746318461970762)]
+    #[case(vec![1.0, 0.0, 0.0], vec![0.0, 1.0, 0.0], 0.0)]
+    fn test_calculate_cosine_similarity_for_embeddings(
+        #[case] embed_1: Vec<f64>,
+        #[case] embed_2: Vec<f64>,
+        #[case] expected_similarity: f64,
+    ) {
         let similarity = calculate_cosine_similarity_for_embeddings(&embed_1, &embed_2);
-        assert_eq!(similarity, -0.9746318461970762);
-
-        // Test case 2: Zero similarity
-        let embed_1 = vec![1.0, 0.0, 0.0];
-        let embed_2 = vec![0.0, 1.0, 0.0];
-        let similarity = calculate_cosine_similarity_for_embeddings(&embed_1, &embed_2);
-        assert_eq!(similarity, 0.0);
+        assert_eq!(similarity, expected_similarity);
     }
 
-    #[test]
-    fn test_calculate_avg_of_max_information_content() {
+    type TermID = String; // Define TermID type if not already defined
+
+    #[rstest]
+    #[case(
+        vec!["CARO:0000000", "BFO:0000002"],
+        vec!["BFO:0000003", "BFO:0000004"],
+        0.24271341358512086
+    )]
+    #[case(
+        vec!["BFO:0000003"],
+        vec!["BFO:0000035"],
+        1.9593580155026542
+    )]
+    #[case(
+        vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"],
+        vec!["BFO:0000003", "BFO:0000004"],
+        1.191355953205954
+    )]
+    #[case(
+        vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"],
+        vec!["BFO:0000003", "BFO:0000004"],
+        0.5382366147050694
+    )]
+    fn test_calculate_avg_of_max_information_content(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+    ) {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-
-        // Test case 1: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
         let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
         rss.update_closure_and_ic_map();
 
-        let resnik_score = calculate_average_of_max_information_content(&rss, &entity1, &entity2);
-        let expected_value = 0.24271341358512086;
-        // dbg!(&rss.ic_map);
-
-        println!("Case 1 resnik_score: {resnik_score}");
-        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
-
-        // Test case 2: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["BFO:0000003"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-        let entity2: HashSet<TermID> = vec!["BFO:0000035"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
 
         let resnik_score = calculate_average_of_max_information_content(&rss, &entity1, &entity2);
-        let expected_value = 1.9593580155026542;
 
-        println!("Case 2 resnik_score: {resnik_score}");
-        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
-
-        // Test case 3: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let resnik_score = calculate_average_of_max_information_content(&rss, &entity1, &entity2);
-        let expected_value = 1.191355953205954;
-
-        println!("Case 3 resnik_score: {resnik_score}");
-        assert!((resnik_score - expected_value).abs() < f64::EPSILON);
-
-        // Test case 4: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let resnik_score = calculate_average_of_max_information_content(&rss, &entity1, &entity2);
-        let expected_value = 0.5382366147050694;
-
-        println!("Case 4 resnik_score: {resnik_score}");
+        println!("Resnik score: {resnik_score}");
         assert!((resnik_score - expected_value).abs() < f64::EPSILON);
     }
 
-    #[test]
-    fn test_calculate_avg_of_max_phenodigm_score() {
+    #[rstest]
+    #[case(
+        vec!["CARO:0000000", "BFO:0000002"],
+        vec!["BFO:0000003", "BFO:0000004"],
+        0.28443711290026885
+    )]
+    #[case(
+        vec!["BFO:0000003"],
+        vec!["BFO:0000035"],
+        1.142907991485653
+    )]
+    #[case(
+        vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"],
+        vec!["BFO:0000003", "BFO:0000004"],
+        1.0104407380486145
+    )]
+    #[case(
+        vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"],
+        vec!["BFO:0000001", "BFO:0000004"],
+        0.5438505043671094
+    )]
+    fn test_calculate_avg_of_max_phenodigm_score(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+    ) {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-
-        // Test case 1: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
         let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
         rss.update_closure_and_ic_map();
 
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+
+        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
+
+        println!("Phenodigm score: {phenodigm_score}");
+        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
+    }
+
+    
+    #[rstest]
+    #[case(vec!["CARO:0000000", "BFO:0000002"], vec!["BFO:0000003", "BFO:0000004"], 0.3333333333333333)]
+    #[case(vec!["BFO:0000003"], vec!["BFO:0000035"], 0.6666666666666666)]
+    #[case(vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"], vec!["BFO:0000001", "BFO:0000004"], 0.7222222222222222)]
+    #[case(vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"], vec!["BFO:0000001", "BFO:0000004"], 0.5555555555555555)]
+    fn test_calculate_avg_of_max_jaccard_similarity(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+    ) {
+        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+    
+        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        rss.update_closure_and_ic_map();
+    
+        let jaccard_similarity =
+            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
+    
+        println!("Jaccard similarity: {jaccard_similarity}");
+        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
+    }
+    
+
+    #[rstest]
+    #[case(
+        vec!["GO:0005634", "GO:0016020"],
+        vec!["GO:0031965", "GO:0005773"],
+        5.4154243283740175,
+        MetricEnum::AncestorInformationContent
+    )]
+    #[case(
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        vec!["GO:0031965", "GO:0005773"],
+        6.34340010221605,
+        MetricEnum::AncestorInformationContent
+    )]
+    fn test_calculate_average_termset_information_content(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+        #[case] score_metric: MetricEnum,
+    ) {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+
+        let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
+        assert_eq!(avg_ic_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+    }
+
+    #[rstest]
+    #[case(
+        vec!["GO:0005634", "GO:0016020"],
+        vec!["GO:0031965", "GO:0005773"],
+        1.8610697515464185,
+        MetricEnum::PhenodigmScore
+    )]
+    #[case(
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        vec!["GO:0031965", "GO:0005773"],
+        2.2009031581929213,
+        MetricEnum::PhenodigmScore
+    )]
+    fn test_calculate_average_termset_phenodigm_score(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+        #[case] score_metric: MetricEnum,
+    ) {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+
+        let avg_phenodigm_score = calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
+        assert_eq!(avg_phenodigm_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+    }
+
+    #[rstest]
+    #[case(
+        vec!["GO:0005634", "GO:0016020"],
+        vec!["GO:0031965", "GO:0005773"],
+        0.6878019323671498,
+        MetricEnum::JaccardSimilarity
+    )]
+    #[case(
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        vec!["GO:0031965", "GO:0005773"],
+        0.7942834138486312,
+        MetricEnum::JaccardSimilarity
+    )]
+    fn test_calculate_average_termset_jaccard_similarity(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+        #[case] score_metric: MetricEnum,
+    ) {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+
+        let avg_jaccard_similarity = calculate_average_termset_jaccard_similarity(&rss, &entity1, &entity2);
+        assert_eq!(avg_jaccard_similarity, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+    }
+}
+
+// test_calculate_avg_of_max_phenodigm_score
+    // Case 1
         // These are the values that are being used in the manual calculations below
-
         // Ontology Term Pair	    Max IC	            Jaccard Similarity
         // BFO:0000002_BFO:0000003	0	                0.3333333333333333
         // CARO:0000000_BFO:0000004	0	                0
@@ -737,22 +891,7 @@ mod tests {
         // Max phenodigm for BFO:0000002: 0.568872988
         // Average max phenodigm from Entity1 to Entity2: (0 + 0.568872988) / 2 ≈ 0.284436494
 
-        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
-        let expected_value = 0.28443711290026885;
-
-        println!("Case 1 phenodigm_score: {phenodigm_score}");
-        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
-
-        // Test case 2: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["BFO:0000003"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-        let entity2: HashSet<TermID> = vec!["BFO:0000035"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
+    // Case 2
         // Entity1 to Entity2
         // Entity1: ["BFO:0000003"]
         // Entity2: ["BFO:0000035"]
@@ -762,38 +901,6 @@ mod tests {
         // Phenodigm Score Calculation
         // Phenodigm = sqrt(1.9593580155026542 * 0.6666666666666666) ≈ 1.142907991485653
 
-        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
-        let expected_value = 1.142907991485653;
-
-        println!("Case 2 phenodigm_score: {phenodigm_score}");
-        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
-
-        // Test case 3: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
-        let expected_value = 1.0104407380486145;
-
-        println!("Case 3 phenodigm_score: {phenodigm_score}");
-        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
-
-        // Test case 4: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let entity2: HashSet<TermID> = vec!["BFO:0000001", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
 
         // For CARO:0000000:
         // Comparing to BFO:0000001: Max IC = 0, Jaccard = 0
@@ -812,227 +919,22 @@ mod tests {
         // Max phenodigm for BFO:0000004: sqrt(1.1292830169449666 * 1) ≈ 1.062689
 
         // Average max phenodigm from Entity1 to Entity2: (0 + 0.5688742258 + 1.062689) / 3 ≈ 0.5438544086
+        /////////
 
-        let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
-        let expected_value = 0.5438505043671094;
+        // Entity2 to Entity1
+        // For BFO:0000001:
+        // Comparing to CARO:0000000 Max IC = 0, Jaccard = 0
+        // Comparing to BFO:0000002 Max IC = 0, Jaccard = 0.5, phenodigm is (sqrt(0 * 0.5) = 0
+        // Comparing to BFO:0000004 Max IC = 0, Jaccard = 0.3333333333333333, phenodigm is (sqrt(0 * 0.3333333333333333) = 0
+        // Max phenodigm for BFO:0000001: 0 (since all comparisons yield 0)
 
-        println!("Case 4 phenodigm_score: {phenodigm_score}");
-        assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
-    }
+        // For BFO:0000004
+        // Comparing to CARO:0000000 Max IC = 0, Jaccard = 0
+        // Comparing to BFO:0000002 Max IC = 0.48542682717024171, Jaccard = 0.6666666666666666, phenodigm is
+        //       (sqrt(0.48542682717024171 * 0.6666666666666666) ≈ 0.5688742258
+        // Comparing to itself Max IC = 1.1292830169449666, Jaccard = 1, phenodigm is (sqrt(1.1292830169449666 * 1) ≈ 1.062689
+        // Max phenodigm for BFO:0000004: 1.062689
+        // Average max phenodigm from Entity2 to Entity1: (0 + 1.062689) / 2 ≈ 0.5313445
 
-    #[test]
-    fn test_calculate_avg_of_max_jaccard_similarity() {
-        let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-
-        // Test case 1: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
-        rss.update_closure_and_ic_map();
-
-        let jaccard_similarity =
-            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
-        let expected_value = 0.3333333333333333;
-
-        println!("Case 1 jaccard_similarity: {jaccard_similarity}");
-        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
-
-        // Test case 2: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["BFO:0000003"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-        let entity2: HashSet<TermID> = vec!["BFO:0000035"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let jaccard_similarity =
-            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
-        let expected_value = 0.6666666666666666;
-
-        println!("Case 2 jaccard_similarity: {jaccard_similarity}");
-        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
-
-        // Test case 3: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004", "BFO:0000003"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-        let entity2: HashSet<TermID> = vec!["BFO:0000001", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let jaccard_similarity =
-            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
-        let expected_value = 0.7222222222222222;
-
-        println!("Case 3 jaccard_similarity: {jaccard_similarity}");
-        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
-
-        // Test case 4: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = vec!["CARO:0000000", "BFO:0000002", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let entity2: HashSet<TermID> = vec!["BFO:0000001", "BFO:0000004"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let jaccard_similarity =
-            calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
-        let expected_value = 0.5555555555555555;
-
-        println!("Case 4 jaccard_similarity: {jaccard_similarity}");
-        assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn test_calculate_average_termset_information_content() {
-        let predicates: Option<Vec<Predicate>> = Some(vec![
-            Predicate::from("rdfs:subClassOf"),
-            Predicate::from("BFO:0000050"),
-        ]);
-        let db = Some("tests/data/go-nucleus.db");
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
-
-        rss.update_closure_and_ic_map();
-
-        // Test case 1: Normal case, entities have terms.
-        let entity1: HashSet<TermID> =
-            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
-
-        let entity2: HashSet<TermID> =
-            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-
-        let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
-        let expected_value = 5.4154243283740175;
-        let score_metric = MetricEnum::AncestorInformationContent;
-
-        println!("Case X pheno_score: {avg_ic_score}");
-        assert_eq!(avg_ic_score, expected_value);
-
-        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
-        dbg!(&tsps);
-
-        // Test case 2: Normal case, entities have terms.
-        let entity1: HashSet<TermID> = HashSet::from([
-            "GO:0005634".to_string(),
-            "GO:0016020".to_string(),
-            "GO:0005773".to_string(),
-        ]);
-
-        let entity2: HashSet<TermID> =
-            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-
-        let avg_ic_score = calculate_average_termset_information_content(&rss, &entity1, &entity2);
-        let expected_value = 6.34340010221605;
-
-        println!("Case 3 ic_score: {avg_ic_score}");
-        assert_eq!(avg_ic_score, expected_value);
-    }
-
-    #[test]
-    fn test_calculate_average_termset_phenodigm_score() {
-        let predicates: Option<Vec<Predicate>> = Some(vec![
-            Predicate::from("rdfs:subClassOf"),
-            Predicate::from("BFO:0000050"),
-        ]);
-        let db = Some("tests/data/go-nucleus.db");
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
-
-        rss.update_closure_and_ic_map();
-
-        // Test case 1
-        let entity1: HashSet<TermID> =
-            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
-
-        let entity2: HashSet<TermID> =
-            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-
-        let avg_phenodigm_score =
-            calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
-        let expected_value = 1.8610697515464185;
-        let score_metric = MetricEnum::PhenodigmScore;
-
-        println!("Case 1 pheno_score: {avg_phenodigm_score}");
-        assert_eq!(avg_phenodigm_score, expected_value);
-
-        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
-        dbg!(&tsps);
-
-        // Test case 2
-        let entity1: HashSet<TermID> = HashSet::from([
-            "GO:0005634".to_string(),
-            "GO:0016020".to_string(),
-            "GO:0005773".to_string(),
-        ]);
-
-        let entity2: HashSet<TermID> =
-            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-
-        let avg_phenodigm_score =
-            calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
-        let expected_value = 2.2009031581929213;
-
-        println!("Case 2 pheno_score: {avg_phenodigm_score}");
-        assert_eq!(avg_phenodigm_score, expected_value);
-    }
-
-    #[test]
-    fn test_calculate_average_termset_jaccard_similarity() {
-        let predicates: Option<Vec<Predicate>> = Some(vec![
-            Predicate::from("rdfs:subClassOf"),
-            Predicate::from("BFO:0000050"),
-        ]);
-        let db = Some("tests/data/go-nucleus.db");
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
-
-        rss.update_closure_and_ic_map();
-
-        // Test case 1
-        let entity1: HashSet<TermID> =
-            HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
-
-        let entity2: HashSet<TermID> =
-            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-
-        let avg_jaccard_similarity =
-            calculate_average_termset_jaccard_similarity(&rss, &entity1, &entity2);
-        let expected_value = 0.6878019323671498;
-        let score_metric = MetricEnum::JaccardSimilarity;
-
-        println!("Case 1 jaccard_similarity: {avg_jaccard_similarity}");
-        assert_eq!(avg_jaccard_similarity, expected_value);
-
-        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
-        dbg!(&tsps);
-
-        // Test case 2
-        let entity1: HashSet<TermID> = HashSet::from([
-            "GO:0005634".to_string(),
-            "GO:0016020".to_string(),
-            "GO:0005773".to_string(),
-        ]);
-
-        let entity2: HashSet<TermID> =
-            HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-
-        let avg_jaccard_similarity =
-            calculate_average_termset_jaccard_similarity(&rss, &entity1, &entity2);
-        let expected_value = 0.7942834138486312;
-
-        println!("Case 2 pheno_score: {avg_jaccard_similarity}");
-        assert_eq!(avg_jaccard_similarity, expected_value);
-    }
-}
+        // Final Average Maximum Phenodigm Score
+        // average = (0.5438544086 + 0.5313445)/2 = 0.5375994543
