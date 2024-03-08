@@ -678,6 +678,78 @@ mod tests {
         assert!((resnik_score - expected_value).abs() < f64::EPSILON);
     }
 
+    // These comments are the manual calculations for the test cases below, for future reference
+
+    // These are the values that are being used in the manual calculations below:
+    // Ontology Term Pair	    Max IC	            Jaccard Similarity
+    // BFO:0000002_BFO:0000003	0	                0.3333333333333333
+    // CARO:0000000_BFO:0000004	0	                0
+    // BFO:0000002_BFO:0000004	0.48542682717024171	0.6666666666666666
+    // CARO:0000000_BFO:0000003	0	                0
+    // BFO:0000003_BFO:0000035	1.9593580155026542	0.6666666666666666
+    // BFO:0000004_BFO:0000004	1.1292830169449666	1
+    // CARO:0000000_BFO:0000002	0	                0
+    // BFO:0000002_BFO:0000002	0.48542682717024171	1
+    // BFO:0000004_BFO:0000002	0.48542682717024171	0.6666666666666666
+    // CARO:0000000_BFO:0000001	0	                0
+    // BFO:0000002_BFO:0000001	0	                0.5
+    // BFO:0000004_BFO:0000001	0	                0.3333333333333333
+
+    // Case 1:
+    // Entity1: ["CARO:0000000", "BFO:0000002"]
+    // Entity2: ["BFO:0000003", "BFO:0000004"]
+    // For CARO:0000000 to Entity2:
+    //   To BFO:0000003: phenodigm = sqrt(0 * 0) = 0
+    //   To BFO:0000004: phenodigm = sqrt(0 * 0) = 0
+    //   Max phenodigm for CARO:0000000: 0
+    // For BFO:0000002 to Entity2:
+    //   To BFO:0000003: phenodigm = sqrt(0 * 0.3333333333333333) = 0
+    //   To BFO:0000004: phenodigm = sqrt(0.48542682717024171 * 0.6666666666666666) ≈ 0.5688742258
+    //   Max phenodigm for BFO:0000002: 0.5688742258
+    // Average max phenodigm from Entity1 to Entity2: (0 + 0.5688742258) / 2 ≈ 0.2844371129
+
+    // Case 2:
+    // Entity1: ["BFO:0000003"]
+    // Entity2: ["BFO:0000035"]
+    // For BFO:0000003 to Entity2:
+    //   To BFO:0000035: sqrt(1.9593580155026542 * 0.6666666666666666) ≈ 1.1429079915
+    //   Max phenodigm for BFO:0000003: 1.1429079915
+    // Average max phenodigm from Entity1 to Entity2: 1.1429079915
+
+    // Case 3:
+    // Entity1: ["BFO:0000002", "BFO:0000004", "BFO:0000003"]
+    // Entity2: ["BFO:0000003", "BFO:0000004"]
+    // For BFO:0000002 to Entity2:
+    //   To BFO:0000003: sqrt(0 * 0.3333333333333333) = 0
+    //   To BFO:0000004: sqrt(0.48542682717024171 * 0.6666666666666666) ≈ 0.5688742258
+    //   Max phenodigm for BFO:0000002: 0.568872988
+    // For BFO:0000004 to Entity2:
+    //   To BFO:0000003: sqrt(?? * ??) ≈ ???
+    //   To BFO:0000004: sqrt(1.1292830169449666 * 1) = 1.0626772873
+    //   Max phenodigm for BFO:0000004: 1.0626772873
+    // For BFO:0000003 to Entity2:
+    //   To BFO:0000003: sqrt(?? * ??) ≈ ??
+    //   To BFO:0000004: sqrt(?? * ??) ≈ ??
+    //   Max phenodigm for BFO:0000003: ??
+    // Average max phenodigm from Entity1 to Entity2: (0.568872988 + 1.129283017 + ??) / 3 ≈ ??
+
+    // Case 4:
+    // Entity1: ["CARO:0000000", "BFO:0000002", "BFO:0000004"]
+    // Entity2: ["BFO:0000001", "BFO:0000004"]
+    // For CARO:0000000 to Entity2:
+    //   To BFO:0000001: sqrt(0 * 0) = 0
+    //   To BFO:0000004: sqrt(0 * 0) = 0
+    //   Max phenodigm for CARO:0000000: 0
+    // For BFO:0000002 to Entity2:
+    //   To BFO:0000001: sqrt(0 * 0.5) = 0
+    //   To BFO:0000004: sqrt(0.48542682717024171 * 0.6666666666666666) ≈ 0.5688742258
+    //   Max phenodigm for BFO:0000002: 0.5688742258
+    // For BFO:0000004 to Entity2:
+    //   To BFO:0000001: sqrt(0 * 0.3333333333333333) = 0
+    //   To BFO:0000004: sqrt(1.1292830169449666 * 1) = 1.0626772873
+    //   Max phenodigm for BFO:0000004: 1.0626772873
+    // Average max phenodigm from Entity1 to Entity2: (0 + 0.5688742258 + 1.0626772873) / 3 ≈ 0.5438505044
+
     #[rstest]
     #[case(
         vec!["CARO:0000000", "BFO:0000002"],
