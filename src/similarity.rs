@@ -19,7 +19,6 @@ pub fn calculate_semantic_jaccard_similarity(
     let entity1_closure = expand_term_using_closure(entity1, closure_table, predicates);
     let entity2_closure = expand_term_using_closure(entity2, closure_table, predicates);
 
-
     // println!("SIM: entity1_closure: {entity1_closure:?}");
     // println!("SIM: entity2_closure: {entity2_closure:?}");
     // println!("SIM: Jaccard: {jaccard}");
@@ -706,7 +705,6 @@ mod tests {
         let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
         rss.update_closure_and_ic_map();
 
-
         // These are the values that are being used in the manual calculations below
         // (looked up in the ic_map and phenodigm_score_map in the debugger)
 
@@ -720,7 +718,6 @@ mod tests {
         // CARO:0000000_BFO:0000002	0	                0
         // BFO:0000002_BFO:0000002	0.48542682717024171	1
         // BFO:0000004_BFO:0000002	0.48542682717024171	0.6666666666666666
-
 
         // Entity1 to Entity2
         // Entity1: ["CARO:0000000", "BFO:0000002"]
@@ -834,7 +831,6 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect();
-
 
         // For CARO:0000000:
         //
