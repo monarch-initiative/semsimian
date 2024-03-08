@@ -677,7 +677,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
+        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
             .into_iter()
             .map(|s| s.to_string())
             .collect();
@@ -830,7 +830,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
+        let entity2: HashSet<TermID> = vec!["BFO:0000001", "BFO:0000004"]
             .into_iter()
             .map(|s| s.to_string())
             .collect();
@@ -862,7 +862,7 @@ mod tests {
         // Overall Average Maximum Phenodigm Score= sqrt(0.5864716667 * 0.5864716667) = 0.5864676926
 
         let phenodigm_score = calculate_average_of_max_phenodigm_score(&rss, &entity1, &entity2);
-        let expected_value = 0.5864676926056199;
+        let expected_value = 0.5438505043671094;
 
         println!("Case 4 phenodigm_score: {phenodigm_score}");
         assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
@@ -914,16 +914,16 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect();
-        let entity2: HashSet<TermID> = vec!["BFO:0000003", "BFO:0000004"]
+        let entity2: HashSet<TermID> = vec!["BFO:0000001", "BFO:0000004"]
             .into_iter()
             .map(|s| s.to_string())
             .collect();
 
         let jaccard_similarity =
             calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
-        let expected_value = 0.8888888888888888;
+        let expected_value = 0.7222222222222222;
 
-        println!("Case 3 phenodigm_score: {jaccard_similarity}");
+        println!("Case 3 jaccard_similarity: {jaccard_similarity}");
         assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
 
         // Test case 4: Normal case, entities have terms.
@@ -932,16 +932,16 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        let entity2: HashSet<TermID> = vec!["BFO:0000002", "BFO:0000004"]
+        let entity2: HashSet<TermID> = vec!["BFO:0000001", "BFO:0000004"]
             .into_iter()
             .map(|s| s.to_string())
             .collect();
 
         let jaccard_similarity =
             calculate_average_of_max_jaccard_similarity(&rss, &entity1, &entity2);
-        let expected_value = 0.6666666666666666;
+        let expected_value = 0.5555555555555555;
 
-        println!("Case 4 phenodigm_score: {jaccard_similarity}");
+        println!("Case 4 jaccard_similarity: {jaccard_similarity}");
         assert!((jaccard_similarity - expected_value).abs() < f64::EPSILON);
     }
 
