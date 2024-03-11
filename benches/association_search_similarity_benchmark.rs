@@ -1,7 +1,10 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
+use semsimian::{
+    enums::{MetricEnum, SearchTypeEnum},
+    Predicate, RustSemsimian, TermID,
+};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut db_path = PathBuf::new();
@@ -149,6 +152,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     };
 
     let mut bench_grp = c.benchmark_group("search_bench_group");
+    let score_metric = MetricEnum::AncestorInformationContent;
+
     bench_grp.sample_size(10);
     // .measurement_time(Duration::from_secs(300));
     bench_grp.bench_function("search_similarity", move |b| {
@@ -157,6 +162,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 &associations,
                 &object_terms,
                 include_similarity_object,
+                &score_metric,
             )
         })
     });

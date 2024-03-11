@@ -1,4 +1,7 @@
-use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
+use semsimian::{
+    enums::{MetricEnum, SearchTypeEnum},
+    Predicate, RustSemsimian, TermID,
+};
 use std::{collections::HashSet, path::PathBuf};
 
 #[test]
@@ -60,12 +63,14 @@ fn test_calculate_similarity_for_association_search() {
     };
 
     let include_similarity_object = false;
+    let score_metric = MetricEnum::AncestorInformationContent;
 
     // Call the method with the test data
     let result = rss.calculate_similarity_for_association_search(
         &associations,
         &profile_entities,
         include_similarity_object,
+        &score_metric,
     );
     dbg!(&result.len());
     let expected_len = 10187;

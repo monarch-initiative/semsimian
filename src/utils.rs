@@ -11,6 +11,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 
 use crate::db_query::get_subjects;
+use crate::enums::MetricEnum;
 use crate::termset_pairwise_similarity::TermsetPairwiseSimilarity;
 use crate::{SearchTypeEnum, SimilarityMap};
 type Predicate = String;
@@ -104,7 +105,7 @@ pub fn _stringify_sets_using_map(
 }
 
 pub fn convert_list_of_tuples_to_hashmap(
-    list_of_tuples: &Vec<(TermID, PredicateSetKey, TermID)>,
+    list_of_tuples: &[(TermID, PredicateSetKey, TermID)],
     predicates: &Option<Vec<String>>,
 ) -> (ClosureMap, ICMap) {
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> =
@@ -378,7 +379,7 @@ pub fn get_best_matches(
     termset: &[BTreeInBTree],
     all_by_all: &SimilarityMap,
     term_label_map: &mut HashMap<String, String>,
-    metric: &str,
+    metric: &MetricEnum,
 ) -> (BTreeInBTree, BTreeInBTree) {
     let mut best_matches = BTreeMap::new();
     let mut best_matches_similarity_map = BTreeMap::new();
@@ -402,7 +403,7 @@ pub fn get_best_matches(
                 .cloned()
                 .unwrap_or_default();
 
-            let score = similarity_map.get(metric).unwrap().clone();
+            let score = similarity_map.get(metric.as_str()).unwrap().clone();
 
             let match_source = term_id;
             let match_source_label = term_label;
@@ -424,6 +425,7 @@ pub fn get_best_matches(
             best_matches_value.insert("match_target".to_string(), match_target);
             best_matches_value.insert("match_target_label".to_string(), match_target_label);
             best_matches_value.insert("score".to_string(), score);
+            best_matches_value.insert("score_metric".to_string(), metric.as_str().to_string());
 
             best_matches.insert(best_matches_key.clone(), best_matches_value);
             best_matches_similarity_map.insert(best_matches_key, similarity_map);
@@ -925,10 +927,10 @@ mod tests {
         let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(&subject_terms, &term_label_map);
 
-        let metric = "ancestor_information_content";
+        let metric = MetricEnum::AncestorInformationContent;
 
         let (best_match, best_matches_similarity_map) =
-            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, metric);
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, &metric);
 
         let best_match_keys: HashSet<_> = best_match.keys().cloned().collect();
         assert_eq!(best_match_keys, subject_terms);
@@ -936,5 +938,48 @@ mod tests {
         let best_matches_similarity_keys: HashSet<_> =
             best_matches_similarity_map.keys().cloned().collect();
         assert_eq!(best_matches_similarity_keys, subject_terms);
+        dbg!(best_matches_similarity_map);
+        dbg!(best_match);
+    }
+    #[test]
+    fn test_get_best_matches_phenodigm() {
+        let db = "tests/data/go-nucleus.db";
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+        let mut rss = RustSemsimian::new(None, predicates, None, Some(db));
+        rss.update_closure_and_ic_map();
+
+        let all_by_all: SimilarityMap =
+            rss.all_by_all_pairwise_similarity(&subject_terms, &object_terms, &None, &None);
+
+        let all_terms: HashSet<String> = subject_terms
+            .iter()
+            .chain(object_terms.iter())
+            .cloned()
+            .collect();
+        let all_terms_vec: Vec<String> = all_terms.into_iter().collect();
+        let mut term_label_map = get_labels(db, &all_terms_vec).unwrap();
+
+        let subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
+            get_termset_vector(&subject_terms, &term_label_map);
+
+        let metric = MetricEnum::PhenodigmScore;
+
+        let (best_match, best_matches_similarity_map) =
+            get_best_matches(&subject_termset, &all_by_all, &mut term_label_map, &metric);
+
+        let best_match_keys: HashSet<_> = best_match.keys().cloned().collect();
+        assert_eq!(best_match_keys, subject_terms);
+
+        let best_matches_similarity_keys: HashSet<_> =
+            best_matches_similarity_map.keys().cloned().collect();
+        assert_eq!(best_matches_similarity_keys, subject_terms);
+        dbg!(best_matches_similarity_map);
+        dbg!(best_match);
     }
 }

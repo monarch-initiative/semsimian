@@ -4,6 +4,8 @@ use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::enums::MetricEnum;
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TermsetPairwiseSimilarity {
     pub subject_termset: Vec<BTreeMap<String, BTreeMap<String, String>>>,
@@ -14,7 +16,7 @@ pub struct TermsetPairwiseSimilarity {
     pub object_best_matches_similarity_map: BTreeMap<String, BTreeMap<String, String>>,
     pub average_score: f64,
     pub best_score: f64,
-    pub metric: String,
+    pub metric: MetricEnum,
 }
 impl TermsetPairwiseSimilarity {
     pub fn new(
@@ -26,7 +28,7 @@ impl TermsetPairwiseSimilarity {
         object_best_matches_similarity_map: BTreeMap<String, BTreeMap<String, String>>,
         average_score: f64,
         best_score: f64,
-        metric: String,
+        metric: MetricEnum,
     ) -> TermsetPairwiseSimilarity {
         TermsetPairwiseSimilarity {
             subject_termset,
@@ -84,7 +86,7 @@ impl<'a> IntoPy<PyObject> for &'a TermsetPairwiseSimilarity {
             .set_item("best_score", self.best_score)
             .expect("Failed to set item in tsps_dict");
         tsps_dict
-            .set_item("metric", &self.metric)
+            .set_item("metric", self.metric.as_str())
             .expect("Failed to set item in tsps_dict");
 
         tsps_dict.into()

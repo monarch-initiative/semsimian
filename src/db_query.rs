@@ -53,7 +53,7 @@ impl<'a> IntoPy<PyObject> for &'a TermAssociation {
 
 pub fn get_entailed_edges_for_predicate_list(
     path: &str,
-    predicates: &Vec<Predicate>,
+    predicates: &[Predicate],
 ) -> Result<Vec<(TermID, Predicate, TermID)>, rusqlite::Error> {
     // Build the SQL query with the provided table name such that 'predicates' are in the Vector predicates.
     let joined_predicates = format!("'{}'", predicates.join("', '"));

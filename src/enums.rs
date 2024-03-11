@@ -1,4 +1,5 @@
 use pyo3::{exceptions::PyValueError, PyResult};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub enum SearchTypeEnum {
@@ -22,6 +23,36 @@ impl SearchTypeEnum {
             "full" => Ok(SearchTypeEnum::Full),
             "hybrid" => Ok(SearchTypeEnum::Hybrid),
             _ => Err(PyValueError::new_err("Invalid search type")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
+pub enum MetricEnum {
+    #[default]
+    AncestorInformationContent,
+    JaccardSimilarity,
+    PhenodigmScore,
+    CosineSimilarity,
+}
+
+impl MetricEnum {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            MetricEnum::AncestorInformationContent => "ancestor_information_content",
+            MetricEnum::JaccardSimilarity => "jaccard_similarity",
+            MetricEnum::PhenodigmScore => "phenodigm_score",
+            MetricEnum::CosineSimilarity => "cosine_similarity",
+        }
+    }
+
+    // Convert an Option<&str> to the corresponding Metric enum variant
+    pub fn from_string(metric: &Option<&str>) -> PyResult<Self> {
+        match metric.as_deref() {
+            Some("jaccard_similarity") => Ok(MetricEnum::JaccardSimilarity),
+            Some("phenodigm_score") => Ok(MetricEnum::PhenodigmScore),
+            Some("cosine_similarity") => Ok(MetricEnum::CosineSimilarity),
+            Some(_) | None => Ok(MetricEnum::AncestorInformationContent), // Default case includes None and any other string
         }
     }
 }
