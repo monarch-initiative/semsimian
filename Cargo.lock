@@ -1893,7 +1893,7 @@ dependencies = [
 
 [[package]]
 name = "semsimian"
-version = "0.2.14"
+version = "0.2.14-rc1"
 dependencies = [
  "cargo-llvm-cov",
  "criterion",
