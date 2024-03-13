@@ -39,7 +39,7 @@ flamegraph = "0.6.3"
 rstest = "0.18.2"
 
 [build-dependencies]
-pyo3-build-config = { version = "*", features = ["extension-module"] }
+pyo3-build-config = { version = "0.20.3", features = ["extension-module"] }
 
 [[bench]]
 name = "termset_pairwise_similarity_benchmark"
