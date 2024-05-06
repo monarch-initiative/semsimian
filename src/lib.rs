@@ -1368,11 +1368,11 @@ mod tests {
     #[test]
     fn test_object_creation_with_custom_ic() {
         let db = Some("tests/data/go-nucleus.db");
-        let custom_ic_path = Some("tests/data/go-nucleus_ic_map.tsv");
-        let ss = RustSemsimian::new(None, None, None, db, custom_ic_path);
+        let custom_ic_path = "tests/data/go-nucleus_ic_map.tsv";
+        let ss = RustSemsimian::new(None, None, None, db, Some(custom_ic_path));
         let custom_ic_map = ss.ic_map.values().next().unwrap();
         let ic_map_imported =
-            import_custom_ic_map(&PathBuf::from(custom_ic_path.unwrap())).unwrap();
+            import_custom_ic_map(&PathBuf::from(custom_ic_path)).unwrap();
         assert_eq!(custom_ic_map, &ic_map_imported);
     }
 
