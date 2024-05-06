@@ -119,8 +119,11 @@ impl RustSemsimian {
         }
     }
 
-    pub fn update_closure_and_ic_map(&mut self) {
+    pub fn update_closure_and_ic_map(&mut self, custom_ic_map: &Option<HashMap<String, HashMap<String, f64>>>) {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
+        // if custom_ic_map.is_some() {
+        //     self.ic_map = custom_ic_map.as_ref().unwrap().clone();
+        // } else
 
         if !self.closure_map.contains_key(&predicate_set_key)
             || !self.ic_map.contains_key(&predicate_set_key)

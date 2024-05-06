@@ -107,6 +107,7 @@ pub fn _stringify_sets_using_map(
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: &[(TermID, PredicateSetKey, TermID)],
     predicates: &Option<Vec<String>>,
+    custom_ic_map_provided: &Option<bool>,
 ) -> (ClosureMap, ICMap) {
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> =
         HashMap::with_capacity(list_of_tuples.len());
@@ -145,12 +146,15 @@ pub fn convert_list_of_tuples_to_hashmap(
     progress_bar.finish_with_message("done");
 
     let number_of_nodes = freq_map.len() as f64;
-
-    ic_map.entry(predicate_set_key.clone()).or_default().extend(
+    
+    if custom_ic_map_provided.unwrap_or(false) {
+        ic_map.entry(predicate_set_key.clone()).or_default().extend(
         freq_map
             .iter()
             .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
-    );
+        );
+    }
+    
 
     (closure_map, ic_map)
 }
