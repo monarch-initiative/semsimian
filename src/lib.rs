@@ -109,6 +109,10 @@ impl RustSemsimian {
             unique_predicates.into_iter().collect()
         });
 
+        if custom_ic_map_path.is_some() {
+            println!("Loading custom IC map from: {:?}", custom_ic_map_path.as_ref().unwrap());
+        }
+
         RustSemsimian {
             spo,
             predicates: Some(predicates),
@@ -124,25 +128,28 @@ impl RustSemsimian {
 
     pub fn update_closure_and_ic_map(&mut self, custom_ic_map: &Option<HashMap<String, HashMap<String, f64>>>) {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
+        
         if custom_ic_map.is_some() {
-               println!("Loading custom IC map from: {:?}", custom_ic_map_path.as_ref().unwrap());
         //     self.ic_map = custom_ic_map.as_ref().unwrap().clone();
-        } else
-
-        if !self.closure_map.contains_key(&predicate_set_key)
-            || !self.ic_map.contains_key(&predicate_set_key)
+        } 
+        else 
         {
-            let (this_closure_map, this_ic_map) =
-                convert_list_of_tuples_to_hashmap(&self.spo, &self.predicates);
 
-            if let Some(closure_value) = this_closure_map.get(&predicate_set_key) {
-                self.closure_map
-                    .insert(predicate_set_key.clone(), closure_value.clone());
-            }
+            if !self.closure_map.contains_key(&predicate_set_key)
+                || !self.ic_map.contains_key(&predicate_set_key)
+            {
+                let (this_closure_map, this_ic_map) =
+                    convert_list_of_tuples_to_hashmap(&self.spo, &self.predicates);
 
-            if let Some(ic_value) = this_ic_map.get(&predicate_set_key) {
-                self.ic_map
-                    .insert(predicate_set_key.clone(), ic_value.clone());
+                if let Some(closure_value) = this_closure_map.get(&predicate_set_key) {
+                    self.closure_map
+                        .insert(predicate_set_key.clone(), closure_value.clone());
+                }
+
+                if let Some(ic_value) = this_ic_map.get(&predicate_set_key) {
+                    self.ic_map
+                        .insert(predicate_set_key.clone(), ic_value.clone());
+                }
             }
         }
     }
