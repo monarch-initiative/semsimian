@@ -1025,4 +1025,22 @@ mod tests {
         dbg!(best_matches_similarity_map);
         dbg!(best_match);
     }
+
+    #[test]
+    fn test_import_custom_ic_map() {
+        let path = PathBuf::from("tests/data/custom_ic_map.tsv");
+        let ic_map = import_custom_ic_map(&path).unwrap();
+
+        let expected_ic_map: HashMap<String, f64> = {
+            let mut ic_map = HashMap::new();
+            ic_map.insert("ABCD:000001".to_string(), 1.0);
+            ic_map.insert("ABCD:000002".to_string(), 2.0);
+            ic_map.insert("ABCD:000003".to_string(), 3.0);
+            ic_map.insert("ABCD:000004".to_string(), 4.0);
+            ic_map.insert("ABCD:000005".to_string(), 5.0);
+            ic_map
+        };
+
+        assert_eq!(ic_map, expected_ic_map);
+    }
 }
