@@ -70,6 +70,8 @@ pub struct RustSemsimian {
     predicates: Option<Vec<Predicate>>,
     ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     // ic_map is something like {("is_a_+_part_of"), {"GO:1234": 1.234}}
+    custom_ic_map_path: Option<String>,
+    // filepath to custom ic map, if provided
     closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
     // closure_map is something like {("is_a_+_part_of"), {"GO:1234": {"GO:1234", "GO:5678"}}}
     embeddings: Embeddings,
@@ -112,6 +114,7 @@ impl RustSemsimian {
             predicates: Some(predicates),
             pairwise_similarity_attributes,
             ic_map: HashMap::new(),
+            custom_ic_map_path: None,
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
             prefix_expansion_cache: HashMap::new(),
@@ -121,9 +124,10 @@ impl RustSemsimian {
 
     pub fn update_closure_and_ic_map(&mut self, custom_ic_map: &Option<HashMap<String, HashMap<String, f64>>>) {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
-        // if custom_ic_map.is_some() {
+        if custom_ic_map.is_some() {
+               println!("Loading custom IC map from: {:?}", custom_ic_map_path.as_ref().unwrap());
         //     self.ic_map = custom_ic_map.as_ref().unwrap().clone();
-        // } else
+        } else
 
         if !self.closure_map.contains_key(&predicate_set_key)
             || !self.ic_map.contains_key(&predicate_set_key)
