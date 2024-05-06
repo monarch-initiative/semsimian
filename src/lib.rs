@@ -30,19 +30,16 @@ use std::fmt;
 use similarity::{
     calculate_average_termset_information_content, calculate_average_termset_jaccard_similarity,
     calculate_average_termset_phenodigm_score, calculate_cosine_similarity_for_nodes,
-    calculate_jaccard_similarity_str, calculate_max_information_content,
+    calculate_jaccard_similarity_str, calculate_max_information_content, calculate_weighted_term_pairwise_information_content
 };
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
     generate_progress_bar_of_length_and_message, get_best_matches, get_curies_from_prefixes,
     get_prefix_association_key, get_termset_vector, hashed_dual_sort, predicate_set_to_key,
-    rearrange_columns_and_rewrite, sort_with_jaccard_as_tie_breaker,
+    rearrange_columns_and_rewrite, sort_with_jaccard_as_tie_breaker, import_custom_ic_map,
+    get_best_score,
 };
 
-use crate::utils::get_best_score;
-use crate::{
-    similarity::calculate_weighted_term_pairwise_information_content, utils::import_custom_ic_map,
-};
 use db_query::get_labels;
 use lazy_static::lazy_static;
 use std::time::Instant;
