@@ -1,4 +1,5 @@
 extern crate semsimian;
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use semsimian::enums::MetricEnum;
@@ -41,7 +42,7 @@ fn integration_test_semantic_jaccard_similarity() {
         ),
     ];
     let predicates = Some(vec!["is_a".to_string()]);
-    let (closure_table, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates);
+    let (closure_table, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates, &HashMap::new());
     let sem_jaccard =
         calculate_semantic_jaccard_similarity(&closure_table, "apple", "cherry", &predicates);
 
@@ -94,7 +95,7 @@ fn integration_test_jaccard_similarity_from_struct() {
     ];
     let predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
 
-    let mut rs = RustSemsimian::new(Some(triples), predicates, None, None);
+    let mut rs = RustSemsimian::new(Some(triples), predicates, None, None, None);
 
     // cant do this as get_closure is private, but is tested in lib
 
@@ -127,7 +128,7 @@ fn integration_test_search_and_avg_score() {
         Predicate::from("BFO:0000050"),
     ]);
     let db = Some("tests/data/go-nucleus.db");
-    let mut rss = RustSemsimian::new(None, predicates, None, db);
+    let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
     rss.update_closure_and_ic_map();
 

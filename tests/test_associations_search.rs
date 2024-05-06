@@ -21,7 +21,7 @@ fn test_large_associations_search() {
         "UPHENO:0000001".to_string(),
     ]);
 
-    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str());
+    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str(), None);
     let include_similarity_object = false;
 
     rss.update_closure_and_ic_map();
@@ -194,7 +194,7 @@ fn test_flat_vs_full_search() {
     ]);
     let include_similarity_object = false;
 
-    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str());
+    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str(), None);
 
     rss.update_closure_and_ic_map();
 
@@ -409,7 +409,7 @@ fn test_flat_vs_hybrid_search() {
         "UPHENO:0000001".to_string(),
     ]);
     let include_similarity_object = false;
-    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str());
+    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str(), None);
 
     rss.update_closure_and_ic_map();
 
@@ -624,7 +624,7 @@ fn test_full_vs_hybrid_search() {
         "UPHENO:0000001".to_string(),
     ]);
 
-    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str());
+    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str(), None);
     let include_similarity_object = false;
     rss.update_closure_and_ic_map();
 

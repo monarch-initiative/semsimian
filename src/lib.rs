@@ -13,6 +13,7 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::{self, BufRead, BufReader, BufWriter, Write},
+    path::PathBuf,
     sync::{Arc, Mutex, RwLock},
 };
 
@@ -38,8 +39,10 @@ use utils::{
     rearrange_columns_and_rewrite, sort_with_jaccard_as_tie_breaker,
 };
 
-use crate::similarity::calculate_weighted_term_pairwise_information_content;
 use crate::utils::get_best_score;
+use crate::{
+    similarity::calculate_weighted_term_pairwise_information_content, utils::import_custom_ic_map,
+};
 use db_query::get_labels;
 use lazy_static::lazy_static;
 use std::time::Instant;
@@ -86,6 +89,7 @@ impl RustSemsimian {
         predicates: Option<Vec<Predicate>>,
         pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
+        custom_ic_map_path: Option<&str>,
     ) -> RustSemsimian {
         if spo.is_none() && resource_path.is_none() {
             panic!("If no `spo` is provided, `resource_path` is required.");
@@ -109,16 +113,36 @@ impl RustSemsimian {
             unique_predicates.into_iter().collect()
         });
 
-        if custom_ic_map_path.is_some() {
-            println!("Loading custom IC map from: {:?}", custom_ic_map_path.as_ref().unwrap());
+        let mut imported_ic_map = HashMap::new();
+
+        // Check if `custom_ic_map_path` is `Some` and unwrap it safely
+        if let Some(custom_ic_map_path) = custom_ic_map_path {
+            let custom_ic_map_buffer = Some(PathBuf::from(custom_ic_map_path));
+
+            if let Some(path) = custom_ic_map_buffer {
+                println!("Loading custom IC map from: {:?}", path);
+
+                match import_custom_ic_map(&path) {
+                    Ok(ic_map) => {
+                        // Use the imported `ic_map` as needed
+                        println!("Custom IC map imported successfully.");
+                        // Assign the imported IC map to the `imported_ic_map` HashMap with key "_all"
+                        imported_ic_map.insert("_all".to_string(), ic_map);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to import custom IC map: {}", e);
+                        // Handle the error as appropriate for your application
+                    }
+                }
+            }
         }
 
         RustSemsimian {
             spo,
             predicates: Some(predicates),
             pairwise_similarity_attributes,
-            ic_map: HashMap::new(),
-            custom_ic_map_path: None,
+            ic_map: imported_ic_map,
+            custom_ic_map_path: custom_ic_map_path.map(|s| s.to_owned()),
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
             prefix_expansion_cache: HashMap::new(),
@@ -126,30 +150,23 @@ impl RustSemsimian {
         }
     }
 
-    pub fn update_closure_and_ic_map(&mut self, custom_ic_map: &Option<HashMap<String, HashMap<String, f64>>>) {
+    pub fn update_closure_and_ic_map(&mut self) {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
-        
-        if custom_ic_map.is_some() {
-        //     self.ic_map = custom_ic_map.as_ref().unwrap().clone();
-        } 
-        else 
+
+        if !self.closure_map.contains_key(&predicate_set_key)
+            || !self.ic_map.contains_key(&predicate_set_key)
         {
+            let (this_closure_map, this_ic_map) =
+                convert_list_of_tuples_to_hashmap(&self.spo, &self.predicates, &self.ic_map);
 
-            if !self.closure_map.contains_key(&predicate_set_key)
-                || !self.ic_map.contains_key(&predicate_set_key)
-            {
-                let (this_closure_map, this_ic_map) =
-                    convert_list_of_tuples_to_hashmap(&self.spo, &self.predicates);
+            if let Some(closure_value) = this_closure_map.get(&predicate_set_key) {
+                self.closure_map
+                    .insert(predicate_set_key.clone(), closure_value.clone());
+            }
 
-                if let Some(closure_value) = this_closure_map.get(&predicate_set_key) {
-                    self.closure_map
-                        .insert(predicate_set_key.clone(), closure_value.clone());
-                }
-
-                if let Some(ic_value) = this_ic_map.get(&predicate_set_key) {
-                    self.ic_map
-                        .insert(predicate_set_key.clone(), ic_value.clone());
-                }
+            if let Some(ic_value) = this_ic_map.get(&predicate_set_key) {
+                self.ic_map
+                    .insert(predicate_set_key.clone(), ic_value.clone());
             }
         }
     }
@@ -1046,6 +1063,7 @@ impl Semsimian {
         predicates: Option<Vec<String>>,
         pairwise_similarity_attributes: Option<Vec<String>>,
         resource_path: Option<&str>,
+        custom_ic_map_path: Option<&str>,
     ) -> PyResult<Self> {
         //Check if OS is Windows and if so do this.
         #[cfg(target_os = "windows")]
@@ -1067,6 +1085,7 @@ impl Semsimian {
             predicates,
             pairwise_similarity_attributes,
             resource_path,
+            custom_ic_map_path,
         );
         Ok(Semsimian { ss })
     }
@@ -1341,7 +1360,7 @@ mod tests {
     fn test_object_creation() {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
-        let ss = RustSemsimian::new(spo_cloned, None, None, None);
+        let ss = RustSemsimian::new(spo_cloned, None, None, None, None);
         assert_eq!(predicates, ss.predicates);
     }
 
@@ -1350,7 +1369,7 @@ mod tests {
         let predicates: Option<Vec<Predicate>> = Some(vec!["rdfs:subClassOf".to_string()]);
         let db = Some("tests/data/go-nucleus.db");
         let expected_length: usize = 1302;
-        let ss = RustSemsimian::new(None, predicates, None, db);
+        let ss = RustSemsimian::new(None, predicates, None, db, None);
         // dbg!(ss.spo.len());
         assert_eq!(ss.spo.len(), expected_length)
     }
@@ -1360,8 +1379,8 @@ mod tests {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
         let no_predicates: Option<Vec<Predicate>> = None;
-        let mut ss_with_predicates = RustSemsimian::new(spo_cloned.clone(), predicates, None, None);
-        let mut ss_without_predicates = RustSemsimian::new(spo_cloned, no_predicates, None, None);
+        let mut ss_with_predicates = RustSemsimian::new(spo_cloned.clone(), predicates, None, None, None);
+        let mut ss_without_predicates = RustSemsimian::new(spo_cloned, no_predicates, None, None, None);
         ss_without_predicates.update_closure_and_ic_map();
         ss_with_predicates.update_closure_and_ic_map();
         println!(
@@ -1386,7 +1405,7 @@ mod tests {
     fn test_get_closure_and_ic_map() {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let test_predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
-        let mut semsimian = RustSemsimian::new(spo_cloned, test_predicates, None, None);
+        let mut semsimian = RustSemsimian::new(spo_cloned, test_predicates, None, None, None);
         println!("semsimian after initialization: {semsimian:?}");
         semsimian.update_closure_and_ic_map();
         assert!(!semsimian.closure_map.is_empty());
@@ -1397,7 +1416,7 @@ mod tests {
     fn test_resnik_similarity() {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let predicates: Option<Vec<String>> = Some(vec!["related_to".to_string()]);
-        let mut rs = RustSemsimian::new(spo_cloned, predicates.clone(), None, None);
+        let mut rs = RustSemsimian::new(spo_cloned, predicates.clone(), None, None, None);
         rs.update_closure_and_ic_map();
         println!("Closure_map from semsimian {:?}", rs.closure_map);
         let (_, sim) = rs.resnik_similarity("apple", "banana");
@@ -1413,6 +1432,7 @@ mod tests {
                 "is_a".to_string(),
                 "fruit".to_string(),
             )]),
+            None,
             None,
             None,
             None,
@@ -1443,6 +1463,7 @@ mod tests {
                 ("food".to_string(), "is_a".to_string(), "item".to_string()),
             ]),
             Some(vec!["is_a".to_string()]),
+            None,
             None,
             None,
         );
@@ -1555,6 +1576,7 @@ mod tests {
             Some(vec!["related_to".to_string()]),
             Some(output_columns),
             None,
+            None,
         );
         let banana = "banana".to_string();
         let apple = "apple".to_string();
@@ -1601,7 +1623,7 @@ mod tests {
             "BFO:0000050".to_string(),
         ]);
 
-        let mut rss = RustSemsimian::new(spo, predicates, None, None);
+        let mut rss = RustSemsimian::new(spo, predicates, None, None, None);
 
         rss.update_closure_and_ic_map();
         // println!("IC_map from semsimian {:?}", rss.ic_map);
@@ -1613,7 +1635,7 @@ mod tests {
     #[test]
     fn test_cosine_using_bfo() {
         let spo = Some(BFO_SPO.clone());
-        let mut rss = RustSemsimian::new(spo, None, None, None);
+        let mut rss = RustSemsimian::new(spo, None, None, None, None);
         let embeddings_file = "tests/data/bfo_embeddings.tsv";
 
         let _ = rss.load_embeddings(embeddings_file);
@@ -1634,7 +1656,7 @@ mod tests {
         ]);
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         let score_metric = MetricEnum::AncestorInformationContent;
         rss.update_closure_and_ic_map();
         let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
@@ -1652,7 +1674,7 @@ mod tests {
         ]);
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         let score_metric = MetricEnum::AncestorInformationContent;
         rss.update_closure_and_ic_map();
         let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
@@ -1769,7 +1791,7 @@ mod tests {
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
         ]);
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         rss.update_closure_and_ic_map();
 
         let tsps = rss.termset_pairwise_similarity_weighted_negated(&subject_dat, &object_dat);
@@ -1790,7 +1812,7 @@ mod tests {
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
         ]);
-        let mut rss = RustSemsimian::new(spo, predicates, None, None);
+        let mut rss = RustSemsimian::new(spo, predicates, None, None, None);
 
         rss.update_closure_and_ic_map();
 
@@ -1813,7 +1835,7 @@ mod tests {
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
         ]);
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         let score_metric = MetricEnum::AncestorInformationContent;
 
         rss.update_closure_and_ic_map();
@@ -1837,7 +1859,7 @@ mod tests {
         ]);
         let expected_object_set = HashSet::from(["GO:0009892".to_string()]);
         let limit = Some(10);
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
         rss.update_closure_and_ic_map();
 
@@ -1897,7 +1919,7 @@ mod tests {
             "BFO:0000050".to_string(),
         ]);
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
         rss.update_closure_and_ic_map();
 
@@ -1946,7 +1968,7 @@ mod tests {
             "BFO:0000050".to_string(),
         ]);
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
         rss.update_closure_and_ic_map();
 
@@ -1993,7 +2015,7 @@ mod tests {
             "BFO:0000050".to_string(),
         ]);
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         let score_metric = MetricEnum::AncestorInformationContent;
 
         rss.update_closure_and_ic_map();
@@ -2071,7 +2093,7 @@ mod tests {
             "BFO:0000050".to_string(),
         ]);
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         let score_metric = MetricEnum::AncestorInformationContent;
 
         rss.update_closure_and_ic_map();
@@ -2149,7 +2171,7 @@ mod tests {
             "BFO:0000050".to_string(),
         ]);
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
         rss.update_closure_and_ic_map();
 
@@ -2229,7 +2251,7 @@ mod tests {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
         let search_type = SearchTypeEnum::Flat;
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         rss.pregenerate_cache(&assoc_predicate, &search_type);
 
         assert!(
@@ -2276,7 +2298,7 @@ mod tests_local {
         // Start measuring time
         let mut start_time = Instant::now();
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
         let mut elapsed_time = start_time.elapsed();
         println!(
@@ -2412,7 +2434,7 @@ mod tests_local {
         let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
         let search_type = SearchTypeEnum::Flat;
 
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         rss.pregenerate_cache(&assoc_predicate, &search_type);
 
         assert!(

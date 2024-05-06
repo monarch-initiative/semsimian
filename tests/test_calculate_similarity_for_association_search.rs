@@ -22,7 +22,7 @@ fn test_calculate_similarity_for_association_search() {
         "rdfs:subClassOf".to_string(),
         "BFO:0000050".to_string(),
     ]);
-    let mut rss = RustSemsimian::new(None, predicates, None, db);
+    let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
     rss.update_closure_and_ic_map();
     let object_closure_predicates: HashSet<TermID> =

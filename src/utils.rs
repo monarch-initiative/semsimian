@@ -3,12 +3,12 @@ use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use csv::{ReaderBuilder, WriterBuilder};
 use std::error::Error;
 use std::fs::{self, File};
-use std::io::{BufReader, BufWriter};
+use std::io::{self, BufRead, BufReader, BufWriter};
 
 use crate::db_query::get_subjects;
 use crate::enums::MetricEnum;
@@ -107,12 +107,18 @@ pub fn _stringify_sets_using_map(
 pub fn convert_list_of_tuples_to_hashmap(
     list_of_tuples: &[(TermID, PredicateSetKey, TermID)],
     predicates: &Option<Vec<String>>,
-    custom_ic_map_provided: &Option<bool>,
+    custom_ic_map: &HashMap<String, HashMap<String, f64>>,
 ) -> (ClosureMap, ICMap) {
     let mut closure_map: HashMap<String, HashMap<String, HashSet<String>>> =
         HashMap::with_capacity(list_of_tuples.len());
     let mut freq_map: HashMap<String, usize> = HashMap::with_capacity(list_of_tuples.len());
-    let mut ic_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
+
+    // Use the existing `custom_ic_map` if it's not empty, otherwise initialize a new `ic_map`
+    let mut ic_map: HashMap<String, HashMap<String, f64>> = if !custom_ic_map.is_empty() {
+        custom_ic_map.clone()
+    } else {
+        HashMap::new()
+    };
 
     let predicate_set_key: PredicateSetKey = predicate_set_to_key(predicates);
 
@@ -146,15 +152,14 @@ pub fn convert_list_of_tuples_to_hashmap(
     progress_bar.finish_with_message("done");
 
     let number_of_nodes = freq_map.len() as f64;
-    
-    if custom_ic_map_provided.unwrap_or(false) {
+
+    if ic_map.is_empty() {
         ic_map.entry(predicate_set_key.clone()).or_default().extend(
-        freq_map
-            .iter()
-            .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
+            freq_map
+                .iter()
+                .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
         );
     }
-    
 
     (closure_map, ic_map)
 }
@@ -546,6 +551,37 @@ pub fn sort_with_jaccard_as_tie_breaker(
     vec_to_sort
 }
 
+// TODO: Test for this function
+pub fn import_custom_ic_map(path: &PathBuf) -> Result<HashMap<String, f64>, io::Error> {
+    let file = fs::File::open(path)?;
+    let reader = BufReader::new(file);
+    let mut ic_map: HashMap<String, f64> = HashMap::new();
+
+    for line_result in reader.lines() {
+        let line = line_result?;
+        let columns: Vec<&str> = line.split('\t').collect();
+
+        if columns.len() >= 2 {
+            let term_id = columns[0].to_string();
+            let ic_value = columns[1].parse::<f64>().map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Error parsing IC value: {}", e),
+                )
+            })?;
+
+            ic_map.insert(term_id, ic_value);
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Line does not contain enough columns",
+            ));
+        }
+    }
+
+    Ok(ic_map)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{db_query::get_labels, RustSemsimian};
@@ -679,7 +715,7 @@ mod tests {
         let predicates_is_a: Option<Vec<Predicate>> =
             Some(["is_a"].iter().map(|&s| s.to_string()).collect());
         let (closure_map_is_a, _) =
-            convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a);
+            convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a, &HashMap::new());
         assert_eq!(expected_closure_map_is_a, closure_map_is_a);
 
         // test closure_map for is_a + part_of predicates
@@ -709,7 +745,7 @@ mod tests {
         let predicates_is_a_plus_part_of: Option<Vec<Predicate>> =
             Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
         let (closure_map_is_a_plus_part_of, ic_map) =
-            convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a_plus_part_of);
+            convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a_plus_part_of, &HashMap::new());
         assert_eq!(
             expected_closure_map_is_a_plus_part_of,
             closure_map_is_a_plus_part_of
@@ -760,7 +796,7 @@ mod tests {
         println!("Passing predicates: {predicates_none:?}"); // for debugging
 
         let (closure_map_none, _) =
-            convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_none);
+            convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_none, &HashMap::new());
         println!("Received closure map: {closure_map_none:?}"); // for debugging
 
         // when no predicates are specified predicates will be set to _all to cover all relations
@@ -914,7 +950,7 @@ mod tests {
         ]);
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-        let mut rss = RustSemsimian::new(None, predicates, None, Some(db));
+        let mut rss = RustSemsimian::new(None, predicates, None, Some(db), None);
         rss.update_closure_and_ic_map();
 
         let all_by_all: SimilarityMap =
@@ -955,7 +991,7 @@ mod tests {
         ]);
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-        let mut rss = RustSemsimian::new(None, predicates, None, Some(db));
+        let mut rss = RustSemsimian::new(None, predicates, None, Some(db), None);
         rss.update_closure_and_ic_map();
 
         let all_by_all: SimilarityMap =
