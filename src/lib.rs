@@ -92,46 +92,39 @@ impl RustSemsimian {
         if spo.is_none() && resource_path.is_none() {
             panic!("If no `spo` is provided, `resource_path` is required.");
         }
+
         if let Some(resource_path) = resource_path {
             *RESOURCE_PATH.lock().unwrap() = Some(resource_path.to_owned());
         }
+
         let spo = spo.unwrap_or_else(|| {
-            match get_entailed_edges_for_predicate_list(
-                resource_path.unwrap(),
-                predicates.as_ref().unwrap_or(&Vec::new()),
-            ) {
-                Ok(edges) => edges,
-                Err(err) => panic!("Resource returned nothing with predicates: {}", err),
-            }
+            get_entailed_edges_for_predicate_list(
+                resource_path.expect("resource_path is required if spo is None"),
+                predicates.as_deref().unwrap_or(&[]),
+            )
+            .unwrap_or_else(|err| panic!("Resource returned nothing with predicates: {}", err))
         });
 
         let predicates = predicates.unwrap_or_else(|| {
-            let mut unique_predicates = HashSet::new();
-            unique_predicates.extend(spo.iter().map(|(_, predicate, _)| predicate.to_owned()));
-            unique_predicates.into_iter().collect()
+            spo.iter()
+                .map(|(_, predicate, _)| predicate.clone())
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect()
         });
 
         let mut imported_ic_map = HashMap::new();
 
-        // Check if `custom_ic_map_path` is `Some` and unwrap it safely
         if let Some(custom_ic_map_path) = custom_ic_map_path {
-            let custom_ic_map_buffer = Some(PathBuf::from(custom_ic_map_path));
+            let path = PathBuf::from(custom_ic_map_path);
+            println!("Loading custom IC map from: {:?}", path);
 
-            if let Some(path) = custom_ic_map_buffer {
-                println!("Loading custom IC map from: {:?}", path);
-
-                match import_custom_ic_map(&path) {
-                    Ok(ic_map) => {
-                        // Use the imported `ic_map` as needed
-                        println!("Custom IC map imported successfully.");
-                        // Assign the imported IC map to the `imported_ic_map` HashMap with key "_all"
-                        imported_ic_map.insert("_all".to_string(), ic_map);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to import custom IC map: {}", e);
-                        // Handle the error as appropriate for your application
-                    }
+            match import_custom_ic_map(&path) {
+                Ok(ic_map) => {
+                    println!("Custom IC map imported successfully.");
+                    imported_ic_map.insert(predicate_set_to_key(&Some(predicates.clone())), ic_map);
                 }
+                Err(e) => eprintln!("Failed to import custom IC map: {}", e),
             }
         }
 
@@ -140,7 +133,7 @@ impl RustSemsimian {
             predicates: Some(predicates),
             pairwise_similarity_attributes,
             ic_map: imported_ic_map,
-            custom_ic_map_path: custom_ic_map_path.map(|s| s.to_owned()),
+            custom_ic_map_path: custom_ic_map_path.map(str::to_owned),
             closure_map: HashMap::new(),
             embeddings: Vec::new(),
             prefix_expansion_cache: HashMap::new(),
@@ -1370,6 +1363,17 @@ mod tests {
         let ss = RustSemsimian::new(None, predicates, None, db, None);
         // dbg!(ss.spo.len());
         assert_eq!(ss.spo.len(), expected_length)
+    }
+
+    #[test]
+    fn test_object_creation_with_custom_ic() {
+        let db = Some("tests/data/go-nucleus.db");
+        let custom_ic_path = Some("tests/data/go-nucleus_ic_map.tsv");
+        let ss = RustSemsimian::new(None, None, None, db, custom_ic_path);
+        let custom_ic_map = ss.ic_map.values().next().unwrap();
+        let ic_map_imported =
+            import_custom_ic_map(&PathBuf::from(custom_ic_path.unwrap())).unwrap();
+        assert_eq!(custom_ic_map, &ic_map_imported);
     }
 
     #[test]
