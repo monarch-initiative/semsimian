@@ -1379,8 +1379,10 @@ mod tests {
         let spo_cloned = Some(SPO_FRUITS.clone());
         let predicates: Option<Vec<Predicate>> = Some(vec!["related_to".to_string()]);
         let no_predicates: Option<Vec<Predicate>> = None;
-        let mut ss_with_predicates = RustSemsimian::new(spo_cloned.clone(), predicates, None, None, None);
-        let mut ss_without_predicates = RustSemsimian::new(spo_cloned, no_predicates, None, None, None);
+        let mut ss_with_predicates =
+            RustSemsimian::new(spo_cloned.clone(), predicates, None, None, None);
+        let mut ss_without_predicates =
+            RustSemsimian::new(spo_cloned, no_predicates, None, None, None);
         ss_without_predicates.update_closure_and_ic_map();
         ss_with_predicates.update_closure_and_ic_map();
         println!(

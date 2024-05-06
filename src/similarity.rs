@@ -557,7 +557,8 @@ mod tests {
     #[test]
     fn test_calculate_max_information_content() {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
+        let mut rss =
+            RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
         rss.update_closure_and_ic_map();
         let (_, result) = calculate_max_information_content(
             &rss,
@@ -659,7 +660,8 @@ mod tests {
         #[case] expected_value: f64,
     ) {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
+        let mut rss =
+            RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
         rss.update_closure_and_ic_map();
 
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
@@ -772,7 +774,8 @@ mod tests {
         #[case] expected_value: f64,
     ) {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
+        let mut rss =
+            RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
         rss.update_closure_and_ic_map();
 
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
@@ -798,7 +801,8 @@ mod tests {
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
         let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
 
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
+        let mut rss =
+            RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
         rss.update_closure_and_ic_map();
 
         let jaccard_similarity =

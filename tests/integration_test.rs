@@ -42,7 +42,8 @@ fn integration_test_semantic_jaccard_similarity() {
         ),
     ];
     let predicates = Some(vec!["is_a".to_string()]);
-    let (closure_table, _) = convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates, &HashMap::new());
+    let (closure_table, _) =
+        convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates, &HashMap::new());
     let sem_jaccard =
         calculate_semantic_jaccard_similarity(&closure_table, "apple", "cherry", &predicates);
 

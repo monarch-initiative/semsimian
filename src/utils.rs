@@ -744,8 +744,11 @@ mod tests {
 
         let predicates_is_a_plus_part_of: Option<Vec<Predicate>> =
             Some(["is_a", "part_of"].iter().map(|&s| s.to_string()).collect());
-        let (closure_map_is_a_plus_part_of, ic_map) =
-            convert_list_of_tuples_to_hashmap(&list_of_tuples, &predicates_is_a_plus_part_of, &HashMap::new());
+        let (closure_map_is_a_plus_part_of, ic_map) = convert_list_of_tuples_to_hashmap(
+            &list_of_tuples,
+            &predicates_is_a_plus_part_of,
+            &HashMap::new(),
+        );
         assert_eq!(
             expected_closure_map_is_a_plus_part_of,
             closure_map_is_a_plus_part_of
