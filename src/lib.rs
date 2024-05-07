@@ -1371,9 +1371,22 @@ mod tests {
         let custom_ic_path = "tests/data/go-nucleus_ic_map.tsv";
         let ss = RustSemsimian::new(None, None, None, db, Some(custom_ic_path));
         let custom_ic_map = ss.ic_map.values().next().unwrap();
-        let ic_map_imported =
-            import_custom_ic_map(&PathBuf::from(custom_ic_path)).unwrap();
+        let ic_map_imported = import_custom_ic_map(&PathBuf::from(custom_ic_path)).unwrap();
         assert_eq!(custom_ic_map, &ic_map_imported);
+        // ! Debug comparison between ic_map and closure_map keys.
+        // let mut ss_1 = RustSemsimian::new(None, None, None, db, None);
+        // ss_1.update_closure_and_ic_map();
+        // let inner_keys_closure: HashSet<String> = ss_1.closure_map.values()
+        // .flat_map(|inner_map| inner_map.keys())
+        // .cloned()
+        // .collect();
+        // let inner_keys_ic: HashSet<String> = ss_1.ic_map.values()
+        // .flat_map(|inner_map| inner_map.keys())
+        // .cloned()
+        // .collect();
+        // dbg!(&ss_1.closure_map);
+        // dbg!(inner_keys_closure);
+        // dbg!(inner_keys_ic);
     }
 
     #[test]

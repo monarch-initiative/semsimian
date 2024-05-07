@@ -160,6 +160,31 @@ pub fn convert_list_of_tuples_to_hashmap(
                 .map(|(k, v)| (String::from(k), -(*v as f64 / number_of_nodes).log2())),
         );
     }
+    if !custom_ic_map.is_empty() {
+        // Collect keys from closure_map
+        let inner_keys_closure: HashSet<&String> = closure_map
+            .values()
+            .flat_map(|inner_map| inner_map.keys())
+            .collect();
+
+        // Collect keys from ic_map
+        let inner_keys_ic: HashSet<&String> = ic_map
+            .values()
+            .flat_map(|inner_map| inner_map.keys())
+            .collect();
+
+        // Find the difference between the two sets
+        let uncommon_keys: HashSet<&&String> =
+            inner_keys_closure.difference(&inner_keys_ic).collect();
+
+        // Print warning if there are uncommon keys
+        if !uncommon_keys.is_empty() {
+            eprintln!(
+                "Warning: The following keys are present in closure_map but not in ic_map: {:?}",
+                uncommon_keys
+            );
+        }
+    }
 
     (closure_map, ic_map)
 }
@@ -551,7 +576,6 @@ pub fn sort_with_jaccard_as_tie_breaker(
     vec_to_sort
 }
 
-// TODO: Test for this function
 pub fn import_custom_ic_map(path: &PathBuf) -> Result<HashMap<String, f64>, io::Error> {
     let file = fs::File::open(path)?;
     let reader = BufReader::new(file);
