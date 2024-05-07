@@ -17,6 +17,10 @@ jobs:
           python-version: '3.10'
           architecture: x64
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: brew install gettext && brew link gettext --force
+
       - name: Build wheels for x86_64
         uses: PyO3/maturin-action@v1
         with:
