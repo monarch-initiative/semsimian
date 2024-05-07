@@ -24,7 +24,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         "UPHENO:0000001".to_string(),
     ]));
 
-    let mut rss = black_box(RustSemsimian::new(None, predicates, None, db));
+    let mut rss = black_box(RustSemsimian::new(None, predicates, None, db, None));
     rss.update_closure_and_ic_map();
 
     let assoc_predicate: HashSet<TermID> =

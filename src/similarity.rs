@@ -429,8 +429,8 @@ mod tests {
     use super::*;
     use crate::utils::numericize_sets;
     use crate::{enums::MetricEnum, test_constants::constants_for_tests::*};
-    use std::collections::{HashMap, HashSet};
     use rstest::rstest;
+    use std::collections::{HashMap, HashSet};
 
     #[rstest]
     #[case(
@@ -463,12 +463,8 @@ mod tests {
     ) {
         let predicate_vec: Vec<Predicate> = predicates.into_iter().map(Predicate::from).collect();
 
-        let result = calculate_semantic_jaccard_similarity(
-            closure_map,
-            term1,
-            term2,
-            &Some(predicate_vec),
-        );
+        let result =
+            calculate_semantic_jaccard_similarity(closure_map, term1, term2, &Some(predicate_vec));
 
         println!("{result:?}");
         assert_eq!(result, expected_result);
@@ -503,14 +499,11 @@ mod tests {
         #[case] predicates_option: Option<Vec<&str>>,
         #[case] expected_result: f64,
     ) {
-        let predicate_vec_option = predicates_option.map(|preds| preds.into_iter().map(Predicate::from).collect());
+        let predicate_vec_option =
+            predicates_option.map(|preds| preds.into_iter().map(Predicate::from).collect());
 
-        let result = calculate_semantic_jaccard_similarity(
-            closure_map,
-            term1,
-            term2,
-            &predicate_vec_option,
-        );
+        let result =
+            calculate_semantic_jaccard_similarity(closure_map, term1, term2, &predicate_vec_option);
 
         println!("{result}");
         assert_eq!(result, expected_result);
@@ -564,7 +557,8 @@ mod tests {
     #[test]
     fn test_calculate_max_information_content() {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        let mut rss =
+            RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
         rss.update_closure_and_ic_map();
         let (_, result) = calculate_max_information_content(
             &rss,
@@ -610,7 +604,7 @@ mod tests {
         #[case] embeddings: Vec<(String, Vec<f64>)>,
         #[case] term1: &str,
         #[case] term2: &str,
-        #[case] expected_result: Option<f64>
+        #[case] expected_result: Option<f64>,
     ) {
         match expected_result {
             Some(expected_value) => {
@@ -618,7 +612,7 @@ mod tests {
                     calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).unwrap(),
                     expected_value
                 );
-            },
+            }
             None => {
                 assert!(calculate_cosine_similarity_for_nodes(&embeddings, term1, term2).is_none());
             }
@@ -666,7 +660,8 @@ mod tests {
         #[case] expected_value: f64,
     ) {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        let mut rss =
+            RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
         rss.update_closure_and_ic_map();
 
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
@@ -779,7 +774,8 @@ mod tests {
         #[case] expected_value: f64,
     ) {
         let predicates: Option<Vec<Predicate>> = Some(vec![Predicate::from("rdfs:subClassOf")]);
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        let mut rss =
+            RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
         rss.update_closure_and_ic_map();
 
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
@@ -790,7 +786,6 @@ mod tests {
         println!("Phenodigm score: {phenodigm_score}");
         assert!((phenodigm_score - expected_value).abs() < f64::EPSILON);
     }
-
 
     #[rstest]
     #[case(vec!["CARO:0000000", "BFO:0000002"], vec!["BFO:0000003", "BFO:0000004"], 0.3333333333333333)]
@@ -806,7 +801,8 @@ mod tests {
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
         let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
 
-        let mut rss = RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None);
+        let mut rss =
+            RustSemsimian::new(Some(BFO_SPO.clone()), predicates.clone(), None, None, None);
         rss.update_closure_and_ic_map();
 
         let jaccard_similarity =
@@ -910,7 +906,7 @@ mod tests {
             Predicate::from("BFO:0000050"),
         ]);
         let db = Some("tests/data/go-nucleus.db");
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
         rss.update_closure_and_ic_map();
 
@@ -1018,20 +1014,20 @@ mod tests {
             Predicate::from("BFO:0000050"),
         ]);
         let db = Some("tests/data/go-nucleus.db");
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
         rss.update_closure_and_ic_map();
 
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
         let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
 
-        let avg_phenodigm_score = calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
+        let avg_phenodigm_score =
+            calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
         assert_eq!(avg_phenodigm_score, expected_value);
 
         let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
         dbg!(&tsps);
     }
-
 
     // These comments are the manual calculations for the test cases below, for future reference
 
@@ -1126,14 +1122,15 @@ mod tests {
             Predicate::from("BFO:0000050"),
         ]);
         let db = Some("tests/data/go-nucleus.db");
-        let mut rss = RustSemsimian::new(None, predicates, None, db);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
 
         rss.update_closure_and_ic_map();
 
         let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
         let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
 
-        let avg_jaccard_similarity = calculate_average_termset_jaccard_similarity(&rss, &entity1, &entity2);
+        let avg_jaccard_similarity =
+            calculate_average_termset_jaccard_similarity(&rss, &entity1, &entity2);
         assert_eq!(avg_jaccard_similarity, expected_value);
 
         let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);

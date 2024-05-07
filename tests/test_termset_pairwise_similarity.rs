@@ -19,7 +19,7 @@ fn test_large_termset_pairwise_similarity() {
         "UPHENO:0000001".to_string(),
     ]);
 
-    let mut rss = RustSemsimian::new(None, predicates, None, db);
+    let mut rss = RustSemsimian::new(None, predicates, None, db, None);
     rss.update_closure_and_ic_map();
 
     let entity1: HashSet<TermID> = HashSet::from([
@@ -154,7 +154,7 @@ fn test_ancestor_label_presence() {
         "UPHENO:0000001".to_string(),
     ]);
 
-    let mut rss = RustSemsimian::new(None, predicates, None, db);
+    let mut rss = RustSemsimian::new(None, predicates, None, db, None);
     rss.update_closure_and_ic_map();
 
     let entity1: HashSet<TermID> = HashSet::from([
