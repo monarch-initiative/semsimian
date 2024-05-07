@@ -9,13 +9,13 @@ jobs:
   build-mac:
     name: Build for Mac
     if: '!github.event.prerelease'
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          architecture: arm64
+          architecture: x64
       - uses: dtolnay/rust-toolchain@stable
       - name: Build wheels for x86_64
         uses: PyO3/maturin-action@v1
