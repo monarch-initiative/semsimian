@@ -187,6 +187,20 @@ impl RustSemsimian {
 
         Ok(g)
     }
+
+    // take an ic map and a graph, and for each node calculate the difference in IC between the node
+    // it's parent(s)
+    fn _make_delta_ic_map(ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+                          graph: Graph,
+                          predicate_key: PredicateSetKey) -> Result<HashMap<PredicateSetKey, HashMap<TermID, f64>>, String> {
+        let mut delta_ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
+
+        // get ic map for predicate key, or throw error if it doesn't exist
+        let this_ic_map = ic_map.get(&predicate_key).ok_or("Predicate key not found in IC map")?;
+
+        Ok(ic_map)
+    }
+
     pub fn update_closure_and_ic_map(&mut self) {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
 
@@ -2340,6 +2354,39 @@ mod tests_local {
     use std::path::PathBuf;
     use std::time::Instant;
 
+    use lazy_static::lazy_static;
+    use std::sync::Mutex;
+
+    lazy_static! {
+        static ref GRAPH: Mutex<Option<Graph>> = Mutex::new(None);
+        static ref IC_MAP: Mutex<Option<HashMap<PredicateSetKey, HashMap<TermID, f64>>>> = Mutex::new(None);
+    }
+
+    fn setup_graph() {
+        let mut test_hpo_graph = GRAPH.lock().unwrap();
+        if test_hpo_graph.is_none() {
+            let edge_file = "tests/data/test_hpo_graph.tsv";
+            *test_hpo_graph = Some(RustSemsimian::_read_in_edge_tsv(edge_file).unwrap());
+        }
+    }
+    fn setup_ic_map() {
+        let mut test_ic_map = IC_MAP.lock().unwrap();
+        if test_ic_map.is_none() {
+            let ic_file = "tests/data/test_hpo_graph_ic.tsv";
+            let path = PathBuf::from(ic_file);
+
+            match import_custom_ic_map(&path) {
+                Ok(ic_map) => {
+                    let key = predicate_set_to_key(&Some(vec!["is_a".to_string() as Predicate]) );
+                    let mut this_map = HashMap::new();
+                    this_map.insert(key, ic_map);
+                    *test_ic_map = Some(this_map).unwrap();
+                }
+                Err(e) => eprintln!("Failed to import custom IC map: {}", e),
+            }
+        }
+    }
+
     #[test]
     #[ignore]
     #[cfg_attr(feature = "ci", ignore)]
@@ -2515,7 +2562,7 @@ mod tests_local {
     }
 
     #[test]
-    fn test_read_in_edge_csv() {
+    fn test_read_in_edge_tsv() {
         // read in this file with EdgeFileReader
         let edge_file = "tests/data/test_hpo_graph.tsv";
 
@@ -2527,6 +2574,25 @@ mod tests_local {
 
         // check that HP:0000118 is in connected_nodes
         assert!(connected_nodes.contains(&"HP:0000118".to_string()));
+    }
+
+    #[test]
+    fn test_make_delta_ic_map_return_hashmap(){
+
+        // get graph test fixture
+        setup_graph();
+        setup_ic_map();
+        let g = GRAPH.lock().unwrap();
+        let g = g.as_ref().unwrap();
+
+        let ic_map = IC_MAP.lock().unwrap();
+        let ic_map = ic_map.as_ref().unwrap();
+
+        // predicate key for is_a
+        let key = predicate_set_to_key(&Some(vec!["is_a".to_string()]));
+
+        let delta_ic_map = RustSemsimian::_make_delta_ic_map(ic_map.clone(), g.clone(), key);
+
     }
 
 }
