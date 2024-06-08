@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 /// This is the main struct in Ensmallen, it allows to load and manipulate Graphs efficently.
 /// You are not supposed to directly instantiate this struct but instead you should use the
-/// static method `from_csv`, which allows to load the graph from an edge-list.
+/// static method `from_csv`, which alalows to load the graph from an edge-list.
 ///
 /// To get information about a loaded graph, you can call the `textual_report` method which
 /// generates an human-readable HTML report.
