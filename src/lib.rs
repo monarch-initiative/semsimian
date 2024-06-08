@@ -160,6 +160,33 @@ impl RustSemsimian {
         }
     }
 
+    // private method to read in edge TSV and return ensmallen graph object
+    fn _read_in_edge_tsv(edge_file: &str) -> Result<Graph, String>  {
+        let edges_reader = EdgeFileReader::new(edge_file)
+            .unwrap()
+            .set_header(Some(true))
+            .unwrap()
+            .set_separator(Some('\t'))
+            .unwrap()
+            .set_sources_column_number(Some(0))
+            .unwrap()
+            .set_destinations_column_number(Some(1))
+            .unwrap();
+
+        let mut g = Graph::from_file_readers(
+            Some(edges_reader),
+            None,
+            None,
+            None,
+            true,
+            true,
+            true,
+            "test hpo graph"
+        )
+        .unwrap();
+
+        Ok(g)
+    }
     pub fn update_closure_and_ic_map(&mut self) {
         let predicate_set_key = predicate_set_to_key(&self.predicates);
 
@@ -2492,31 +2519,7 @@ mod tests_local {
         // read in this file with EdgeFileReader
         let edge_file = "tests/data/test_hpo_graph.tsv";
 
-        let edges_reader = EdgeFileReader::new(edge_file)
-            .unwrap()
-            .set_header(Some(true))
-            .unwrap()
-            .set_separator(Some('\t'))
-            .unwrap()
-            .set_sources_column_number(Some(0))
-            .unwrap()
-            .set_destinations_column_number(Some(1))
-            .unwrap();
-
-        let mut g = Graph::from_file_readers(
-            Some(edges_reader),
-            None,
-            None,
-            None,
-            true,
-            true,
-            true,
-            "test hpo graph"
-        )
-        .unwrap();
-
-        // assert that HP:0000118 is in the vector of things returned when we call get_connected_nodes()
-        // on HP:0003549
+        let g = RustSemsimian::_read_in_edge_tsv(edge_file).unwrap();
         let connected_nodes = g.get_neighbour_node_names_from_node_name("HP:0003549").unwrap();
 
         // print out connected_nodes
