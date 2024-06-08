@@ -1,6 +1,10 @@
 use deepsize::DeepSizeOf;
 use rayon::prelude::*;
 
+extern crate graph;
+use graph::EdgeFileReader;
+use graph::Graph;
+
 #[cfg(test)]
 use rstest::rstest;
 
@@ -65,12 +69,20 @@ lazy_static! {
     static ref RESOURCE_PATH: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 }
 
+/// This is the main struct that holds the data and methods for the RustSemsimian object.
+/// It holds the Subject-Predicate-Object (SPO) triples, the predicates, the information content (IC) map,
+/// the closure map, and other data structures that are used in semsim calculations.
 #[derive(Clone, DeepSizeOf)]
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
     predicates: Option<Vec<Predicate>>,
     ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     // ic_map is something like {("is_a_+_part_of"), {"GO:1234": 1.234}}
+
+    // delta_ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    // this is just like ic_map, but is the ic of the given term minus that ic of its ancestors
+    // this is used in setsim() like measures of semantic similarity
+
     custom_ic_map_path: Option<String>,
     // filepath to custom ic map, if provided
     closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
@@ -127,6 +139,13 @@ impl RustSemsimian {
                 Err(e) => eprintln!("Failed to import custom IC map: {}", e),
             }
         }
+
+        // if we are doing setsim-type semantic similarity stuff, we need:
+        // - a custom IC map (check that user specified custom_ic_map_path)
+        // - a graph nodes/edges TSV
+        // construct delta IC map
+
+
 
         RustSemsimian {
             spo,
@@ -2467,4 +2486,44 @@ mod tests_local {
             "prefix_expansion_cache should not be empty after pregenerate_cache"
         );
     }
+
+    #[test]
+    fn test_read_in_edge_csv() {
+        // read in this file with EdgeFileReader
+        let edge_file = "tests/data/test_hpo_graph.tsv";
+
+        let edges_reader = EdgeFileReader::new(edge_file)
+            .unwrap()
+            .set_header(Some(true))
+            .unwrap()
+            .set_separator(Some('\t'))
+            .unwrap()
+            .set_sources_column_number(Some(0))
+            .unwrap()
+            .set_destinations_column_number(Some(1))
+            .unwrap();
+
+        let mut g = Graph::from_file_readers(
+            Some(edges_reader),
+            None,
+            None,
+            None,
+            true,
+            true,
+            true,
+            "test hpo graph"
+        )
+        .unwrap();
+
+        // assert that HP:0000118 is in the vector of things returned when we call get_connected_nodes()
+        // on HP:0003549
+        let connected_nodes = g.get_neighbour_node_names_from_node_name("HP:0003549").unwrap();
+
+        // print out connected_nodes
+        println!("{:?}", connected_nodes);
+
+        // check that HP:0000118 is in connected_nodes
+        assert!(connected_nodes.contains(&"HP:0000118".to_string()));
+    }
+
 }
