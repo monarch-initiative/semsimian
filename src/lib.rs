@@ -1,6 +1,10 @@
 use deepsize::DeepSizeOf;
 use rayon::prelude::*;
 
+extern crate graph;
+use graph::EdgeFileReader;
+use graph::Graph;
+
 #[cfg(test)]
 use rstest::rstest;
 
@@ -65,12 +69,20 @@ lazy_static! {
     static ref RESOURCE_PATH: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 }
 
+/// This is the main struct that holds the data and methods for the RustSemsimian object.
+/// It holds the Subject-Predicate-Object (SPO) triples, the predicates, the information content (IC) map,
+/// the closure map, and other data structures that are used in semsim calculations.
 #[derive(Clone, DeepSizeOf)]
 pub struct RustSemsimian {
     spo: Vec<(TermID, Predicate, TermID)>,
     predicates: Option<Vec<Predicate>>,
     ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
     // ic_map is something like {("is_a_+_part_of"), {"GO:1234": 1.234}}
+
+    // delta_ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+    // this is just like ic_map, but is the ic of the given term minus that ic of its ancestors
+    // this is used in setsim() like measures of semantic similarity
+
     custom_ic_map_path: Option<String>,
     // filepath to custom ic map, if provided
     closure_map: HashMap<PredicateSetKey, HashMap<TermID, HashSet<TermID>>>,
@@ -128,6 +140,13 @@ impl RustSemsimian {
             }
         }
 
+        // if we are doing setsim-type semantic similarity stuff, we need:
+        // - a custom IC map (check that user specified custom_ic_map_path)
+        // - a graph nodes/edges TSV
+        // construct delta IC map
+
+
+
         RustSemsimian {
             spo,
             predicates: Some(predicates),
@@ -139,6 +158,80 @@ impl RustSemsimian {
             prefix_expansion_cache: HashMap::new(),
             max_ic_cache: HashMap::new(),
         }
+    }
+
+    // private method to read in edge TSV and return ensmallen graph object
+    fn _read_in_edge_tsv(edge_file: &str, sep: Option<char>) -> Result<Graph, String> {
+        let separator = sep.unwrap_or('\t');
+
+        let edges_reader = EdgeFileReader::new(edge_file)
+            .unwrap()
+            .set_header(Some(true))
+            .unwrap()
+            .set_separator(Some(separator))
+            .unwrap()
+            .set_sources_column_number(Some(0))
+            .unwrap()
+            .set_destinations_column_number(Some(1))
+            .unwrap();
+
+        let mut g = Graph::from_file_readers(
+            Some(edges_reader),
+            None,
+            None,
+            None,
+            true,
+            true,
+            true,
+            "test hpo graph"
+        )
+        .unwrap();
+
+        Ok(g)
+    }
+
+    // take an ic map and a graph, and for each node calculate the difference in IC between the node
+    // it's parent(s)
+    fn _make_delta_ic_map(
+        ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+        graph: Arc<Graph>,
+        predicate_key: &PredicateSetKey,
+    ) -> Result<HashMap<PredicateSetKey, HashMap<TermID, f64>>, String> {
+        let mut delta_ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
+
+        // Get IC map for predicate key, or return error if it doesn't exist
+        let this_ic_map = ic_map.get(predicate_key).ok_or("Predicate key not found in IC map")?;
+
+        // Initialize delta_ic_map with an empty HashMap for the given predicate_key
+        delta_ic_map.insert(predicate_key.clone(), HashMap::new());
+        let mut delta_ic_sub_map = delta_ic_map.get_mut(predicate_key).unwrap();
+
+        // Iterate over each node in the graph
+        for node_id in graph.iter_node_ids() {
+            let node_curie = graph.get_node_name_from_node_id(node_id).unwrap(); // Get node term ID
+            let ic_value = this_ic_map.get(&node_curie).expect(&format!("Node term ID not found in IC map {}", node_curie));
+
+            // Get the parent nodes of the current node
+            let parents = graph.get_neighbour_node_ids_from_node_id(node_id).unwrap();
+            let parent_ic_values: Vec<f64> = parents.iter()
+                .filter_map(|parent_id| {
+                    let parent_term_id = graph.get_node_name_from_node_id(*parent_id).unwrap();
+                    this_ic_map.get(&parent_term_id).copied()
+                })
+                .collect();
+
+            let delta_ic = if parent_ic_values.is_empty() {
+                *ic_value // If there are no parents, delta IC is the IC of the node itself
+            } else {
+                let average_parent_ic = parent_ic_values.iter().copied().sum::<f64>() / parent_ic_values.len() as f64;
+                let result = ic_value - &average_parent_ic;
+                result
+            };
+
+            delta_ic_sub_map.insert(node_curie, delta_ic);
+        }
+
+        Ok(delta_ic_map)
     }
 
     pub fn update_closure_and_ic_map(&mut self) {
@@ -2294,6 +2387,39 @@ mod tests_local {
     use std::path::PathBuf;
     use std::time::Instant;
 
+    use lazy_static::lazy_static;
+    use std::sync::Mutex;
+
+    lazy_static! {
+        static ref GRAPH: Mutex<Option<Graph>> = Mutex::new(None);
+        static ref IC_MAP: Mutex<Option<HashMap<PredicateSetKey, HashMap<TermID, f64>>>> = Mutex::new(None);
+    }
+
+    fn setup_graph() {
+        let mut test_hpo_graph = GRAPH.lock().unwrap();
+        if test_hpo_graph.is_none() {
+            let edge_file = "tests/data/test_hpo_graph.tsv";
+            *test_hpo_graph = Some(RustSemsimian::_read_in_edge_tsv(edge_file, Some(',')).unwrap());
+        }
+    }
+    fn setup_ic_map() {
+        let mut test_ic_map = IC_MAP.lock().unwrap();
+        if test_ic_map.is_none() {
+            let ic_file = "tests/data/test_hpo_graph_ic.tsv";
+            let path = PathBuf::from(ic_file);
+
+            match import_custom_ic_map(&path) {
+                Ok(ic_map) => {
+                    let key = predicate_set_to_key(&Some(vec!["is_a".to_string() as Predicate]));
+                    let mut this_map = HashMap::new();
+                    this_map.insert(key, ic_map);
+                    *test_ic_map = Some(this_map);
+                }
+                Err(e) => eprintln!("Failed to import custom IC map: {}", e),
+            }
+        }
+    }
+
     #[test]
     #[ignore]
     #[cfg_attr(feature = "ci", ignore)]
@@ -2467,4 +2593,100 @@ mod tests_local {
             "prefix_expansion_cache should not be empty after pregenerate_cache"
         );
     }
+
+    #[test]
+    fn test_read_in_edge_tsv() {
+        // read in this file with EdgeFileReader
+        let edge_file = "tests/data/test_hpo_graph.tsv";
+
+        let g = RustSemsimian::_read_in_edge_tsv(edge_file, Some(',')).unwrap();
+        let connected_nodes = g.get_neighbour_node_names_from_node_name("HP:0003549").unwrap();
+
+        // print out connected_nodes
+        println!("{:?}", connected_nodes);
+
+        // check that HP:0000118 is in connected_nodes
+        assert!(connected_nodes.contains(&"HP:0000118".to_string()));
+    }
+
+    #[test]
+    fn test_make_delta_ic_map_return_hashmap() {
+        // Setup graph test fixture
+        setup_graph();
+        setup_ic_map();
+        let g = GRAPH.lock().unwrap();
+        let g = g.as_ref().unwrap();
+
+        let ic_map = IC_MAP.lock().unwrap();
+        let ic_map = ic_map.as_ref().unwrap();
+
+        // Predicate key for is_a
+        let key: PredicateSetKey = predicate_set_to_key(&Some(vec!["is_a".to_string()]));
+
+        let delta_ic_map = RustSemsimian::_make_delta_ic_map(ic_map.clone(), g.clone().into(), &key).unwrap();
+
+        // HP:0000118 (0)
+        //     |
+        //     +-- HP:0003549 (1.0)
+        //     |       |
+        //     |       +-- HP:0009025 (4.1)
+        //     |       +-- HP:0100881 (5.2)
+        //     |       +-- HP:0009124 (7.1)
+        //     |
+        //     +-- HP:0000707 (1.2)
+        //     |       |
+        //     |       +-- HP:0012638 (2.0)
+        //     |       |       |
+        //     |       |       +-- HP:TWOPARENTS (6.1)
+        //     |       |
+        //     |       +-- HP:0012639 (2.1)
+        //     |       +-- HP:0410008 (2.6)
+        //     |
+        //     +-- HP:0000818 (1.5)
+        //             |
+        //             +-- HP:0000834 (2.9)
+        //             |       |
+        //             |       +-- HP:TWOPARENTS (6.1)
+        //             |
+        //             +-- HP:0100568 (3.4)
+        //             +-- HP:0000873 (3.9)
+
+        // Expected delta IC values (node IC - parent IC)
+        let expected_delta_ic_values = vec![
+            ("HP:0003549", 1.0),
+            ("HP:0000707", 1.2),
+            ("HP:0000818", 1.5),
+            ("HP:0012638", 0.8),
+            ("HP:0012639", 0.9),
+            ("HP:0410008", 1.4),
+            ("HP:0000834", 1.4),
+            ("HP:0100568", 1.9),
+            ("HP:0000873", 2.4),
+            ("HP:0009025", 3.1),
+            ("HP:0100881", 4.2),
+            ("HP:0009124", 6.1),
+            ("HP:0000118", 0.0),
+            ("HP:TWOPARENTS", 3.65),  // 6.1 - (2.0 + 2.9)/2 = 3.65
+        ].into_iter().collect::<HashMap<_, _>>();
+
+        fn approx_eq(a: f64, b: f64, tolerance: f64) -> bool {
+            (a - b).abs() < tolerance
+        }
+
+        // Check delta IC values
+        let delta_ic_sub_map = delta_ic_map.get(&key).unwrap();
+        for (node, expected_delta_ic) in expected_delta_ic_values {
+            let actual_delta_ic = delta_ic_sub_map.get(&node.to_string()).cloned().unwrap_or_default();
+            assert!(
+                approx_eq(actual_delta_ic, expected_delta_ic, 0.001),
+                "Delta IC value for node {} is not approximately equal: expected {}, got {}",
+                node,
+                expected_delta_ic,
+                actual_delta_ic
+            );
+        }
+
+    }
+
+
 }

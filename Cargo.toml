@@ -25,6 +25,7 @@ deepsize = "0.2.0"
 serde = { version = "1.0.193", features = ["derive"] }
 indicatif = "0.17.7"  # progress bar
 pyo3 = { version = "0.20.3", features = ["extension-module"] }
+graph = { path = "src/graph" }
 
 [features]
 ci = []
@@ -60,3 +61,8 @@ harness = false
 [[bench]]
 name = "association_search_similarity_benchmark"
 harness = false
+
+[workspace]
+members = [
+    "src/graph",
+]

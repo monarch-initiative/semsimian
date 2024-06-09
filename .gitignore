@@ -10,3 +10,4 @@ src/pseudocode.rst
 venv/
 prof/*
 
+.venv
