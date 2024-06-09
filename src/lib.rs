@@ -190,15 +190,46 @@ impl RustSemsimian {
 
     // take an ic map and a graph, and for each node calculate the difference in IC between the node
     // it's parent(s)
-    fn _make_delta_ic_map(ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
-                          graph: Graph,
-                          predicate_key: PredicateSetKey) -> Result<HashMap<PredicateSetKey, HashMap<TermID, f64>>, String> {
+    fn _make_delta_ic_map(
+        ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>>,
+        graph: Arc<Graph>,
+        predicate_key: &PredicateSetKey,
+    ) -> Result<HashMap<PredicateSetKey, HashMap<TermID, f64>>, String> {
         let mut delta_ic_map: HashMap<PredicateSetKey, HashMap<TermID, f64>> = HashMap::new();
 
-        // get ic map for predicate key, or throw error if it doesn't exist
-        let this_ic_map = ic_map.get(&predicate_key).ok_or("Predicate key not found in IC map")?;
+        // Get IC map for predicate key, or return error if it doesn't exist
+        let this_ic_map = ic_map.get(predicate_key).ok_or("Predicate key not found in IC map")?;
 
-        Ok(ic_map)
+        // Initialize delta_ic_map with an empty HashMap for the given predicate_key
+        delta_ic_map.insert(predicate_key.clone(), HashMap::new());
+        let mut delta_ic_sub_map = delta_ic_map.get_mut(predicate_key).unwrap();
+
+        // Iterate over each node in the graph
+        for node_id in 0..graph.get_number_of_nodes() {
+            let node_curie = graph.get_node_name_from_node_id(node_id).unwrap(); // Get node term ID
+            let ic_value = this_ic_map.get(&node_curie).expect(&format!("Node term ID not found in IC map {}", node_curie));
+
+            // Get the parent nodes of the current node
+            let parents = graph.get_neighbour_node_ids_from_node_id(node_id).unwrap();
+            let parent_ic_values: Vec<f64> = parents.iter()
+                .filter_map(|parent_id| {
+                    let parent_term_id = graph.get_node_name_from_node_id(*parent_id).unwrap();
+                    this_ic_map.get(&parent_term_id).copied()
+                })
+                .collect();
+
+            let delta_ic = if parent_ic_values.is_empty() {
+                *ic_value // If there are no parents, delta IC is the IC of the node itself
+            } else {
+                let average_parent_ic = parent_ic_values.iter().copied().sum::<f64>() / parent_ic_values.len() as f64;
+                let result = ic_value - &average_parent_ic;
+                result
+            };
+
+            delta_ic_sub_map.insert(node_curie, delta_ic);
+        }
+
+        Ok(delta_ic_map)
     }
 
     pub fn update_closure_and_ic_map(&mut self) {
@@ -2578,7 +2609,7 @@ mod tests_local {
 
     #[test]
     fn test_make_delta_ic_map_return_hashmap() {
-        // get graph test fixture
+        // Setup graph test fixture
         setup_graph();
         setup_ic_map();
         let g = GRAPH.lock().unwrap();
@@ -2587,10 +2618,33 @@ mod tests_local {
         let ic_map = IC_MAP.lock().unwrap();
         let ic_map = ic_map.as_ref().unwrap();
 
-        // predicate key for is_a
-        let key = predicate_set_to_key(&Some(vec!["is_a".to_string()]));
+        // Predicate key for is_a
+        let key: PredicateSetKey = predicate_set_to_key(&Some(vec!["is_a".to_string()]));
 
-        let delta_ic_map = RustSemsimian::_make_delta_ic_map(ic_map.clone(), g.clone(), key);
+        let delta_ic_map = RustSemsimian::_make_delta_ic_map(ic_map.clone(), g.clone().into(), &key).unwrap();
+
+        // Expected delta IC values
+        let expected_delta_ic_values = vec![
+            ("HP:0003549", 1.0),
+            ("HP:0000707", 1.2),
+            ("HP:0000818", 1.5),
+            ("HP:0012638", 0.8),
+            ("HP:0012639", 0.9),
+            ("HP:0410008", 1.4),
+            ("HP:0000834", 1.4),
+            ("HP:0100568", 1.9),
+            ("HP:0000873", 2.4),
+            ("HP:0009025", 3.1),
+            ("HP:0100881", 4.2),
+            ("HP:0009124", 6.1),
+        ].into_iter().collect::<HashMap<_, _>>();
+
+        // Check delta IC values
+        let delta_ic_sub_map = delta_ic_map.get(&key).unwrap();
+        for (node, expected_delta_ic) in expected_delta_ic_values {
+            assert_eq!(delta_ic_sub_map.get(&node.to_string()).cloned(), Some(expected_delta_ic));
+        }
     }
+
 
 }
