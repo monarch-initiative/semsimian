@@ -2377,10 +2377,10 @@ mod tests_local {
 
             match import_custom_ic_map(&path) {
                 Ok(ic_map) => {
-                    let key = predicate_set_to_key(&Some(vec!["is_a".to_string() as Predicate]) );
+                    let key = predicate_set_to_key(&Some(vec!["is_a".to_string() as Predicate]));
                     let mut this_map = HashMap::new();
                     this_map.insert(key, ic_map);
-                    *test_ic_map = Some(this_map).unwrap();
+                    *test_ic_map = Some(this_map);
                 }
                 Err(e) => eprintln!("Failed to import custom IC map: {}", e),
             }
@@ -2577,8 +2577,7 @@ mod tests_local {
     }
 
     #[test]
-    fn test_make_delta_ic_map_return_hashmap(){
-
+    fn test_make_delta_ic_map_return_hashmap() {
         // get graph test fixture
         setup_graph();
         setup_ic_map();
@@ -2592,7 +2591,6 @@ mod tests_local {
         let key = predicate_set_to_key(&Some(vec!["is_a".to_string()]));
 
         let delta_ic_map = RustSemsimian::_make_delta_ic_map(ic_map.clone(), g.clone(), key);
-
     }
 
 }
