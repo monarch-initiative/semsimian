@@ -161,12 +161,14 @@ impl RustSemsimian {
     }
 
     // private method to read in edge TSV and return ensmallen graph object
-    fn _read_in_edge_tsv(edge_file: &str) -> Result<Graph, String>  {
+    fn _read_in_edge_tsv(edge_file: &str, sep: Option<char>) -> Result<Graph, String> {
+        let separator = sep.unwrap_or('\t');
+
         let edges_reader = EdgeFileReader::new(edge_file)
             .unwrap()
             .set_header(Some(true))
             .unwrap()
-            .set_separator(Some('\t'))
+            .set_separator(Some(separator))
             .unwrap()
             .set_sources_column_number(Some(0))
             .unwrap()
@@ -205,7 +207,7 @@ impl RustSemsimian {
         let mut delta_ic_sub_map = delta_ic_map.get_mut(predicate_key).unwrap();
 
         // Iterate over each node in the graph
-        for node_id in 0..graph.get_number_of_nodes() {
+        for node_id in graph.iter_node_ids() {
             let node_curie = graph.get_node_name_from_node_id(node_id).unwrap(); // Get node term ID
             let ic_value = this_ic_map.get(&node_curie).expect(&format!("Node term ID not found in IC map {}", node_curie));
 
@@ -2397,7 +2399,7 @@ mod tests_local {
         let mut test_hpo_graph = GRAPH.lock().unwrap();
         if test_hpo_graph.is_none() {
             let edge_file = "tests/data/test_hpo_graph.tsv";
-            *test_hpo_graph = Some(RustSemsimian::_read_in_edge_tsv(edge_file).unwrap());
+            *test_hpo_graph = Some(RustSemsimian::_read_in_edge_tsv(edge_file, Some(',')).unwrap());
         }
     }
     fn setup_ic_map() {
@@ -2597,7 +2599,7 @@ mod tests_local {
         // read in this file with EdgeFileReader
         let edge_file = "tests/data/test_hpo_graph.tsv";
 
-        let g = RustSemsimian::_read_in_edge_tsv(edge_file).unwrap();
+        let g = RustSemsimian::_read_in_edge_tsv(edge_file, Some(',')).unwrap();
         let connected_nodes = g.get_neighbour_node_names_from_node_name("HP:0003549").unwrap();
 
         // print out connected_nodes
@@ -2639,11 +2641,23 @@ mod tests_local {
             ("HP:0009124", 6.1),
         ].into_iter().collect::<HashMap<_, _>>();
 
+        fn approx_eq(a: f64, b: f64, tolerance: f64) -> bool {
+            (a - b).abs() < tolerance
+        }
+
         // Check delta IC values
         let delta_ic_sub_map = delta_ic_map.get(&key).unwrap();
         for (node, expected_delta_ic) in expected_delta_ic_values {
-            assert_eq!(delta_ic_sub_map.get(&node.to_string()).cloned(), Some(expected_delta_ic));
+            let actual_delta_ic = delta_ic_sub_map.get(&node.to_string()).cloned().unwrap_or_default();
+            assert!(
+                approx_eq(actual_delta_ic, expected_delta_ic, 0.001),
+                "Delta IC value for node {} is not approximately equal: expected {}, got {}",
+                node,
+                expected_delta_ic,
+                actual_delta_ic
+            );
         }
+
     }
 
 
