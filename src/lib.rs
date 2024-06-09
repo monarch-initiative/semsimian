@@ -2625,7 +2625,27 @@ mod tests_local {
 
         let delta_ic_map = RustSemsimian::_make_delta_ic_map(ic_map.clone(), g.clone().into(), &key).unwrap();
 
-        // Expected delta IC values
+        // HP:0000118 (0)
+        //     |
+        //     +-- HP:0003549 (1.0)
+        //     |       |
+        //     |       +-- HP:0009025 (4.1)
+        //     |       +-- HP:0100881 (5.2)
+        //     |       +-- HP:0009124 (7.1)
+        //     |
+        //     +-- HP:0000707 (1.2)
+        //     |       |
+        //     |       +-- HP:0012638 (2.0)
+        //     |       +-- HP:0012639 (2.1)
+        //     |       +-- HP:0410008 (2.6)
+        //     |
+        //     +-- HP:0000818 (1.5)
+        //             |
+        //             +-- HP:0000834 (2.9)
+        //             +-- HP:0100568 (3.4)
+        //             +-- HP:0000873 (3.9)
+
+        // Expected delta IC values (node IC - parent IC)
         let expected_delta_ic_values = vec![
             ("HP:0003549", 1.0),
             ("HP:0000707", 1.2),
@@ -2639,6 +2659,7 @@ mod tests_local {
             ("HP:0009025", 3.1),
             ("HP:0100881", 4.2),
             ("HP:0009124", 6.1),
+            ("HP:0000118", 0.0)
         ].into_iter().collect::<HashMap<_, _>>();
 
         fn approx_eq(a: f64, b: f64, tolerance: f64) -> bool {
