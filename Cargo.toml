@@ -36,7 +36,7 @@ lto = true
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
 flamegraph = "0.6.3"
-rstest = "0.18.2"
+rstest = "0.21.0"
 
 [build-dependencies]
 pyo3-build-config = { version = "0.20.3", features = ["extension-module"] }
