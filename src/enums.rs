@@ -56,3 +56,30 @@ impl MetricEnum {
         }
     }
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
+pub enum DirectionalityEnum {
+    #[default]
+    Bidirectional,
+    SubjectToObject,
+    ObjectToSubject,
+}
+
+impl DirectionalityEnum {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            DirectionalityEnum::Bidirectional => "bidirectional",
+            DirectionalityEnum::SubjectToObject => "subject_to_object",
+            DirectionalityEnum::ObjectToSubject => "object_to_subject",
+        }
+    }
+
+    // Convert an Option<&str> to the corresponding Directionality enum variant
+    pub fn from_string(directionality: &Option<&str>) -> PyResult<Self> {
+        match directionality.as_deref() {
+            Some("subject_to_object") => Ok(DirectionalityEnum::SubjectToObject),
+            Some("object_to_subject") => Ok(DirectionalityEnum::ObjectToSubject),
+            Some(_) | None => Ok(DirectionalityEnum::Bidirectional), // Default case includes None and any other string
+        }
+    }
+}

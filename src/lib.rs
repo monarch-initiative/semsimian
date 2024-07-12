@@ -8,7 +8,7 @@ use db_query::{
     get_entailed_edges_for_predicate_list, get_labels, get_objects_for_subjects,
     get_unique_subject_prefixes,
 };
-use enums::{MetricEnum, SearchTypeEnum};
+use enums::{DirectionalityEnum, MetricEnum, SearchTypeEnum};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -29,10 +29,12 @@ mod test_constants;
 use std::fmt;
 
 use similarity::{
-    calculate_average_termset_information_content, calculate_average_termset_jaccard_similarity,
-    calculate_average_termset_phenodigm_score, calculate_cosine_similarity_for_nodes,
-    calculate_jaccard_similarity_str, calculate_max_information_content,
-    calculate_weighted_term_pairwise_information_content,
+    calculate_average_termset_information_content,
+    calculate_average_termset_information_content_unidirectional,
+    calculate_average_termset_jaccard_similarity, calculate_average_termset_phenodigm_score,
+    calculate_average_termset_phenodigm_score_unidirectional,
+    calculate_cosine_similarity_for_nodes, calculate_jaccard_similarity_str,
+    calculate_max_information_content, calculate_weighted_term_pairwise_information_content,
 };
 use utils::{
     convert_list_of_tuples_to_hashmap, expand_term_using_closure,
@@ -439,32 +441,83 @@ impl RustSemsimian {
         subject_terms: &HashSet<TermID>,
         object_terms: &HashSet<TermID>,
         metric: &MetricEnum,
+        direction: &Option<DirectionalityEnum>,
     ) -> Result<f64, String> {
-        match metric {
-            MetricEnum::AncestorInformationContent => Ok(
-                calculate_average_termset_information_content(self, subject_terms, object_terms),
-            ),
-            MetricEnum::JaccardSimilarity => Ok(calculate_average_termset_jaccard_similarity(
-                self,
-                subject_terms,
-                object_terms,
-            )),
-            MetricEnum::PhenodigmScore => Ok(calculate_average_termset_phenodigm_score(
-                self,
-                subject_terms,
-                object_terms,
-            )),
-            // MetricEnum::CosineSimilarity => {
-            //     Ok(0.0) // TODO: Implement cosine similarity for termset comparison
-            // },
-            _ => Err("Metric not implemented for termset comparison".to_string()),
+        match direction {
+            Some(DirectionalityEnum::SubjectToObject) => match metric {
+                MetricEnum::AncestorInformationContent => Ok(
+                    calculate_average_termset_information_content_unidirectional(
+                        self,
+                        subject_terms,
+                        object_terms,
+                    ),
+                ),
+                MetricEnum::JaccardSimilarity => Ok(calculate_average_termset_jaccard_similarity(
+                    self,
+                    subject_terms,
+                    object_terms,
+                )),
+                MetricEnum::PhenodigmScore => {
+                    Ok(calculate_average_termset_phenodigm_score_unidirectional(
+                        self,
+                        subject_terms,
+                        object_terms,
+                    ))
+                }
+                // MetricEnum::CosineSimilarity => {
+                //     Ok(0.0) // TODO: Implement cosine similarity for termset comparison
+                // },
+                _ => Err("Metric not implemented for termset comparison".to_string()),
+            },
+            Some(DirectionalityEnum::ObjectToSubject) => match metric {
+                MetricEnum::AncestorInformationContent => Ok(
+                    calculate_average_termset_information_content_unidirectional(
+                        self,
+                        object_terms,
+                        subject_terms,
+                    ),
+                ),
+                MetricEnum::JaccardSimilarity => Ok(calculate_average_termset_jaccard_similarity(
+                    self,
+                    subject_terms,
+                    object_terms,
+                )),
+                MetricEnum::PhenodigmScore => {
+                    Ok(calculate_average_termset_phenodigm_score_unidirectional(
+                        self,
+                        object_terms,
+                        subject_terms,
+                    ))
+                }
+                // MetricEnum::CosineSimilarity => {
+                //     Ok(0.0) // TODO: Implement cosine similarity for termset comparison
+                // },
+                _ => Err("Metric not implemented for termset comparison".to_string()),
+            },
+            Some(DirectionalityEnum::Bidirectional) | None => match metric {
+                MetricEnum::AncestorInformationContent => {
+                    Ok(calculate_average_termset_information_content(
+                        self,
+                        subject_terms,
+                        object_terms,
+                    ))
+                }
+                MetricEnum::JaccardSimilarity => Ok(calculate_average_termset_jaccard_similarity(
+                    self,
+                    subject_terms,
+                    object_terms,
+                )),
+                MetricEnum::PhenodigmScore => Ok(calculate_average_termset_phenodigm_score(
+                    self,
+                    subject_terms,
+                    object_terms,
+                )),
+                // MetricEnum::CosineSimilarity => {
+                //     Ok(0.0) // TODO: Implement cosine similarity for termset comparison
+                // },
+                _ => Err("Metric not implemented for termset comparison".to_string()),
+            },
         }
-        // OLD CODE
-        // Ok(calculate_average_termset_information_content(
-        //     self,
-        //     subject_terms,
-        //     object_terms,
-        // ))
     }
 
     pub fn termset_pairwise_similarity(
@@ -525,7 +578,7 @@ impl RustSemsimian {
         let object_termset: Vec<BTreeMap<String, BTreeMap<String, String>>> =
             get_termset_vector(object_terms, &term_label_map);
         let average_score = &self
-            .termset_comparison(subject_terms, object_terms, metric)
+            .termset_comparison(subject_terms, object_terms, metric, &None)
             .unwrap();
 
         let (subject_best_matches, subject_best_matches_similarity_map) =
@@ -659,6 +712,7 @@ impl RustSemsimian {
         limit: &Option<usize>,
         include_similarity_object: bool,
         score_metric: &MetricEnum,
+        direction: &Option<DirectionalityEnum>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if let Some(flatten_result) = flatten_result {
             let mut top_percent = flatten_result.len() as f64; // Top percentage to be considered for the full search
@@ -707,6 +761,7 @@ impl RustSemsimian {
                 profile_entities,
                 include_similarity_object,
                 score_metric,
+                direction,
             );
             sort_with_jaccard_as_tie_breaker(result, flatten_result)
         } else {
@@ -715,6 +770,7 @@ impl RustSemsimian {
                 profile_entities,
                 include_similarity_object,
                 score_metric,
+                direction,
             );
             hashed_dual_sort(result)
         }
@@ -726,6 +782,7 @@ impl RustSemsimian {
         profile_entities: &HashSet<String>,
         include_similarity_object: bool,
         score_metric: &MetricEnum,
+        direction: &Option<DirectionalityEnum>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         if include_similarity_object {
             associations
@@ -744,7 +801,7 @@ impl RustSemsimian {
                 .map(|(key, hashset)| {
                     // Calculate similarity using termset_pairwise_similarity method
                     let similarity_score = self
-                        .termset_comparison(hashset, profile_entities, score_metric)
+                        .termset_comparison(hashset, profile_entities, score_metric, direction)
                         .unwrap();
                     // Return the result tuple
                     (similarity_score, None, key.clone())
@@ -889,6 +946,7 @@ impl RustSemsimian {
         search_type: &SearchTypeEnum,
         score_metric: &MetricEnum,
         limit: Option<usize>,
+        direction: &Option<DirectionalityEnum>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let mut result;
 
@@ -904,6 +962,7 @@ impl RustSemsimian {
                     score_metric,
                     &limit,
                     include_similarity_object,
+                    &direction,
                 );
             }
             SearchTypeEnum::Hybrid => {
@@ -917,6 +976,7 @@ impl RustSemsimian {
                     score_metric,
                     &None,
                     include_similarity_object,
+                    &direction,
                 );
                 result = self.perform_search(
                     object_closure_predicates,
@@ -928,6 +988,7 @@ impl RustSemsimian {
                     score_metric,
                     &limit,
                     include_similarity_object,
+                    &direction,
                 );
             }
         }
@@ -950,6 +1011,7 @@ impl RustSemsimian {
         score_metric: &MetricEnum,
         limit: &Option<usize>,
         include_similarity_object: bool,
+        direction: &Option<DirectionalityEnum>,
     ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
         let all_associations = match self.get_prefix_expansion_cache(
             object_closure_predicates,
@@ -983,6 +1045,7 @@ impl RustSemsimian {
                 limit,
                 include_similarity_object,
                 score_metric,
+                direction,
             ),
         }
     }
@@ -1249,7 +1312,7 @@ impl Semsimian {
 
         match self
             .ss
-            .termset_comparison(&subject_terms, &object_terms, &metric)
+            .termset_comparison(&subject_terms, &object_terms, &metric, &None)
         {
             Ok(score) => Ok(score),
             Err(err) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err)),
@@ -1272,6 +1335,7 @@ impl Semsimian {
         // method: Option<String>,
         score_metric: Option<String>,
         limit: Option<usize>,
+        direction: Option<String>,
         py: Python,
     ) -> PyResult<Vec<(f64, PyObject, String)>> {
         let start_time = Instant::now(); // Start timing
@@ -1290,6 +1354,11 @@ impl Semsimian {
         let metric = MetricEnum::from_string(&score_metric.as_deref())
             .unwrap_or(MetricEnum::AncestorInformationContent);
 
+        let direction = Some(
+            DirectionalityEnum::from_string(&direction.as_deref())
+                .unwrap_or(DirectionalityEnum::Bidirectional),
+        );
+
         let search_results: Vec<(f64, Option<TermsetPairwiseSimilarity>, String)> =
             self.ss.associations_search(
                 &object_closure_predicate_terms,
@@ -1300,6 +1369,7 @@ impl Semsimian {
                 &search_type_enum,
                 &metric,
                 limit,
+                &direction,
             );
         let duration = start_time.elapsed(); // Calculate elapsed time
         println!("Rust executed in: {:?}", duration); // Print out the time taken
@@ -1696,10 +1766,11 @@ mod tests {
         rss.update_closure_and_ic_map();
         let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
         let score_metric = MetricEnum::AncestorInformationContent;
+        let direction = Some(DirectionalityEnum::Bidirectional);
 
         assert_eq!(tsps.average_score, 5.4154243283740175);
         let tc = rss
-            .termset_comparison(&subject_terms, &object_terms, &score_metric)
+            .termset_comparison(&subject_terms, &object_terms, &score_metric, &direction)
             .unwrap();
         assert_eq!(tsps.average_score, tc);
     }
@@ -1829,6 +1900,7 @@ mod tests {
             "rdfs:subClassOf".to_string(),
             "BFO:0000050".to_string(),
         ]);
+        let direction = Some(DirectionalityEnum::Bidirectional);
         let mut rss = RustSemsimian::new(spo, predicates, None, None, None);
 
         rss.update_closure_and_ic_map();
@@ -1839,7 +1911,7 @@ mod tests {
             HashSet::from(["BFO:0000030".to_string(), "BFO:0000005".to_string()]);
         let score_metric = MetricEnum::AncestorInformationContent;
 
-        let result = rss.termset_comparison(&entity1, &entity2, &score_metric); //Result<f64, String>
+        let result = rss.termset_comparison(&entity1, &entity2, &score_metric, &direction); //Result<f64, String>
         let expected_result = 0.36407012037768127;
 
         assert_eq!(result.unwrap(), expected_result);
@@ -1854,6 +1926,7 @@ mod tests {
         ]);
         let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         let score_metric = MetricEnum::AncestorInformationContent;
+        let direction = Some(DirectionalityEnum::Bidirectional);
 
         rss.update_closure_and_ic_map();
 
@@ -1862,7 +1935,7 @@ mod tests {
         let entity2: HashSet<TermID> =
             HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
 
-        let result = rss.termset_comparison(&entity1, &entity2, &score_metric);
+        let result = rss.termset_comparison(&entity1, &entity2, &score_metric, &direction);
         let expected_result = 5.4154243283740175;
         assert_eq!(result.unwrap(), expected_result);
     }
@@ -1900,6 +1973,7 @@ mod tests {
         term_set.insert("BFO:0000015".to_string());
         expanded_subject_map.insert("GO:0009892".to_string(), term_set);
         let score_metric = MetricEnum::AncestorInformationContent;
+        let direction = Some(DirectionalityEnum::Bidirectional);
 
         let include_similarity_object = true;
 
@@ -1917,6 +1991,7 @@ mod tests {
             &limit,
             include_similarity_object,
             &score_metric,
+            &direction,
         );
         let result_objects: Vec<TermID> = result
             .iter()
@@ -1946,6 +2021,7 @@ mod tests {
         let search_type: SearchTypeEnum = SearchTypeEnum::Flat;
         let limit: usize = 20;
         let score_metric = MetricEnum::AncestorInformationContent;
+        let direction = Some(DirectionalityEnum::Bidirectional);
 
         // Call the function under test
         let result = rss.associations_search(
@@ -1957,6 +2033,7 @@ mod tests {
             &search_type,
             &score_metric,
             Some(limit),
+            &direction,
         );
         // assert_eq!({ result.len() }, limit.unwrap());
         //result is a Vec<(f64, obj, String)> I want the count of tuples in the vector that has the f64 value as the first one
@@ -2006,6 +2083,7 @@ mod tests {
         let search_type: SearchTypeEnum = SearchTypeEnum::Full;
         let limit: usize = 20;
         let score_metric = MetricEnum::AncestorInformationContent;
+        let direction = Some(DirectionalityEnum::Bidirectional);
 
         // Call the function under test
         let result = rss.associations_search(
@@ -2017,6 +2095,7 @@ mod tests {
             &search_type,
             &score_metric,
             Some(limit),
+            &direction,
         );
         let unique_scores: HashSet<_> =
             result.iter().map(|(score, _, _)| score.to_bits()).collect();
@@ -2034,6 +2113,7 @@ mod tests {
 
         let mut rss = RustSemsimian::new(None, predicates, None, db, None);
         let score_metric = MetricEnum::AncestorInformationContent;
+        let direction = Some(DirectionalityEnum::Bidirectional);
 
         rss.update_closure_and_ic_map();
 
@@ -2054,6 +2134,7 @@ mod tests {
             &search_type_flat,
             &score_metric,
             limit,
+            &direction,
         );
 
         let result_2 = rss.associations_search(
@@ -2065,6 +2146,7 @@ mod tests {
             &search_type_full,
             &score_metric,
             limit,
+            &direction,
         );
 
         dbg!(&result_1.len());
@@ -2121,6 +2203,7 @@ mod tests {
         let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
         let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
         let limit: Option<usize> = Some(78);
+        let direction = Some(DirectionalityEnum::Bidirectional);
 
         // Call the function under test
         let result_1 = rss.associations_search(
@@ -2132,6 +2215,7 @@ mod tests {
             &search_type_hybrid,
             &score_metric,
             limit,
+            &direction,
         );
 
         let result_2 = rss.associations_search(
@@ -2143,6 +2227,7 @@ mod tests {
             &search_type_full,
             &score_metric,
             limit,
+            &direction,
         );
 
         dbg!(&result_1.len());
@@ -2199,6 +2284,7 @@ mod tests {
         let search_type_flat: SearchTypeEnum = SearchTypeEnum::Flat;
         let limit: Option<usize> = Some(78);
         let score_metric = MetricEnum::AncestorInformationContent;
+        let direction = Some(DirectionalityEnum::Bidirectional);
 
         // Call the function under test
         let result_1 = rss.associations_search(
@@ -2210,6 +2296,7 @@ mod tests {
             &search_type_hybrid,
             &score_metric,
             limit,
+            &direction,
         );
 
         let result_2 = rss.associations_search(
@@ -2221,6 +2308,7 @@ mod tests {
             &search_type_flat,
             &score_metric,
             limit,
+            &direction,
         );
 
         dbg!(&result_1.len());

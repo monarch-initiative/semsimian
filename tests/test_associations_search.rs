@@ -1,4 +1,4 @@
-use semsimian::enums::MetricEnum;
+use semsimian::enums::{DirectionalityEnum, MetricEnum};
 use semsimian::{enums::SearchTypeEnum, Predicate, RustSemsimian, TermID};
 use std::time::Instant;
 use std::{collections::HashSet, path::PathBuf};
@@ -130,6 +130,7 @@ fn test_large_associations_search() {
     ]);
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: usize = 10;
+    let direction = Some(DirectionalityEnum::Bidirectional);
 
     // Start timing before the function call
     let start = Instant::now();
@@ -145,6 +146,7 @@ fn test_large_associations_search() {
         &search_type_full,
         &score_metric,
         Some(limit),
+        &direction,
     );
 
     // Stop timing after the function call
@@ -164,6 +166,7 @@ fn test_large_associations_search() {
         &search_type_full,
         &score_metric,
         Some(limit),
+        &direction,
     );
     // Stop timing after the function call
     let duration = start.elapsed();
@@ -305,6 +308,7 @@ fn test_flat_vs_full_search() {
     let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: usize = 10;
     let score_metric = MetricEnum::AncestorInformationContent;
+    let direction = Some(DirectionalityEnum::Bidirectional);
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -316,6 +320,7 @@ fn test_flat_vs_full_search() {
         &search_type_full,
         &score_metric,
         Some(limit),
+        &direction,
     );
     // Call the function under test
     let result_2 = rss.associations_search(
@@ -327,6 +332,7 @@ fn test_flat_vs_full_search() {
         &search_type_flat,
         &score_metric,
         Some(limit),
+        &direction,
     );
 
     dbg!(&result_1.len());
@@ -520,6 +526,7 @@ fn test_flat_vs_hybrid_search() {
     let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
     let limit: usize = 10;
     let score_metric = MetricEnum::AncestorInformationContent;
+    let direction = Some(DirectionalityEnum::Bidirectional);
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -531,6 +538,7 @@ fn test_flat_vs_hybrid_search() {
         &search_type_flat,
         &score_metric,
         Some(limit),
+        &direction,
     );
     // Call the function under test
     let result_2 = rss.associations_search(
@@ -542,6 +550,7 @@ fn test_flat_vs_hybrid_search() {
         &search_type_hybrid,
         &score_metric,
         Some(limit),
+        &direction,
     );
 
     dbg!(&result_1.len());
@@ -735,6 +744,7 @@ fn test_full_vs_hybrid_search() {
     let search_type_hybrid: SearchTypeEnum = SearchTypeEnum::Hybrid;
     let limit: usize = 100;
     let score_metric = MetricEnum::AncestorInformationContent;
+    let direction = Some(DirectionalityEnum::Bidirectional);
 
     // Call the function under test
     let result_1 = rss.associations_search(
@@ -746,6 +756,7 @@ fn test_full_vs_hybrid_search() {
         &search_type_full,
         &score_metric,
         Some(limit),
+        &direction,
     );
     // Call the function under test
     let result_2 = rss.associations_search(
@@ -757,6 +768,7 @@ fn test_full_vs_hybrid_search() {
         &search_type_hybrid,
         &score_metric,
         Some(limit),
+        &direction,
     );
 
     dbg!(&result_1.len());

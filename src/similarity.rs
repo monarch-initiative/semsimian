@@ -239,7 +239,6 @@ pub fn calculate_average_of_max_phenodigm_score(
     // max_pheno_e1_e2 will contain the highest phenodigm score among all the comparisons,
     // representing the best match between entity1 and entity2.
     let entity1_len = entity1.len() as f64;
-    let entity2_len = entity2.len() as f64;
 
     let entity1_to_entity2_sum_phenodigm_score = entity1.iter().fold(0.0, |sum, e1_term| {
         let max_phenodigm_score = entity2.iter().fold(0.0, |max_pheno, e2_term| {
@@ -250,18 +249,7 @@ pub fn calculate_average_of_max_phenodigm_score(
         sum + max_phenodigm_score
     });
 
-    let entity2_to_entity1_sum_phenodigm_score = entity2.iter().fold(0.0, |sum, e2_term| {
-        let max_phenodigm_score = entity1.iter().fold(0.0, |max_pheno, e1_term| {
-            let score = rss.phenodigm_score(e2_term, e1_term);
-            f64::max(max_pheno, score)
-        });
-
-        sum + max_phenodigm_score
-    });
-
-    ((entity1_to_entity2_sum_phenodigm_score / entity1_len)
-        + (entity2_to_entity1_sum_phenodigm_score / entity2_len))
-        / 2.0
+    entity1_to_entity2_sum_phenodigm_score / entity1_len
 }
 
 pub fn calculate_average_of_max_information_content_unidirectional(
@@ -315,6 +303,14 @@ pub fn calculate_average_termset_phenodigm_score(
     (subject_to_object_average_of_max_phenodigm_score
         + object_to_subject_average_of_max_phenodigm_score)
         / 2.0
+}
+
+pub fn calculate_average_termset_phenodigm_score_unidirectional(
+    semsimian: &RustSemsimian,
+    subject_terms: &HashSet<TermID>,
+    object_terms: &HashSet<TermID>,
+) -> f64 {
+    calculate_average_of_max_phenodigm_score(semsimian, subject_terms, object_terms)
 }
 
 pub fn calculate_average_termset_information_content(
