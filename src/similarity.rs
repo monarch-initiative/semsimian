@@ -962,6 +962,57 @@ mod tests {
         dbg!(&tsps);
     }
 
+    #[rstest]
+    #[case(
+        vec!["GO:0005634", "GO:0016020"],
+        vec!["GO:0031965", "GO:0005773"],
+        5.3496657269155685,
+        MetricEnum::AncestorInformationContent
+    )]
+    #[case(
+        vec!["GO:0031965", "GO:0005773"],
+        vec!["GO:0005634", "GO:0016020"],
+        5.481182929832466,
+        MetricEnum::AncestorInformationContent
+    )]
+    #[case(
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        vec!["GO:0031965", "GO:0005773"],
+        6.044653227155954,
+        MetricEnum::AncestorInformationContent
+    )]
+    #[case(
+        vec!["GO:0031965", "GO:0005773"],
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        6.642146977276147,
+        MetricEnum::AncestorInformationContent
+    )]
+    fn test_calculate_average_termset_information_content_unidirectional(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+        #[case] score_metric: MetricEnum,
+    ) {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+
+        let avg_ic_score =
+            calculate_average_termset_information_content_unidirectional(&rss, &entity1, &entity2);
+        assert_eq!(avg_ic_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+    }
+
     // These comments are the manual calculations for the test cases below, for future reference
 
     // These are the values that are being used in the manual calculations below:
@@ -1065,6 +1116,57 @@ mod tests {
 
         let avg_phenodigm_score =
             calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
+        assert_eq!(avg_phenodigm_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+    }
+
+    #[rstest]
+    #[case(
+        vec!["GO:0005634", "GO:0016020"],
+        vec!["GO:0031965", "GO:0005773"],
+        1.6814511115141375,
+        MetricEnum::PhenodigmScore
+    )]
+    #[case(
+        vec!["GO:0031965", "GO:0005773"],
+        vec!["GO:0005634", "GO:0016020"],
+        2.0406883915786995,
+        MetricEnum::PhenodigmScore
+    )]
+    #[case(
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        vec!["GO:0031965", "GO:0005773"],
+        2.02985123032382,
+        MetricEnum::PhenodigmScore
+    )]
+    #[case(
+        vec!["GO:0031965", "GO:0005773"],
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        2.371955086062022,
+        MetricEnum::PhenodigmScore
+    )]
+    fn test_calculate_average_termset_phenodigm_score_unidirectional(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+        #[case] score_metric: MetricEnum,
+    ) {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+
+        let avg_phenodigm_score =
+            calculate_average_termset_phenodigm_score_unidirectional(&rss, &entity1, &entity2);
         assert_eq!(avg_phenodigm_score, expected_value);
 
         let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
