@@ -962,7 +962,7 @@ impl RustSemsimian {
                     score_metric,
                     &limit,
                     include_similarity_object,
-                    &direction,
+                    direction,
                 );
             }
             SearchTypeEnum::Hybrid => {
@@ -976,7 +976,7 @@ impl RustSemsimian {
                     score_metric,
                     &None,
                     include_similarity_object,
-                    &direction,
+                    direction,
                 );
                 result = self.perform_search(
                     object_closure_predicates,
@@ -988,7 +988,7 @@ impl RustSemsimian {
                     score_metric,
                     &limit,
                     include_similarity_object,
-                    &direction,
+                    direction,
                 );
             }
         }
