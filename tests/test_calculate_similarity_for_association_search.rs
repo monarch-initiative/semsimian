@@ -1,5 +1,5 @@
 use semsimian::{
-    enums::{MetricEnum, SearchTypeEnum},
+    enums::{DirectionalityEnum, MetricEnum, SearchTypeEnum},
     Predicate, RustSemsimian, TermID,
 };
 use std::{collections::HashSet, path::PathBuf};
@@ -42,6 +42,7 @@ fn test_calculate_similarity_for_association_search() {
         "HP:0000098".to_string(),
     ]);
     let search_type: SearchTypeEnum = SearchTypeEnum::Full;
+    let direction = Some(DirectionalityEnum::Bidirectional);
 
     let associations = match rss.get_prefix_expansion_cache(
         &object_closure_predicates,
@@ -71,6 +72,7 @@ fn test_calculate_similarity_for_association_search() {
         &profile_entities,
         include_similarity_object,
         &score_metric,
+        &direction,
     );
     dbg!(&result.len());
     let expected_len = 10187;

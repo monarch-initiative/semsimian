@@ -1,6 +1,6 @@
 [package]
 name = "semsimian"
-version = "0.2.16"
+version = "0.2.17-rc1"
 
 edition = "2021"
 description = "Sematic similarity calculations for ontologies implemented in Rust."
@@ -36,7 +36,7 @@ lto = true
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
 flamegraph = "0.6.3"
-rstest = "0.18.2"
+rstest = "0.21.0"
 
 [build-dependencies]
 pyo3-build-config = { version = "0.20.3", features = ["extension-module"] }

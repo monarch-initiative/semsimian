@@ -318,6 +318,10 @@ class testSemsimianWithPython(unittest.TestCase):
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
         assoc_predicate = {"biolink:has_nucleus"}
         search_type = "full"
+        include_similarity_object = True
+        subject_terms = None
+        score_metric = None
+        direction = None
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,
@@ -328,12 +332,13 @@ class testSemsimianWithPython(unittest.TestCase):
         result = semsimian.associations_search(
             assoc_predicate,
             object_terms,
-            True,
+            include_similarity_object,
             search_type,
-            None,
+            subject_terms,
             subject_prefixes,
-            None,
+            score_metric,
             limit,
+            direction,
         )
         self.assertEqual(len(result), limit)
 
@@ -343,6 +348,9 @@ class testSemsimianWithPython(unittest.TestCase):
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
         assoc_predicate = {"biolink:has_nucleus"}
         search_type = "flat"
+        include_similarity_object = True
+        subject_terms = None
+        direction = None
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,
@@ -353,12 +361,13 @@ class testSemsimianWithPython(unittest.TestCase):
         result = semsimian.associations_search(
             assoc_predicate,
             object_terms,
-            True,
+            include_similarity_object,
             search_type,
-            None,
+            subject_terms,
             subject_prefixes,
             self.aic_metric,
             limit,
+            direction,
         )
         self.assertEqual(len(result), limit)
 
@@ -368,6 +377,10 @@ class testSemsimianWithPython(unittest.TestCase):
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
         assoc_predicate = {"biolink:has_nucleus"}
         search_type = "hybrid"
+        include_similarity_object = True
+        subject_terms = None
+        score_metric = None
+        direction = None
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,
@@ -378,12 +391,13 @@ class testSemsimianWithPython(unittest.TestCase):
         result = semsimian.associations_search(
             assoc_predicate,
             object_terms,
-            True,
+            include_similarity_object,
             search_type,
-            None,
+            subject_terms,
             subject_prefixes,
-            None,
+            score_metric,
             limit,
+            direction,
         )
         self.assertEqual(len(result), limit)
 
@@ -401,16 +415,20 @@ class testSemsimianWithPython(unittest.TestCase):
             resource_path=db_path,
         )
         search_type = "full"
+        include_similarity_object = True
+        subject_terms = None
+        direction = None
         limit = 10
         result = semsimian.associations_search(
             assoc_predicate,
             object_terms,
-            True,
+            include_similarity_object,
             search_type,
-            None,
+            subject_terms,
             subject_prefixes,
             self.aic_metric,
             limit,
+            direction,
         )
         self.assertEqual(len(result), limit)
 
@@ -428,16 +446,21 @@ class testSemsimianWithPython(unittest.TestCase):
             resource_path=db_path,
         )
         search_type = "flat"
+        include_similarity_object = True
+        subject_terms = None
+        score_metric = None
         limit = 10
+        direction = None
         result = semsimian.associations_search(
             assoc_predicate,
             object_terms,
-            True,
+            include_similarity_object,
             search_type,
-            None,
+            subject_terms,
             subject_prefixes,
-            None,
+            score_metric,
             limit,
+            direction,
         )
         self.assertEqual(len(result), limit)
 
@@ -453,6 +476,7 @@ class testSemsimianWithPython(unittest.TestCase):
         quick_search = "full"
         subject_terms = None
         limit = 10
+        direction = None
 
         semsimian = Semsimian(
             spo=None,
@@ -470,6 +494,7 @@ class testSemsimianWithPython(unittest.TestCase):
             subject_prefixes,
             self.aic_metric,
             limit,
+            direction,
         )
         interval_1 = time.time() - load_start
         print(f"Round 1 search time: {interval_1} sec")
@@ -484,6 +509,7 @@ class testSemsimianWithPython(unittest.TestCase):
             subject_prefixes,
             self.aic_metric,
             limit,
+            direction,
         )
         interval_2 = time.time() - second_compare_time
         print(f"Round 2 search time: time: {interval_2} sec")

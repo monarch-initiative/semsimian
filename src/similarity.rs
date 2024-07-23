@@ -252,6 +252,31 @@ pub fn calculate_average_of_max_phenodigm_score(
     entity1_to_entity2_sum_phenodigm_score / entity1_len
 }
 
+pub fn calculate_average_of_max_information_content_unidirectional(
+    rss: &RustSemsimian,
+    entity1: &HashSet<TermID>,
+    entity2: &HashSet<TermID>,
+) -> f64 {
+    // At each iteration, it calculates the IC score using the calculate_max_information_content function,
+    // and if the calculated IC score is greater than the current maximum IC (max_resnik_sim_e1_e2),
+    // it updates the maximum IC value. Thus, at the end of the iterations,
+    // max_resnik_sim_e1_e2 will contain the highest IC score among all the comparisons,
+    // representing the best match between entity1 and entity2.
+    let entity1_len = entity1.len() as f64;
+
+    let entity1_to_entity2_sum_resnik_sim = entity1.iter().fold(0.0, |sum, e1_term| {
+        let max_ic = entity2.iter().fold(0.0, |max_ic, e2_term| {
+            let (_max_ic_ancestors1, ic) =
+                calculate_max_information_content(rss, e1_term, e2_term, &rss.predicates);
+            f64::max(max_ic, ic)
+        });
+
+        sum + max_ic
+    });
+
+    entity1_to_entity2_sum_resnik_sim / entity1_len
+}
+
 pub fn calculate_average_termset_jaccard_similarity(
     rss: &RustSemsimian,
     subject_terms: &HashSet<TermID>,
@@ -280,6 +305,14 @@ pub fn calculate_average_termset_phenodigm_score(
         / 2.0
 }
 
+pub fn calculate_average_termset_phenodigm_score_unidirectional(
+    semsimian: &RustSemsimian,
+    subject_terms: &HashSet<TermID>,
+    object_terms: &HashSet<TermID>,
+) -> f64 {
+    calculate_average_of_max_phenodigm_score(semsimian, subject_terms, object_terms)
+}
+
 pub fn calculate_average_termset_information_content(
     semsimian: &RustSemsimian,
     subject_terms: &HashSet<TermID>,
@@ -292,6 +325,15 @@ pub fn calculate_average_termset_information_content(
         calculate_average_of_max_information_content(semsimian, object_terms, subject_terms);
     (subject_to_object_average_of_max_resnik_sim + object_to_subject_average_of_max_resnik_sim)
         / 2.0
+}
+
+pub fn calculate_average_termset_information_content_unidirectional(
+    semsimian: &RustSemsimian,
+    subject_terms: &HashSet<TermID>,
+    object_terms: &HashSet<TermID>,
+) -> f64 {
+    // Calculate max IC unidirectionally.
+    calculate_average_of_max_information_content(semsimian, subject_terms, object_terms)
 }
 
 pub fn calculate_max_information_content(
@@ -920,6 +962,57 @@ mod tests {
         dbg!(&tsps);
     }
 
+    #[rstest]
+    #[case(
+        vec!["GO:0005634", "GO:0016020"],
+        vec!["GO:0031965", "GO:0005773"],
+        5.3496657269155685,
+        MetricEnum::AncestorInformationContent
+    )]
+    #[case(
+        vec!["GO:0031965", "GO:0005773"],
+        vec!["GO:0005634", "GO:0016020"],
+        5.481182929832466,
+        MetricEnum::AncestorInformationContent
+    )]
+    #[case(
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        vec!["GO:0031965", "GO:0005773"],
+        6.044653227155954,
+        MetricEnum::AncestorInformationContent
+    )]
+    #[case(
+        vec!["GO:0031965", "GO:0005773"],
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        6.642146977276147,
+        MetricEnum::AncestorInformationContent
+    )]
+    fn test_calculate_average_termset_information_content_unidirectional(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+        #[case] score_metric: MetricEnum,
+    ) {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+
+        let avg_ic_score =
+            calculate_average_termset_information_content_unidirectional(&rss, &entity1, &entity2);
+        assert_eq!(avg_ic_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+    }
+
     // These comments are the manual calculations for the test cases below, for future reference
 
     // These are the values that are being used in the manual calculations below:
@@ -1023,6 +1116,57 @@ mod tests {
 
         let avg_phenodigm_score =
             calculate_average_termset_phenodigm_score(&rss, &entity1, &entity2);
+        assert_eq!(avg_phenodigm_score, expected_value);
+
+        let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);
+        dbg!(&tsps);
+    }
+
+    #[rstest]
+    #[case(
+        vec!["GO:0005634", "GO:0016020"],
+        vec!["GO:0031965", "GO:0005773"],
+        1.6814511115141375,
+        MetricEnum::PhenodigmScore
+    )]
+    #[case(
+        vec!["GO:0031965", "GO:0005773"],
+        vec!["GO:0005634", "GO:0016020"],
+        2.0406883915786995,
+        MetricEnum::PhenodigmScore
+    )]
+    #[case(
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        vec!["GO:0031965", "GO:0005773"],
+        2.02985123032382,
+        MetricEnum::PhenodigmScore
+    )]
+    #[case(
+        vec!["GO:0031965", "GO:0005773"],
+        vec!["GO:0005634", "GO:0016020", "GO:0005773"],
+        2.371955086062022,
+        MetricEnum::PhenodigmScore
+    )]
+    fn test_calculate_average_termset_phenodigm_score_unidirectional(
+        #[case] entity1_terms: Vec<&str>,
+        #[case] entity2_terms: Vec<&str>,
+        #[case] expected_value: f64,
+        #[case] score_metric: MetricEnum,
+    ) {
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            Predicate::from("rdfs:subClassOf"),
+            Predicate::from("BFO:0000050"),
+        ]);
+        let db = Some("tests/data/go-nucleus.db");
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
+
+        rss.update_closure_and_ic_map();
+
+        let entity1: HashSet<TermID> = entity1_terms.into_iter().map(|s| s.to_string()).collect();
+        let entity2: HashSet<TermID> = entity2_terms.into_iter().map(|s| s.to_string()).collect();
+
+        let avg_phenodigm_score =
+            calculate_average_termset_phenodigm_score_unidirectional(&rss, &entity1, &entity2);
         assert_eq!(avg_phenodigm_score, expected_value);
 
         let tsps = rss.termset_pairwise_similarity(&entity1, &entity2, &score_metric);

@@ -2,7 +2,7 @@ use std::{collections::HashSet, path::PathBuf};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use semsimian::{
-    enums::{MetricEnum, SearchTypeEnum},
+    enums::{DirectionalityEnum, MetricEnum, SearchTypeEnum},
     Predicate, RustSemsimian, TermID,
 };
 
@@ -133,6 +133,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let limit: Option<usize> = black_box(Some(10));
     let score_metric = MetricEnum::AncestorInformationContent;
     let include_similarity_object = true;
+    let direction = Some(DirectionalityEnum::Bidirectional);
     let mut bench_grp = c.benchmark_group("search_bench_group");
     bench_grp.sample_size(10);
     // .measurement_time(Duration::from_secs(300));
@@ -147,6 +148,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 &search_type,
                 &score_metric,
                 limit,
+                &direction,
             )
         })
     });

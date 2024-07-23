@@ -2,7 +2,7 @@ use std::{collections::HashSet, path::PathBuf};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use semsimian::{
-    enums::{MetricEnum, SearchTypeEnum},
+    enums::{DirectionalityEnum, MetricEnum, SearchTypeEnum},
     Predicate, RustSemsimian, TermID,
 };
 
@@ -23,6 +23,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         "BFO:0000050".to_string(),
         "UPHENO:0000001".to_string(),
     ]));
+    let direction = Some(DirectionalityEnum::Bidirectional);
 
     let mut rss = RustSemsimian::new(None, predicates, None, db, None);
     rss.update_closure_and_ic_map();
@@ -147,6 +148,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 &search_type,
                 &score_metric,
                 limit,
+                &direction,
             )
         })
     });

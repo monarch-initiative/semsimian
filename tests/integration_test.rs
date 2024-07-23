@@ -2,6 +2,7 @@ extern crate semsimian;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use semsimian::enums::DirectionalityEnum;
 use semsimian::enums::MetricEnum;
 use semsimian::enums::SearchTypeEnum;
 use semsimian::similarity::calculate_average_termset_information_content;
@@ -140,6 +141,7 @@ fn integration_test_search_and_avg_score() {
     let search_type: SearchTypeEnum = SearchTypeEnum::Full;
     let limit: Option<usize> = Some(5);
     let score_metric = MetricEnum::AncestorInformationContent;
+    let direction = Some(DirectionalityEnum::Bidirectional);
 
     let result = rss.associations_search(
         &assoc_predicate,
@@ -150,6 +152,7 @@ fn integration_test_search_and_avg_score() {
         &search_type,
         &score_metric,
         limit,
+        &direction,
     );
     // dbg!(&result);
 
