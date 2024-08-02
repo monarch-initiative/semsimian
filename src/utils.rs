@@ -580,8 +580,28 @@ pub fn import_custom_ic_map(path: &PathBuf) -> Result<HashMap<String, f64>, io::
     let file = fs::File::open(path)?;
     let reader = BufReader::new(file);
     let mut ic_map: HashMap<String, f64> = HashMap::new();
+    let mut lines = reader.lines();
 
-    for line_result in reader.lines() {
+    // Read the first line and check if it's data
+    if let Some(first_line_result) = lines.next() {
+        let first_line = first_line_result?;
+        let columns: Vec<&str> = first_line.split('\t').collect();
+
+        if columns.len() >= 2 && columns[1].parse::<f64>().is_ok() {
+            // The first line is data, process it
+            let term_id = columns[0].to_string();
+            let ic_value = columns[1].parse::<f64>().map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Error parsing IC value: {}", e),
+                )
+            })?;
+
+            ic_map.insert(term_id, ic_value);
+        }
+    }
+
+    for line_result in lines {
         let line = line_result?;
         let columns: Vec<&str> = line.split('\t').collect();
 
