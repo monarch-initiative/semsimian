@@ -25,7 +25,9 @@ class testSemsimianWithPython(unittest.TestCase):
 
         self.semsimian = Semsimian(spo, predicates)
         self.db = str(Path(__file__).parents[2] / "tests/data/go-nucleus.db")
-        self.custom_ic = str(Path(__file__).parents[2] / "tests/data/go-nucleus_ic_map.tsv")
+        self.custom_ic = str(
+            Path(__file__).parents[2] / "tests/data/go-nucleus_ic_map.tsv"
+        )
         self.marfan_syndrome_profile = {
             "HP:0100775",
             "HP:0003179",
@@ -550,13 +552,13 @@ class testSemsimianWithPython(unittest.TestCase):
         subject_terms = {"GO:0005634", "GO:0016020"}
         object_terms = {"GO:0031965", "GO:0005773"}
         predicates = ["rdfs:subClassOf", "BFO:0000050"]
-        
+
         semsimian = Semsimian(
             spo=None,
             predicates=predicates,
             pairwise_similarity_attributes=None,
             resource_path=self.db,
-            custom_ic_map_path=self.custom_ic
+            custom_ic_map_path=self.custom_ic,
         )
         tsps_aic = semsimian.termset_pairwise_similarity(
             subject_terms, object_terms, self.aic_metric
@@ -564,10 +566,6 @@ class testSemsimianWithPython(unittest.TestCase):
         self.assertEqual(tsps_aic["average_score"], 4.012134920625384)
         self.assertEqual(tsps_aic["best_score"], 4.635588573791124)
         print(tsps_aic)
-
-        
-       
-        
 
 
 if __name__ == "__main__":
