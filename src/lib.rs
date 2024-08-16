@@ -1894,6 +1894,27 @@ mod tests {
     }
 
     #[test]
+    fn test_termset_pairwise_similarity_with_custom_ic() {
+        let db = Some("tests/data/go-nucleus.db");
+        let custom_ic_path = "tests/data/go-nucleus_ic_map.tsv";
+
+        // Call the function with the test parameters
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+        ]);
+        let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
+        let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db,  Some(custom_ic_path));
+        let score_metric = MetricEnum::AncestorInformationContent;
+        rss.update_closure_and_ic_map();
+        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
+        assert_eq!(tsps.average_score, 4.012134920625384);
+        assert_eq!(tsps.best_score, 4.635588573791124);
+        dbg!(&tsps);
+    }
+
+    #[test]
     fn test_termset_comparison() {
         let spo = Some(BFO_SPO.clone());
         let predicates: Option<Vec<Predicate>> = Some(vec![
