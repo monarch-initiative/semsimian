@@ -425,7 +425,14 @@ pub fn get_best_matches(
         if let Some(matches) = all_by_all.get(term_id) {
             let best_match = matches
                 .iter()
-                .max_by(|(_, (_, v1, _, _, _)), (_, (_, v2, _, _, _))| v1.partial_cmp(v2).unwrap())
+                .max_by(
+                    |(_, (j1, r1, p1, c1, _)), (_, (j2, r2, p2, c2, _))| match metric {
+                        MetricEnum::AncestorInformationContent => r1.partial_cmp(r2).unwrap(),
+                        MetricEnum::JaccardSimilarity => j1.partial_cmp(j2).unwrap(),
+                        MetricEnum::PhenodigmScore => p1.partial_cmp(p2).unwrap(),
+                        MetricEnum::CosineSimilarity => c1.partial_cmp(c2).unwrap(),
+                    },
+                )
                 .unwrap();
 
             let mut similarity_map: BTreeMap<String, String> =

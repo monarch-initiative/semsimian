@@ -1905,7 +1905,7 @@ mod tests {
         ]);
         let subject_terms = HashSet::from(["GO:0005634".to_string(), "GO:0016020".to_string()]);
         let object_terms = HashSet::from(["GO:0031965".to_string(), "GO:0005773".to_string()]);
-        let mut rss = RustSemsimian::new(None, predicates, None, db,  Some(custom_ic_path));
+        let mut rss = RustSemsimian::new(None, predicates, None, db, Some(custom_ic_path));
         let score_metric = MetricEnum::AncestorInformationContent;
         rss.update_closure_and_ic_map();
         let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
@@ -2480,6 +2480,69 @@ mod tests_local {
             elapsed_time
         );
         dbg!(&_tsps);
+    }
+
+    #[test]
+    #[ignore]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_termset_pairwise_similarity_3() {
+        let mut db_path = PathBuf::new();
+        if let Some(home) = std::env::var_os("HOME") {
+            db_path.push(home);
+            db_path.push(".data/oaklib/phenio.db");
+        } else {
+            panic!("Failed to get home directory");
+        }
+        // let db = Some("//Users/HHegde/.data/oaklib/phenio.db");
+        let db = Some(db_path.to_str().expect("Failed to convert path to string"));
+        let predicates: Option<Vec<Predicate>> = Some(vec![
+            "rdfs:subClassOf".to_string(),
+            "BFO:0000050".to_string(),
+            "UPHENO:0000001".to_string(),
+        ]);
+
+        let subject_terms = HashSet::from(["HP:0001250".to_string()]);
+        let object_terms = HashSet::from([
+            "HP:0002383".to_string(),
+            "HP:0002197".to_string(),
+            "HP:0007359".to_string(),
+            "HP:0012469".to_string(),
+            "HP:0000873".to_string(),
+            "HP:0002046".to_string(),
+            "HP:0000821".to_string(),
+            "HP:0011468".to_string(),
+            "HP:0002444".to_string(),
+            "HP:0001250".to_string(),
+            "HP:0002069".to_string(),
+            "HP:0001252".to_string(),
+            "HP:0002059".to_string(),
+            "HP:0001290".to_string(),
+        ]);
+        let mut rss = RustSemsimian::new(None, predicates, None, db, None);
+        let score_metric = MetricEnum::JaccardSimilarity;
+        rss.update_closure_and_ic_map();
+        let tsps = rss.termset_pairwise_similarity(&subject_terms, &object_terms, &score_metric);
+        // dbg!(&tsps.subject_best_matches.get("HP:0001250"));
+        assert_eq!(
+            &tsps
+                .subject_best_matches
+                .get("HP:0001250")
+                .unwrap()
+                .get("match_source"),
+            &tsps
+                .subject_best_matches
+                .get("HP:0001250")
+                .unwrap()
+                .get("match_target")
+        );
+        assert_eq!(
+            tsps.subject_best_matches
+                .get("HP:0001250")
+                .unwrap()
+                .get("match_source"),
+            Some(&"HP:0001250".to_string())
+        );
+        // dbg!(&tsps);
     }
 
     #[test]
