@@ -126,7 +126,8 @@ impl RustSemsimian {
                     println!("Custom IC map imported successfully.");
                     imported_ic_map.insert(predicate_set_to_key(&Some(predicates.clone())), ic_map);
                 }
-                Err(e) => eprintln!("Failed to import custom IC map: {}", e),
+                Err(e) => { panic!("Failed to import custom IC map: {}", e);
+                }
             }
         }
 
