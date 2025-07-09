@@ -845,10 +845,10 @@ fn test_associations_search_with_cache() {
         db_path.push(home);
         db_path.push(".data/oaklib/phenio.db");
     } else {
-        panic\!("Failed to get home directory");
+        panic!("Failed to get home directory");
     }
 
-    let predicates: Option<Vec<Predicate>> = Some(vec\![
+    let predicates: Option<Vec<Predicate>> = Some(vec![
         "rdfs:subClassOf".to_string(),
         "BFO:0000050".to_string(),
         "UPHENO:0000001".to_string(),
@@ -861,7 +861,7 @@ fn test_associations_search_with_cache() {
 
     // Define input parameters for the function
     let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
-    let subject_prefixes: Option<Vec<TermID>> = Some(vec\!["MONDO:".to_string()]);
+    let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
 
     // Create a smaller test set for speed
     let object_terms: HashSet<TermID> = HashSet::from([
@@ -917,8 +917,7 @@ fn test_associations_search_with_cache() {
     let result_with_cache_ids: Vec<&String> = result_with_cache.iter().map(|(_, _, id)| id).collect();
     
     // Results should be identical
-    assert_eq\!(result_standard_ids, result_with_cache_ids, "Results differ between standard and with-cache methods");
-    assert_eq\!(result_standard.len(), limit);
-    assert_eq\!(result_with_cache.len(), limit);
+    assert_eq!(result_standard_ids, result_with_cache_ids, "Results differ between standard and with-cache methods");
+    assert_eq!(result_standard.len(), limit);
+    assert_eq!(result_with_cache.len(), limit);
 }
-EOL < /dev/null

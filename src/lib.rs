@@ -1008,7 +1008,7 @@ impl RustSemsimian {
         subject_prefixes: &Option<Vec<TermID>>,
         search_type: &SearchTypeEnum,
     ) -> HashMap<String, HashSet<String>> {
-        let cache_key = subject_prefixes
+        let _cache_key = subject_prefixes
             .as_ref()
             .map(|prefixes| {
                 get_prefix_association_key(prefixes, object_closure_predicates, search_type)
@@ -1026,12 +1026,12 @@ impl RustSemsimian {
     
     // This function is used to search associations with an externally provided cache.
     pub fn associations_search_with_cache(
-        &self,
-        object_closure_predicates: &HashSet<TermID>,
+        &mut self,
+        _object_closure_predicates: &HashSet<TermID>,
         object_set: &HashSet<TermID>,
         include_similarity_object: bool,
-        subject_set: &Option<HashSet<TermID>>,
-        subject_prefixes: &Option<Vec<TermID>>,
+        _subject_set: &Option<HashSet<TermID>>,
+        _subject_prefixes: &Option<Vec<TermID>>,
         search_type: &SearchTypeEnum,
         score_metric: &MetricEnum,
         limit: Option<usize>,
