@@ -999,6 +999,92 @@ impl RustSemsimian {
 
         result
     }
+    
+    // This function generates a cache for associations search that can be reused.
+    pub fn generate_associations_cache(
+        &self,
+        object_closure_predicates: &HashSet<TermID>,
+        subject_set: &Option<HashSet<TermID>>,
+        subject_prefixes: &Option<Vec<TermID>>,
+        search_type: &SearchTypeEnum,
+    ) -> HashMap<String, HashSet<String>> {
+        let _cache_key = subject_prefixes
+            .as_ref()
+            .map(|prefixes| {
+                get_prefix_association_key(prefixes, object_closure_predicates, search_type)
+            })
+            .unwrap_or_default();
+            
+        // Generate the cache value
+        self.generate_prefix_expansion_cache_value(
+            object_closure_predicates,
+            subject_set,
+            subject_prefixes,
+            search_type,
+        )
+    }
+    
+    // This function is used to search associations with an externally provided cache.
+    pub fn associations_search_with_cache(
+        &mut self,
+        _object_closure_predicates: &HashSet<TermID>,
+        object_set: &HashSet<TermID>,
+        include_similarity_object: bool,
+        _subject_set: &Option<HashSet<TermID>>,
+        _subject_prefixes: &Option<Vec<TermID>>,
+        search_type: &SearchTypeEnum,
+        score_metric: &MetricEnum,
+        limit: Option<usize>,
+        direction: &Option<DirectionalityEnum>,
+        prefix_expansion_cache: &HashMap<String, HashSet<String>>,
+    ) -> Vec<(f64, Option<TermsetPairwiseSimilarity>, TermID)> {
+        let mut result;
+
+        // Use the provided cache directly rather than looking it up in self.prefix_expansion_cache
+        match search_type {
+            SearchTypeEnum::Flat => {
+                result = self.flatten_closure_search(
+                    object_set,
+                    prefix_expansion_cache,
+                    include_similarity_object,
+                );
+            }
+            SearchTypeEnum::Full => {
+                result = self.full_search(
+                    object_set,
+                    prefix_expansion_cache,
+                    None,
+                    &limit,
+                    include_similarity_object,
+                    score_metric,
+                    direction,
+                );
+            }
+            SearchTypeEnum::Hybrid => {
+                let flat_result = self.flatten_closure_search(
+                    object_set,
+                    prefix_expansion_cache,
+                    include_similarity_object,
+                );
+                
+                result = self.full_search(
+                    object_set,
+                    prefix_expansion_cache,
+                    Some(&flat_result),
+                    &limit,
+                    include_similarity_object,
+                    score_metric,
+                    direction,
+                );
+            }
+        }
+
+        if let Some(limit) = limit {
+            result.truncate(limit);
+        }
+
+        result
+    }
 
     fn perform_search(
         &mut self,
