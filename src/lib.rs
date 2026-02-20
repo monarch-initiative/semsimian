@@ -9,7 +9,11 @@ use db_query::{
     get_unique_subject_prefixes,
 };
 use enums::{DirectionalityEnum, MetricEnum, SearchTypeEnum};
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyString};
+use pyo3::{
+    exceptions::PyValueError,
+    prelude::*,
+    types::{PyDict, PyList, PyString},
+};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs::File,
@@ -1059,6 +1063,7 @@ pub struct SearchType {
 #[pymethods]
 impl SearchType {
     #[new]
+    #[pyo3(signature = (value=None))]
     fn new(value: Option<&str>) -> PyResult<Self> {
         let value = value.unwrap_or("flat");
         Ok(SearchType {
@@ -1086,6 +1091,7 @@ pub struct Metric {
 #[pymethods]
 impl Metric {
     #[new]
+    #[pyo3(signature = (value=None))]
     fn new(value: Option<&str>) -> PyResult<Self> {
         let value = value.unwrap_or("ancestor_information_content");
         Ok(Metric {
@@ -1112,6 +1118,15 @@ pub struct Semsimian {
 #[pymethods]
 impl Semsimian {
     #[new]
+    #[pyo3(
+        signature = (
+            spo=None,
+            predicates=None,
+            pairwise_similarity_attributes=None,
+            resource_path=None,
+            custom_ic_map_path=None
+        )
+    )]
     fn new(
         spo: Option<Vec<(TermID, Predicate, TermID)>>,
         predicates: Option<Vec<String>>,
@@ -1194,6 +1209,14 @@ impl Semsimian {
         Ok(self.ss.phenodigm_score(&term1, &term2))
     }
 
+    #[pyo3(
+        signature = (
+            subject_terms,
+            object_terms,
+            minimum_jaccard_threshold=None,
+            minimum_resnik_threshold=None
+        )
+    )]
     fn all_by_all_pairwise_similarity(
         &mut self,
         subject_terms: HashSet<TermID>,
@@ -1212,6 +1235,16 @@ impl Semsimian {
         )
     }
 
+    #[pyo3(
+        signature = (
+            subject_terms,
+            object_terms,
+            minimum_jaccard_threshold=None,
+            minimum_resnik_threshold=None,
+            embeddings_file=None,
+            outfile=None
+        )
+    )]
     fn all_by_all_pairwise_similarity_quick(
         &mut self,
         subject_terms: HashSet<TermID>,
@@ -1237,13 +1270,14 @@ impl Semsimian {
         Ok(())
     }
 
+    #[pyo3(signature = (subject_terms, object_terms, score_metric=None))]
     fn termset_pairwise_similarity(
         &mut self,
         subject_terms: HashSet<TermID>,
         object_terms: HashSet<TermID>,
         score_metric: Option<String>,
         py: Python,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         self.ss.update_closure_and_ic_map();
         // Map score_metric string to a enum value, defaulting to AncestorInformationContent if None
         let metric = score_metric
@@ -1255,7 +1289,7 @@ impl Semsimian {
         let tsps = self
             .ss
             .termset_pairwise_similarity(&subject_terms, &object_terms, &metric);
-        Ok(tsps.into_py(py))
+        Ok(tsps.to_py_object(py))
     }
 
     fn termset_pairwise_similarity_weighted_negated(
@@ -1273,30 +1307,21 @@ impl Semsimian {
         Ok(self.ss.spo.to_vec())
     }
 
-    fn get_prefix_association_cache(&self, py: Python) -> PyResult<PyObject> {
+    fn get_prefix_association_cache(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let cache = &self.ss.prefix_expansion_cache;
 
-        // Convert every value of the inner HashMap in cache using .into_py(py)
-        let python_cache = cache
-            .iter()
-            .map(|(k, v)| {
-                let python_v = v
-                    .iter()
-                    .map(|(inner_k, inner_v)| {
-                        let python_inner_v = inner_v
-                            .iter()
-                            .map(|item| item.into_py(py))
-                            .collect::<Vec<_>>();
-                        (inner_k, python_inner_v)
-                    })
-                    .collect::<HashMap<_, _>>();
+        let python_cache = PyDict::new(py);
+        for (k, v) in cache {
+            let python_v = PyDict::new(py);
+            for (inner_k, inner_v) in v {
+                let inner_items: Vec<&str> = inner_v.iter().map(|item| item.as_str()).collect();
+                let python_inner_v = PyList::new(py, inner_items)?;
+                python_v.set_item(inner_k, python_inner_v)?;
+            }
+            python_cache.set_item(k, python_v)?;
+        }
 
-                (k, python_v)
-            })
-            .collect::<HashMap<_, _>>()
-            .into_py(py);
-
-        Ok(python_cache)
+        Ok(python_cache.into_any().unbind())
     }
 
     fn termset_comparison(
@@ -1319,6 +1344,19 @@ impl Semsimian {
         }
     }
 
+    #[pyo3(
+        signature = (
+            object_closure_predicate_terms,
+            object_terms,
+            include_similarity_object,
+            search_type,
+            subject_terms=None,
+            subject_prefixes=None,
+            score_metric=None,
+            limit=None,
+            direction=None
+        )
+    )]
     fn associations_search(
         &mut self,
         object_closure_predicate_terms: HashSet<TermID>,
@@ -1337,7 +1375,7 @@ impl Semsimian {
         limit: Option<usize>,
         direction: Option<String>,
         py: Python,
-    ) -> PyResult<Vec<(f64, PyObject, String)>> {
+    ) -> PyResult<Vec<(f64, Py<PyAny>, String)>> {
         let start_time = Instant::now(); // Start timing
         self.ss.update_closure_and_ic_map();
 
@@ -1376,10 +1414,10 @@ impl Semsimian {
         let start_time = Instant::now(); // Start timing again
 
         // convert results of association search into Python objects
-        let py_search_results: Vec<(f64, PyObject, String)> = search_results
+        let py_search_results: Vec<(f64, Py<PyAny>, String)> = search_results
             .into_iter()
             .map(|(score, similarity, name)| {
-                (score, similarity.unwrap_or_default().into_py(py), name)
+                (score, similarity.unwrap_or_default().to_py_object(py), name)
             })
             .collect();
         let duration = start_time.elapsed(); // Calculate elapsed time
@@ -1400,7 +1438,7 @@ impl fmt::Debug for RustSemsimian {
 }
 
 #[pymodule]
-fn semsimian(_py: Python, m: &PyModule) -> PyResult<()> {
+fn semsimian(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Semsimian>()?;
     Ok(())
 }

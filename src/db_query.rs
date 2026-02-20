@@ -1,7 +1,4 @@
 use crate::{Predicate, TermID};
-use pyo3::conversion::IntoPy;
-use pyo3::types::PyDict;
-use pyo3::{PyObject, Python};
 use rusqlite::{Connection, Result};
 use std::collections::{HashMap, HashSet};
 
@@ -18,37 +15,6 @@ pub struct TermAssociation {
     pub evidence_type: TermID,
     pub publication: TermID,
     pub source: TermID,
-}
-
-impl<'a> IntoPy<PyObject> for &'a TermAssociation {
-    fn into_py(self, py: Python) -> PyObject {
-        // Convert your struct into a PyObject
-        let term_association_dict = PyDict::new(py);
-
-        // Add your struct fields to the dictionary
-        term_association_dict.set_item("id", &self.id).unwrap();
-        term_association_dict
-            .set_item("subject", &self.subject)
-            .unwrap();
-        term_association_dict
-            .set_item("predicate", &self.predicate)
-            .unwrap();
-
-        term_association_dict
-            .set_item("object", &self.object)
-            .unwrap();
-        term_association_dict
-            .set_item("evidence_type", &self.evidence_type)
-            .unwrap();
-        term_association_dict
-            .set_item("publication", &self.publication)
-            .unwrap();
-        term_association_dict
-            .set_item("source", &self.source)
-            .unwrap();
-
-        term_association_dict.into()
-    }
 }
 
 pub fn get_entailed_edges_for_predicate_list(
