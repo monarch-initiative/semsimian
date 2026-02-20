@@ -29,8 +29,9 @@ jobs:
       - name: Build wheels for universal2
         uses: PyO3/maturin-action@v1
         with:
+          target: universal2-apple-darwin
           command: build
-          args: --release --universal2 --out dist -i 3.8 3.9 '3.10' '3.11' '3.12' '3.13' '3.14'
+          args: --release --out dist -i 3.8 3.9 '3.10' '3.11' '3.12' '3.13' '3.14'
       - name: Install built universal2 wheel
         run: |
           pip install semsimian --no-index --find-links dist --force-reinstall
