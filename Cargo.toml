@@ -24,7 +24,7 @@ rusqlite = { version = "0.31.0", features = ["bundled"] }
 deepsize = "0.2.0"
 serde = { version = "1.0.193", features = ["derive"] }
 indicatif = "0.17.7"  # progress bar
-pyo3 = { version = "0.26.0", features = ["extension-module"] }
+pyo3 = { version = "0.26.0", features = ["extension-module", "generate-import-lib"] }
 
 [features]
 ci = []
