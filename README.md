@@ -39,9 +39,9 @@ Wheels are prepared for the following environments and architectures:
 
 | OS      | Architectures                                                                            | Python Versions           |
 |---------|------------------------------------------------------------------------------------------|---------------------------|
-| Linux   | x86_64, x86_64-unknown-linux-musl, aarch64-unknown-linux-gnu, aarch64-unknown-linux-musl | 3.8, 3.9, 3.10, 3.11, 3.12 |
-| MacOS   | x86_64, universal2                                                                       | 3.8, 3.9, 3.10, 3.11, 3.12 |
-| Windows | x86_64                                                                                   | 3.8, 3.9, 3.10, 3.11, 3.12 |
+| Linux   | x86_64, x86_64-unknown-linux-musl, aarch64-unknown-linux-gnu, aarch64-unknown-linux-musl | 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 |
+| MacOS   | x86_64, universal2                                                                       | 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 |
+| Windows | x86_64                                                                                   | 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 |
 
 ## Troubleshooting
 
