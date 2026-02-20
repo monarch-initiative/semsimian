@@ -1,6 +1,6 @@
 [package]
 name = "semsimian"
-version = "0.2.19"
+version = "0.3.0"
 
 edition = "2021"
 description = "Sematic similarity calculations for ontologies implemented in Rust."
@@ -24,7 +24,7 @@ rusqlite = { version = "0.31.0", features = ["bundled"] }
 deepsize = "0.2.0"
 serde = { version = "1.0.193", features = ["derive"] }
 indicatif = "0.17.7"  # progress bar
-pyo3 = { version = "0.20.3", features = ["extension-module"] }
+pyo3 = { version = "0.26.0", features = ["extension-module"] }
 
 [features]
 ci = []
@@ -39,7 +39,7 @@ flamegraph = "0.6.3"
 rstest = "0.21.0"
 
 [build-dependencies]
-pyo3-build-config = { version = "0.20.3", features = ["extension-module"] }
+pyo3-build-config = { version = "0.26.0", features = ["extension-module"] }
 
 [[bench]]
 name = "termset_pairwise_similarity_benchmark"
