@@ -11,11 +11,8 @@ jobs:
     if: '!github.event.prerelease'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
     #   - name: Login to Crates.io
     #     run: cargo login ${{ secrets.CRATES_IO_TOKEN }}
       - uses: katyo/publish-crates@v2
