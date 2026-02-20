@@ -1,7 +1,7 @@
 name: Prepare wheels and push release to Pypi
 
 on:
-  # workflow_dispatch:
+  workflow_dispatch:
   release:
     types: [published]
 #! https://github.com/actions/setup-python/issues/825 (why not macos-latest?)
@@ -9,7 +9,7 @@ jobs:
   build-mac:
     name: Build for Mac
     if: '!github.event.prerelease'
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
