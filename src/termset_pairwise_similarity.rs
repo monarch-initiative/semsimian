@@ -1,4 +1,3 @@
-use pyo3::conversion::IntoPy;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
@@ -42,36 +41,25 @@ impl TermsetPairwiseSimilarity {
             metric,
         }
     }
-}
 
-impl<'a> IntoPy<PyObject> for &'a TermsetPairwiseSimilarity {
-    fn into_py(self, py: Python) -> PyObject {
-        // Convert your struct into a PyObject
+    pub fn to_py_object(&self, py: Python<'_>) -> Py<PyAny> {
         let tsps_dict = PyDict::new(py);
 
-        // Create nested dictionaries for subject_best_matches and object_best_matches
         let subject_best_matches_dict = PyDict::new(py);
         subject_best_matches_dict
-            .set_item(
-                "similarity",
-                self.subject_best_matches_similarity_map.to_object(py),
-            )
+            .set_item("similarity", &self.subject_best_matches_similarity_map)
             .expect("Failed to set item in subject_best_matches_dict");
 
         let object_best_matches_dict = PyDict::new(py);
         object_best_matches_dict
-            .set_item(
-                "similarity",
-                self.object_best_matches_similarity_map.to_object(py),
-            )
+            .set_item("similarity", &self.object_best_matches_similarity_map)
             .expect("Failed to set item in object_best_matches_dict");
 
-        // Add your struct fields to the dictionary
         tsps_dict
-            .set_item("subject_termset", self.subject_termset.to_object(py))
+            .set_item("subject_termset", &self.subject_termset)
             .expect("Failed to set item in tsps_dict");
         tsps_dict
-            .set_item("object_termset", self.object_termset.to_object(py))
+            .set_item("object_termset", &self.object_termset)
             .expect("Failed to set item in tsps_dict");
         tsps_dict
             .set_item("subject_best_matches", subject_best_matches_dict)
@@ -89,6 +77,6 @@ impl<'a> IntoPy<PyObject> for &'a TermsetPairwiseSimilarity {
             .set_item("metric", self.metric.as_str())
             .expect("Failed to set item in tsps_dict");
 
-        tsps_dict.into()
+        tsps_dict.into_any().unbind()
     }
 }
