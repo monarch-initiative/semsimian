@@ -835,3 +835,89 @@ fn test_full_vs_hybrid_search() {
     assert!(result_1_unique.is_empty(), "result_1_unique is not empty");
     assert!(result_2_unique.is_empty(), "result_2_unique is not empty");
 }
+
+#[test]
+#[ignore]
+#[cfg_attr(feature = "ci", ignore)]
+fn test_associations_search_with_cache() {
+    let mut db_path = PathBuf::new();
+    if let Some(home) = std::env::var_os("HOME") {
+        db_path.push(home);
+        db_path.push(".data/oaklib/phenio.db");
+    } else {
+        panic!("Failed to get home directory");
+    }
+
+    let predicates: Option<Vec<Predicate>> = Some(vec![
+        "rdfs:subClassOf".to_string(),
+        "BFO:0000050".to_string(),
+        "UPHENO:0000001".to_string(),
+    ]);
+
+    let mut rss = RustSemsimian::new(None, predicates, None, db_path.to_str(), None);
+    let include_similarity_object = false;
+
+    rss.update_closure_and_ic_map();
+
+    // Define input parameters for the function
+    let assoc_predicate: HashSet<TermID> = HashSet::from(["biolink:has_phenotype".to_string()]);
+    let subject_prefixes: Option<Vec<TermID>> = Some(vec!["MONDO:".to_string()]);
+
+    // Create a smaller test set for speed
+    let object_terms: HashSet<TermID> = HashSet::from([
+        "HP:0100775".to_string(),
+        "HP:0003179".to_string(),
+        "HP:0001083".to_string(),
+        "HP:0000501".to_string(),
+        "HP:0002705".to_string(),
+    ]);
+
+    let search_type_full: SearchTypeEnum = SearchTypeEnum::Full;
+    let limit: usize = 10;
+    let score_metric = MetricEnum::AncestorInformationContent;
+    let direction = Some(DirectionalityEnum::Bidirectional);
+
+    // Generate cache first
+    let cache = rss.generate_associations_cache(
+        &assoc_predicate,
+        &None,
+        &subject_prefixes,
+        &search_type_full,
+    );
+    
+    // Call the standard function
+    let result_standard = rss.associations_search(
+        &assoc_predicate,
+        &object_terms,
+        include_similarity_object,
+        &None,
+        &subject_prefixes,
+        &search_type_full,
+        &score_metric,
+        Some(limit),
+        &direction,
+    );
+    
+    // Call the function with externally provided cache
+    let result_with_cache = rss.associations_search_with_cache(
+        &assoc_predicate,
+        &object_terms,
+        include_similarity_object,
+        &None,
+        &subject_prefixes,
+        &search_type_full,
+        &score_metric,
+        Some(limit),
+        &direction,
+        &cache,
+    );
+    
+    // Convert results to vectors of IDs for easier comparison
+    let result_standard_ids: Vec<&String> = result_standard.iter().map(|(_, _, id)| id).collect();
+    let result_with_cache_ids: Vec<&String> = result_with_cache.iter().map(|(_, _, id)| id).collect();
+    
+    // Results should be identical
+    assert_eq!(result_standard_ids, result_with_cache_ids, "Results differ between standard and with-cache methods");
+    assert_eq!(result_standard.len(), limit);
+    assert_eq!(result_with_cache.len(), limit);
+}
